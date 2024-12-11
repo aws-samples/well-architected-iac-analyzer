@@ -890,6 +890,41 @@ def generate_and_download_report(workload_id_input, lens_alias):
         return None
 
 
+# Helper function to check if the given ID is a 32 hex digits
+def is_valid_workload_id_format(workload_id_input):
+    pattern = re.compile(r"^[a-fA-F0-9]{32}$")
+    if pattern.match(workload_id_input):
+        return True
+    else:
+        st.error("Invalid Workload ID, must be 32 hex digits.")
+        return False
+
+
+# Helper function to check if the workload with the specified ID exists
+def is_exists_workload_id(workload_id_input):
+    try:
+        response = wa_client.get_workload(WorkloadId=workload_id_input)
+        if response:
+            return True
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        error_message = e.response["Error"]["Message"]
+        st.error(f"AWS Error: {error_code} - {error_message}")
+        if error_code == "ValidationException":
+            st.error("Please check if the WorkloadId is correct.")
+        elif error_code == "ResourceNotFoundException":
+            st.error("The specified workload was not found.")
+        elif error_code == "AccessDeniedException":
+            st.error(
+                "You don't have permission to perform this operation. Check your IAM policies."
+            )
+        else:
+            st.error("Please check your AWS credentials and permissions.")
+    except Exception as e:
+        st.error(f"Unexpected error: {str(e)}")
+    return False
+
+
 # Convert results to CSV
 def convert_to_csv(analysis_result):
     df = pd.DataFrame(analysis_result)
@@ -1006,6 +1041,11 @@ def main():
 
         if s3_url and analyze_button:
             if st.session_state.analyze_click == 1:
+                with st.spinner("Validating Workload ID..."):
+                    if not is_valid_workload_id_format(workload_id_input):
+                        return None
+                    if not is_exists_workload_id(workload_id_input):
+                        return None
                 with st.spinner("Checking your workload for AWS best practices..."):
                     analysis_generator = analyze_template_with_bedrock(
                         best_practices_file_path, uploaded_file, pillars_checks
