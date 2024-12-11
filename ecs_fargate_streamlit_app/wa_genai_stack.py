@@ -9,6 +9,7 @@ from aws_cdk import Duration, RemovalPolicy, Stack
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_ecs as ecs
 from aws_cdk import aws_ecs_patterns as ecs_patterns
+from aws_cdk import aws_elasticloadbalancingv2 as elasticloadbalancingv2
 from aws_cdk import aws_events as events
 from aws_cdk import aws_events_targets as targets
 from aws_cdk import aws_iam as iam
@@ -35,6 +36,11 @@ class WAGenAIStack(Stack):
             public_lb = False
         else:
             public_lb = True
+        allowed_ips = config["settings"]["allowed_ips"]
+        if allowed_ips:
+            allowed_ips = allowed_ips.split(",")
+        else:
+            allowed_ips = ["0.0.0.0/0"]
 
         random_id = str(uuid.uuid4())[:8]  # First 8 characters of a UUID
 
@@ -305,6 +311,24 @@ class WAGenAIStack(Stack):
             self, "StreamlitAppCluster", vpc=vpc, container_insights=True
         )
 
+        # Create Security Group for ALB
+        ecs_security_group = ec2.SecurityGroup(
+            self,
+            "StreamlitAppSecurityGroup",
+            vpc=vpc,
+            description="Allow traffic to Fargate service from allowed ips",
+            allow_all_outbound=False,
+        )
+
+        # Create ALB
+        ecs_loadbalancer = elasticloadbalancingv2.ApplicationLoadBalancer(
+            self,
+            "StreamlitAppLoadBalancer",
+            security_group=ecs_security_group,
+            vpc=vpc,
+            internet_facing=public_lb,
+        )
+
         # Create Fargate Service with private ALB
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
@@ -328,8 +352,31 @@ class WAGenAIStack(Stack):
             task_subnets=ec2.SubnetSelection(
                 subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
             ),
-            public_load_balancer=public_lb,
+            load_balancer=ecs_loadbalancer,
         )
+
+        # Escape hatch for allowed ip addresses
+        if allowed_ips != ["0.0.0.0/0"]:
+            for i, allowed_ip in enumerate(allowed_ips):
+                ecs_security_group.node.default_child.add_override(
+                    f"Properties.SecurityGroupIngress.{i}.CidrIp", allowed_ip
+                )
+                ecs_security_group.node.default_child.add_override(
+                    f"Properties.SecurityGroupIngress.{i}.Description",
+                    "Allow HTTP traffic from specified ip",
+                )
+                ecs_security_group.node.default_child.add_override(
+                    f"Properties.SecurityGroupIngress.{i}.FromPort",
+                    "80",
+                )
+                ecs_security_group.node.default_child.add_override(
+                    f"Properties.SecurityGroupIngress.{i}.IpProtocol",
+                    "tcp",
+                )
+                ecs_security_group.node.default_child.add_override(
+                    f"Properties.SecurityGroupIngress.{i}.ToPort",
+                    "80",
+                )
 
         # Configure health check for ALB
         fargate_service.target_group.configure_health_check(path="/healthz")

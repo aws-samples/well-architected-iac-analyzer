@@ -40,6 +40,16 @@ model_id = anthropic.claude-3-5-sonnet-20240620-v1:0
 >```
 > However, please be aware that this project is prepared as a **demo** with **no authentication mechanism**. Therefore, should you choose to change the parameter to `True` or modify the load balancer to be **internet-facing**, you are accepting the risk of any implications that this application, along with its functionalities, will be accessible directly through the internet without any form of authentication.
 
+## IP Address Restrictions
+
+While internet-facing ALBs still require careful consideration, one mitigating measure is to limit inbound communications for security groups to only those from authorized IPs. Use at your own risk, as misconfiguration can result in serious security holes.
+Set a comma-separated CIDR without quotes in config.ini.
+
+```
+[settings]
+allowed_ips = 192.0.2.0/24,198.51.100.0/24,203.0.113.0/24
+```
+
 ## Instructions to deploy
 
 **1. Clone this repository**
@@ -99,4 +109,3 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 ## License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
-
