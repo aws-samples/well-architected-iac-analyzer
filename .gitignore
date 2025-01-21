@@ -171,3 +171,5 @@ node_modules/
 
 .finch/
 npm-cache/
+
+config.ini

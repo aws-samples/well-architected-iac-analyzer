@@ -11,18 +11,18 @@ auth_type = none
 ; "auth_type" possible values: none, new-cognito, existing-cognito, oidc
 
 # ACM HTTPS/SSL Certificate Settings (Required if authentication=True)
-certificate_arn = 
+certificate_arn =
 ; Example:
-; certificate_arn = arn:aws:acm:<aws-region>:111111111111:certificate/<certificate-id>
+; certificate_arn =
 
 # New Cognito Settings (Required if auth_type=new-cognito)
-cognito_domain_prefix = 
-callback_urls = 
-logout_url = 
+cognito_domain_prefix =
+callback_urls =
+logout_url =
 ; Example (In below example, "wa-analyzer.example.com" is the DNS alias that you would create pointing to the ALB deployed by this CDK stack):
-; cognito_domain_prefix = wa-analyzer
-; callback_urls = https://wa-analyzer.example.com/oauth2/idpresponse
-; logout_url = https://wa-analyzer.example.com
+; cognito_domain_prefix =
+; callback_urls =
+; logout_url = 
 
 # Existing Cognito Settings (Required if auth_type=existing-cognito)
 existing_user_pool_arn = 

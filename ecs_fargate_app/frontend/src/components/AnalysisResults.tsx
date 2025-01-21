@@ -32,7 +32,7 @@ interface AnalysisResultsProps {
   onGenerateIacDocument: () => void;
   isDownloading: boolean;
   isImplementing: boolean;
-  uploadedFileContent: string;
+  uploadedFileName: string;
   isLoadingDetails: boolean;
   setIsLoadingDetails: (loading: boolean) => void;
   uploadedFileType: string;
@@ -51,7 +51,7 @@ interface PreferencesType {
   visibleContent: readonly string[];
 }
 
-export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAnalyzing, onDownloadRecommendations, onGenerateIacDocument, isDownloading, isImplementing, uploadedFileContent, isLoadingDetails, setIsLoadingDetails, uploadedFileType, selectedIaCType, setError }) => {
+export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAnalyzing, onDownloadRecommendations, onGenerateIacDocument, isDownloading, isImplementing, uploadedFileName, isLoadingDetails, setIsLoadingDetails, uploadedFileType, selectedIaCType, setError }) => {
   const [preferences, setPreferences] = useState<PreferencesType>({
     pageSize: 10,
     visibleContent: ['pillar', 'question', 'name', 'status', 'reason', 'recommendations'],
@@ -68,7 +68,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
 
       const result = await analyzerApi.getMoreDetails(
         selectedItems,
-        uploadedFileContent,
+        uploadedFileName,
         uploadedFileType,
         selectedIaCType
       );

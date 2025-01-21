@@ -237,6 +237,15 @@ class WAGenAIStack(Stack):
             enforce_ssl=True,
         )
 
+        # Create S3 bucket where source docs are stored to be analysed
+        wafrSourceDocsBucket = s3.Bucket(
+            self,
+            "wafr-source-docs",
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
+            enforce_ssl=True,
+        )
+
         # Uploading WAFR docs to the corresponding S3 bucket [wafrReferenceDocsBucket]
         wafrReferenceDeploy = s3deploy.BucketDeployment(
             self,
@@ -246,6 +255,7 @@ class WAGenAIStack(Stack):
         )
 
         WA_DOCS_BUCKET_NAME = wafrReferenceDocsBucket.bucket_name
+        WA_SOURCE_DOCS_BUCKET_NAME = wafrSourceDocsBucket.bucket_name
 
         # Adds the created S3 bucket [docBucket] as a Data Source for Bedrock KB
         kbDataSource = bedrock.S3DataSource(
@@ -423,8 +433,15 @@ class WAGenAIStack(Stack):
             )
         )
 
+
+        backend_role = iam.Role(
+            self,
+            "BackendRole",
+            assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+        )
+
         # Add policy statements to the IAM role
-        app_execute_role.add_to_policy(
+        backend_role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
                     "wellarchitected:GetLensReview",
@@ -437,7 +454,7 @@ class WAGenAIStack(Stack):
                 resources=["*"],
             )
         )
-        app_execute_role.add_to_policy(
+        backend_role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
                     "wellarchitected:CreateWorkload",
@@ -454,7 +471,7 @@ class WAGenAIStack(Stack):
                 },
             )
         )
-        app_execute_role.add_to_policy(
+        backend_role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
                     "wellarchitected:DeleteWorkload",
@@ -470,10 +487,10 @@ class WAGenAIStack(Stack):
                 },
             )
         )
-        app_execute_role.add_to_policy(
+        backend_role.add_to_policy(
             iam.PolicyStatement(actions=["bedrock:InvokeModel"], resources=["*"])
         )
-        app_execute_role.add_to_policy(
+        backend_role.add_to_policy(
             iam.PolicyStatement(
                 actions=["s3:GetObject", "s3:ListBucket"],
                 resources=[
@@ -482,7 +499,23 @@ class WAGenAIStack(Stack):
                 ],
             )
         )
-        app_execute_role.add_managed_policy(
+        backend_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                    "s3:PutObject",
+                    "s3:PutObjectAcl",
+                    "s3:DeleteObject",
+                    "s3:GetBucketLocation"
+                ],
+                resources=[
+                    f"arn:aws:s3:::{WA_SOURCE_DOCS_BUCKET_NAME}",
+                    f"arn:aws:s3:::{WA_SOURCE_DOCS_BUCKET_NAME}/*",
+                ],
+            )
+        )
+        backend_role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name("AmazonBedrockFullAccess")
         )
 
@@ -685,7 +718,9 @@ class WAGenAIStack(Stack):
                 operating_system_family=ecs.OperatingSystemFamily.LINUX,
                 cpu_architecture=architecture["fargate_architecture"],
             ),
-            task_role=app_execute_role,
+            task_role=backend_role,
+            execution_role=app_execute_role
+
         )
 
         backend_container = backend_task_definition.add_container(
@@ -693,6 +728,7 @@ class WAGenAIStack(Stack):
             image=ecs.ContainerImage.from_docker_image_asset(backend_image),
             environment={
                 "WA_DOCS_S3_BUCKET": WA_DOCS_BUCKET_NAME,
+                "WA_SOURCE_DOCS_S3_BUCKET": WA_SOURCE_DOCS_BUCKET_NAME,
                 "KNOWLEDGE_BASE_ID": KB_ID,
                 "MODEL_ID": model_id,
                 "AWS_REGION": Stack.of(self).region,
@@ -742,6 +778,14 @@ class WAGenAIStack(Stack):
             "WellArchitectedDocsS3Bucket",
             value=wafrReferenceDocsBucket.bucket_name,
             description="S3 bucket (Source of Bedrock knowledge base) with well-architected documents.",
+        )
+
+        # Output S3 bucket source documents.
+        cdk.CfnOutput(
+            self,
+            "WellArchitectedDocsS3BucketSource",
+            value=f"{wafrSourceDocsBucket.bucket_name}",
+            description="S3 bucket source documents.",
         )
 
         # Output the VPC ID

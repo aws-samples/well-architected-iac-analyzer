@@ -9,6 +9,7 @@ import {
 } from '@cloudscape-design/components';
 import { UploadedFile } from '../types';
 import { HelpButton } from './utils/HelpButton';
+import  { analyzerApi } from '../services/api';
 
 interface FileUploadProps {
   onFileUploaded: (file: UploadedFile) => void;
@@ -33,23 +34,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
     try {
       const file = files[0];
-      let fileContent: string;
-
-      // Handle image files differently
-      if (file.type.startsWith('image/')) {
-        fileContent = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      } else {
-        fileContent = await file.text();
-      }
+      
+      // Upload the file to get a fileId
+      const responseObject = await analyzerApi.uploadFile(file);
 
       const uploadedFile: UploadedFile = {
-        name: file.name,
-        content: fileContent,
+        name: responseObject.fileName,
         type: file.type,
         size: file.size,
       };

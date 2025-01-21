@@ -38,7 +38,6 @@ export interface RiskSummary {
 
 export interface UploadedFile {
   name: string;
-  content: string;
   type: string;
   size: number;
 }
