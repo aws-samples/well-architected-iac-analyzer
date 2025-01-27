@@ -31,7 +31,7 @@ export class AnalyzerController {
     @Post('upload')
     @UseInterceptors(FileInterceptor('file', {
         limits: {
-            fileSize: 50 * 1024 * 1024, // 50MB limit
+            fileSize: 10 * 1024 * 1024, // 10MB limit
         },
         storage: diskStorage({
             destination: './temp-uploads',
@@ -47,8 +47,9 @@ export class AnalyzerController {
             throw new BadRequestException('No file uploaded');
         }
 
-        const fileContent = await fs.promises.readFile(file.path, 'utf8');
-        const fileName = await this.storageService.uploadFile(fileContent, file.filename);
+        const fileContentBuffer = await fs.promises.readFile(file.path);
+
+        const fileName = await this.storageService.uploadFile(fileContentBuffer, file.filename);
 
         return {
             fileName: fileName,
@@ -58,11 +59,7 @@ export class AnalyzerController {
     @Post('analyze')
     async analyze(@Body() analyzeRequest: AnalyzeRequestDto) {
         try {
-            // Get file content from S3
-            const fileContent = await this.storageService.getFileContent(analyzeRequest.fileName);
-
             return await this.analyzerService.analyze(
-                fileContent,
                 analyzeRequest.fileName,
                 analyzeRequest.workloadId,
                 analyzeRequest.selectedPillars,

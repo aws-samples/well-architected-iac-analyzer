@@ -19,9 +19,10 @@ import {StorageService} from "./shared/services/storage.service";
     AnalyzerModule,
     WellArchitectedModule,
     ReportModule,
-    AuthModule,ScheduleModule.forRoot(),
+    AuthModule,
+    ScheduleModule.forRoot(),
   ],
-  providers: [CleanupTask],
+  providers: [CleanupTask, StorageService],
 })
 export class AppModule {
 }

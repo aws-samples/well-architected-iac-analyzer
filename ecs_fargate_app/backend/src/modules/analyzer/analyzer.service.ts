@@ -10,6 +10,8 @@ import {AnalyzerGateway} from './analyzer.gateway';
 import {IaCTemplateType} from '../../shared/dto/analysis.dto';
 import {Subject} from 'rxjs';
 import {AnalysisResult} from '../../shared/interfaces/analysis.interface';
+// import fs
+import * as fs from 'fs';
 
 interface QuestionGroup {
     pillar: string;
@@ -81,11 +83,14 @@ export class AnalyzerService {
         this.cancelAnalysis$.next();
     }
 
-    async analyze(fileContent: string, fileName: string, workloadId: string, selectedPillars: string[], fileType: string): Promise<{
+    async analyze(fileName: string, workloadId: string, selectedPillars: string[], fileType: string): Promise<{
         results: AnalysisResult[];
         isCancelled: boolean;
         error?: string;
     }> {
+        // Download file content from S3
+        let fileContent = await this.storageService.getFileContent(fileName, fileType);
+
         const results: AnalysisResult[] = [];
         try {
             // Load all best practices once
@@ -221,7 +226,9 @@ export class AnalyzerService {
         recommendations: any[],
         templateType?: IaCTemplateType
     ): Promise<{ content: string; isCancelled: boolean; error?: string }> {
-        const fileContent = await this.storageService.getFileContent(fileName);
+        // Download file from S3
+        let fileContent = await this.storageService.getFileContent(fileName, fileType);
+
         try {
             // Only proceed if it's an image file
             if (!this.isImageFile(fileType)) {
@@ -231,10 +238,6 @@ export class AnalyzerService {
             let isComplete = false;
             let allSections: DocumentSection[] = [];
             let iteration = 0;
-
-            // Extract base64 data and media type
-            const base64Data = fileContent.split(',')[1];
-            const mediaType = fileContent.split(';')[0].split(':')[1];
 
             while (!isComplete) {
                 try {
@@ -246,8 +249,8 @@ export class AnalyzerService {
                     iteration++;
 
                     const response = await this.invokeBedrockModelForIacGeneration(
-                        base64Data,
-                        mediaType,
+                        fileContent,
+                        fileType,
                         recommendations,
                         allSections.length,
                         allSections.length > 0 ? `${JSON.stringify(allSections, null, 2)}` : 'No previous sections generated yet',
@@ -421,6 +424,7 @@ export class AnalyzerService {
                                 fileContent,
                                 item,
                                 itemDetails,
+                                fileType,
                                 templateType
                             )
                             : await this.invokeBedrockModelForMoreDetails(
@@ -484,14 +488,11 @@ export class AnalyzerService {
         imageContent: string,
         item: any,
         previousContent: string,
-        templateType?: IaCTemplateType
+        fileType: string,
+        templateType?: IaCTemplateType,
     ): Promise<any> {
         const bedrockClient = this.awsConfig.createBedrockClient();
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
-
-        // Extract base64 data and media type from data URL
-        const base64Data = imageContent.split(',')[1];
-        const mediaType = imageContent.split(';')[0].split(':')[1];
 
         const systemPrompt = `You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the AWS Well-Architected Framework. Your answer should be formatted in Markdown.
 
@@ -530,8 +531,8 @@ export class AnalyzerService {
                             type: "image",
                             source: {
                                 type: "base64",
-                                media_type: mediaType,
-                                data: base64Data,
+                                media_type: fileType,
+                                data: imageContent,
                             },
                         },
                         {
@@ -613,6 +614,9 @@ export class AnalyzerService {
         fileType: string
     ) {
         const isImage = this.isImageFile(fileType);
+
+        this.logger.log(`Analyzing question, isImage: ${isImage}, fileType: ${fileType}`);
+
         const prompt = isImage
             ? this.buildImagePrompt(question, kbContexts)
             : this.buildPrompt(question, kbContexts);
@@ -622,7 +626,7 @@ export class AnalyzerService {
             : this.buildSystemPrompt(fileContent, question);
 
         const response = isImage
-            ? await this.invokeBedrockModelWithImage(prompt, systemPrompt, fileContent)
+            ? await this.invokeBedrockModelWithImage(prompt, systemPrompt, fileContent, fileType)
             : await this.invokeBedrockModel(prompt, systemPrompt);
 
         return {
@@ -819,14 +823,11 @@ export class AnalyzerService {
     private async invokeBedrockModelWithImage(
         prompt: string,
         systemPrompt: string,
-        imageContent: string
+        imageContent: string,
+        mediaType: string
     ): Promise<ModelResponse> {
         const bedrockClient = this.awsConfig.createBedrockClient();
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
-
-        // Extract base64 data from data URL
-        const base64Data = imageContent.split(',')[1];
-        const mediaType = imageContent.split(';')[0].split(':')[1];
 
         const payload = {
             max_tokens: 4096,
@@ -841,7 +842,7 @@ export class AnalyzerService {
                             source: {
                                 type: "base64",
                                 media_type: mediaType,
-                                data: base64Data,
+                                data: imageContent,
                             },
                         },
                         {
