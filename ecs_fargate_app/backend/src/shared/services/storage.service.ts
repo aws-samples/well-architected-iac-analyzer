@@ -39,7 +39,7 @@ export class StorageService {
         if (fileType.startsWith("image/")) {
             encoding = "base64";
         }
-        
+
         this.logger.log(`Searching for ${key} in Bucket ${this.bucketName}`)
 
         const response = await this.s3Client.getObject({

@@ -163,6 +163,8 @@ export class AnalyzerService {
                             currentQuestion: question.title,
                         });
 
+                        this.logger.log(`Analyzing question: ${question}`);
+
                         try {
                             const analysis = await this.analyzeQuestion(
                                 fileContent,
