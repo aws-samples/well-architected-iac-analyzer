@@ -10,8 +10,6 @@ import {AnalyzerGateway} from './analyzer.gateway';
 import {IaCTemplateType} from '../../shared/dto/analysis.dto';
 import {Subject} from 'rxjs';
 import {AnalysisResult} from '../../shared/interfaces/analysis.interface';
-// import fs
-import * as fs from 'fs';
 
 interface QuestionGroup {
     pillar: string;
