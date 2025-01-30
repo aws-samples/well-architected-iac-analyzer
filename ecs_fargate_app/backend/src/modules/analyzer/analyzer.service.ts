@@ -385,10 +385,12 @@ export class AnalyzerService {
 
     async getMoreDetails(
         selectedItems: any[],
-        fileContent: string,
+        fileName: string,
         fileType: string,
         templateType?: IaCTemplateType
     ): Promise<{ content: string; error?: string }> {
+        // Download file content from S3
+        let fileContent = await this.storageService.getFileContent(fileName, fileType);
         const filteredItems = selectedItems.filter(item => !item.applied);
         try {
             if (!selectedItems || selectedItems.length === 0) {

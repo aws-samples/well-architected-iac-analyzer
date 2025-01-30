@@ -102,14 +102,14 @@ export class AnalyzerController {
     @Post('get-more-details')
     async getMoreDetails(@Body() body: {
         selectedItems: any[];
-        fileContent: string;
+        fileName: string;
         fileType: string;
         templateType?: IaCTemplateType;
     }) {
         try {
             const result = await this.analyzerService.getMoreDetails(
                 body.selectedItems,
-                body.fileContent,
+                body.fileName,
                 body.fileType,
                 body.templateType
             );

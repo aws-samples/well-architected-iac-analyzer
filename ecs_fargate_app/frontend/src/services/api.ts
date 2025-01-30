@@ -163,14 +163,14 @@ export const analyzerApi = {
 
     async getMoreDetails(
         selectedItems: AnalysisResult[],
-        fileContent: string,
+        fileName: string,
         fileType: string,
         templateType: IaCTemplateType
     ): Promise<{ content: string; error?: string }> {
         try {
             const response = await api.post('/analyzer/get-more-details', {
                 selectedItems,
-                fileContent,
+                fileName,
                 fileType,
                 templateType
             });
