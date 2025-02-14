@@ -18,6 +18,17 @@ export class StorageService {
     async uploadFile(fileContent: Buffer, fileName: string): Promise<string> {
         const key = `uploads/${fileName}`;
 
+        // Validate JSON content before upload if it's a JSON file
+        if (fileName.toLowerCase().endsWith('.json')) {
+            try {
+                const content = fileContent.toString('utf8');
+                JSON.parse(content); // Validate JSON structure
+            } catch (error) {
+                this.logger.error('Invalid JSON content:', error);
+                throw new Error('Invalid JSON content');
+            }
+        }
+
         await this.s3Client.putObject({
             Bucket: this.bucketName,
             Key: key,

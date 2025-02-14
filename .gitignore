@@ -173,3 +173,5 @@ node_modules/
 npm-cache/
 
 config.ini
+
+repomix-output.xml

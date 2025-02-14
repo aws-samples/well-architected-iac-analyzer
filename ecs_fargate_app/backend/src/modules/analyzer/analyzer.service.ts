@@ -171,8 +171,6 @@ export class AnalyzerService {
                                 fileType
                             );
                             results.push(analysis);
-                            // Wait for 60 seconds
-                            await new Promise(resolve => setTimeout(resolve, 60000));
                         } catch (error) {
                             this.logger.error(`Error analyzing question "${question.pillar} - ${question.title}". Error: ${error}`);
                             // Return partial results with error

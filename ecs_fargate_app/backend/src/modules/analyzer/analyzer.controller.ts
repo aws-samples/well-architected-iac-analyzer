@@ -47,8 +47,17 @@ export class AnalyzerController {
             throw new BadRequestException('No file uploaded');
         }
 
-        const fileContentBuffer = await fs.promises.readFile(file.path);
+        // Validate JSON content if file is JSON
+        if (file.mimetype === 'application/json') {
+            try {
+                const content = await fs.promises.readFile(file.path, 'utf8');
+                JSON.parse(content); // Validate JSON structure
+            } catch (error) {
+                throw new BadRequestException('Invalid JSON file format');
+            }
+        }
 
+        const fileContentBuffer = await fs.promises.readFile(file.path);
         const fileName = await this.storageService.uploadFile(fileContentBuffer, file.filename);
 
         return {

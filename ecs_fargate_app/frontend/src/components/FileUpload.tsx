@@ -35,6 +35,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     try {
       const file = files[0];
       
+      // Validate JSON files before upload
+      if (file.type === 'application/json') {
+        try {
+          const content = await file.text();
+          JSON.parse(content); // Validate JSON structure
+        } catch (error) {
+          setError('Invalid JSON format');
+          setUploadStatus('error');
+          return;
+        }
+      }
+      
       // Upload the file to get a fileId
       const responseObject = await analyzerApi.uploadFile(file);
 

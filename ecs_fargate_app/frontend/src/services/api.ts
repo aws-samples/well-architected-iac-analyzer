@@ -3,9 +3,6 @@ import {AnalysisResult, RiskSummary, IaCTemplateType} from '../types';
 
 const api = axios.create({
     baseURL: '/api',
-    headers: {
-        'Content-Type': 'application/json',
-    },
     timeout: 0, // Allow for long-running operations
 });
 
@@ -29,11 +26,7 @@ export const analyzerApi = {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await api.post('/analyzer/upload', formData, {
-                headers: {
-                    'Content-Type': file.type,
-                },
-            });
+            const response = await api.post('/analyzer/upload', formData);
 
             return response.data;
         } catch (error) {
