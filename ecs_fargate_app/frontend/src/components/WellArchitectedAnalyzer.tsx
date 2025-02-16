@@ -132,7 +132,6 @@ export const WellArchitectedAnalyzer: React.FC = () => {
       setGenerationError(null);
 
       const result = await analyzerApi.generateIacDocument(
-        uploadedFile.content,
         uploadedFile.name,
         uploadedFile.type,
         analysisResults,
@@ -176,7 +175,8 @@ export const WellArchitectedAnalyzer: React.FC = () => {
 
   const acceptedFileTypes = [
     '.yaml', '.yml', '.json', '.tf',  // IaC files
-    '.png', '.jpg', '.jpeg'           // Image files
+    '.png', '.jpg', '.jpeg',          // Image files
+    '.xml', '.txt'                    // Repomix
   ];
 
   return (
@@ -365,7 +365,7 @@ export const WellArchitectedAnalyzer: React.FC = () => {
                   onGenerateIacDocument={handleGenerateIacDocument}
                   isDownloading={isDownloading}
                   isImplementing={isImplementing}
-                  uploadedFileContent={uploadedFile?.content || ''}
+                  uploadedFileName={uploadedFile?.name || ''}
                   isLoadingDetails={isLoadingDetails}
                   setIsLoadingDetails={setIsLoadingDetails}
                   uploadedFileType={uploadedFile?.type || ''}

@@ -171,3 +171,7 @@ node_modules/
 
 .finch/
 npm-cache/
+
+config.ini
+
+repomix-output.xml

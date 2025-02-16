@@ -11,10 +11,6 @@ export class AnalyzeRequestDto {
 
   @IsString()
   @IsNotEmpty()
-  fileContent: string;
-
-  @IsString()
-  @IsNotEmpty()
   fileName: string;
 
   @IsString()
