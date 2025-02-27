@@ -2,6 +2,7 @@
 
 import configparser
 import hashlib
+import os
 import platform
 import uuid
 
@@ -169,6 +170,168 @@ class WAGenAIStack(Stack):
                 next=elbv2.ListenerAction.forward([self.frontend_target_group]),
             )
 
+    def create_stack_cleanup_resources(self):
+        """
+        Create resources for automatic stack cleanup via EventBridge and Lambda
+        """
+        # Get deployment stack name from environment
+        deployment_stack_name = os.environ.get("DEPLOYMENT_STACK_NAME", "")
+
+        # Validate that deployment_stack_name is provided
+        if not deployment_stack_name:
+            raise ValueError(
+                "DEPLOYMENT_STACK_NAME environment variable must be provided"
+            )
+
+        # Create Lambda execution role
+        lambda_role = iam.Role(
+            self,
+            "StackCleanupLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+        )
+
+        # Add CloudWatch Logs permissions
+        lambda_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name(
+                "service-role/AWSLambdaBasicExecutionRole"
+            )
+        )
+
+        # Add CloudFormation permissions to delete the specific stack
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["cloudformation:DeleteStack"],
+                resources=[
+                    f"arn:aws:cloudformation:{self.region}:{self.account}:stack/{deployment_stack_name}/*",
+                ],
+            )
+        )
+
+        # Read-only operations needed during stack deletion
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:GetTemplate",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeInternetGateways",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeVpcs",
+                    "iam:GetInstanceProfile",
+                    "iam:GetRole",
+                    "iam:ListAttachedRolePolicies",
+                    "iam:ListRolePolicies",
+                    "ssm:DescribeAssociation",
+                    "ssm:DescribePatchBaselines",
+                    "ssm:GetDocument",
+                    "ssm:ListInstanceAssociations",
+                    "sts:AssumeRole",
+                    "sts:GetCallerIdentity",
+                    "tagging:GetResources",
+                ],
+                resources=["*"],
+            )
+        )
+
+        # EC2, SSM, Logs write operations - With resource tag condition for specific stack
+        tag_conditions = {
+            "StringEquals": {
+                "aws:ResourceTag/aws:cloudformation:stack-name": [deployment_stack_name]
+            }
+        }
+
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "ec2:DeleteInternetGateway",
+                    "ec2:DeleteRoute",
+                    "ec2:DeleteRouteTable",
+                    "ec2:DeleteSecurityGroup",
+                    "ec2:DeleteSubnet",
+                    "ec2:DeleteVpc",
+                    "ec2:DetachInternetGateway",
+                    "ec2:DisassociateRouteTable",
+                    "ec2:TerminateInstances",
+                    "ssm:GetDeployablePatchSnapshotForInstance",
+                    "ssm:PutComplianceItems",
+                    "ssm:PutInventory",
+                    "ssm:RegisterManagedInstance",
+                    "ssm:UpdateInstanceAssociationStatus",
+                    "ssm:UpdateInstanceInformation",
+                    "logs:CreateLogStream",
+                ],
+                resources=["*"],
+                conditions=tag_conditions,
+            )
+        )
+
+        # IAM permissions for the specific stack resources
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "iam:DeleteRole",
+                    "iam:DeleteRolePolicy",
+                    "iam:DetachRolePolicy",
+                ],
+                resources=[
+                    f"arn:aws:iam::{self.account}:role/{deployment_stack_name}*"
+                ],
+            )
+        )
+
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "iam:DeleteInstanceProfile",
+                    "iam:RemoveRoleFromInstanceProfile",
+                ],
+                resources=[
+                    f"arn:aws:iam::{self.account}:instance-profile/{deployment_stack_name}*"
+                ],
+            )
+        )
+
+        # Create Lambda function
+        cleanup_lambda = lambda_.Function(
+            self,
+            "StackCleanupLambda",
+            runtime=lambda_.Runtime.PYTHON_3_12,
+            handler="stack_cleanup.handler",
+            code=lambda_.Code.from_asset(
+                "ecs_fargate_app/lambda_stack_cleanup",
+                bundling=cdk.BundlingOptions(
+                    image=lambda_.Runtime.PYTHON_3_12.bundling_image,
+                    command=[
+                        "bash",
+                        "-c",
+                        "pip install --no-cache -r requirements.txt -t /asset-output && cp -au . /asset-output",
+                    ],
+                ),
+            ),
+            timeout=Duration.minutes(10),
+            role=lambda_role,
+            environment={
+                # Pass the deployment stack name to the Lambda
+                "DEPLOYMENT_STACK_NAME": deployment_stack_name
+            },
+        )
+
+        # Create EventBridge rule that only matches the specific stack name
+        rule = events.Rule(
+            self,
+            "StackCleanupRule",
+            event_pattern=events.EventPattern(
+                source=["iac.analyzer.deployment"],
+                detail_type=["Stack Cleanup Request"],
+                detail={"stack-name": [deployment_stack_name]},
+            ),
+        )
+
+        # Add Lambda as target for the rule
+        rule.add_target(targets.LambdaFunction(cleanup_lambda))
+
     def __init__(self, scope: Construct, construct_id: str, **kwarg) -> None:
         super().__init__(scope, construct_id, **kwarg)
 
@@ -177,6 +340,10 @@ class WAGenAIStack(Stack):
         config.read("config.ini")
         model_id = config["settings"]["model_id"]
         public_lb = config["settings"].getboolean("public_load_balancer", False)
+
+        # Check if auto-cleanup is enabled (from environment variable set by deploy script)
+        auto_cleanup = os.environ.get("AUTO_CLEANUP", "false").lower() == "true"
+        deployment_stack_name = os.environ.get("DEPLOYMENT_STACK_NAME", "")
 
         # Parse authentication config
         auth_config = self.parse_auth_config(config)
@@ -808,6 +975,10 @@ class WAGenAIStack(Stack):
 
         # Add service discovery
         backend_service.enable_cloud_map(cloud_map_namespace=namespace, name="backend")
+
+        # Conditionally create stack cleanup resources if auto_cleanup is enabled
+        if auto_cleanup:
+            self.create_stack_cleanup_resources()
 
         # Output the frontend ALB DNS name
         cdk.CfnOutput(

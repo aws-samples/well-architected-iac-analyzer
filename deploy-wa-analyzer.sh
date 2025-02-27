@@ -23,24 +23,28 @@ export AWS_ECR_IGNORE_CREDS_STORAGE=true
 
 # Print script usage
 print_usage() {
-    echo "Usage: ./deploy-wa-analyzer.sh -r region -c container_tool"
+    echo "Usage: ./deploy-wa-analyzer.sh -r region -c container_tool [-a stack_name]"
     echo ""
     echo "Required Options:"
     echo "  -r    AWS Region"
     echo "  -c    Container tool (finch or docker)"
     echo ""
     echo "Additional Options:"
+    echo "  -a    Enable auto-cleanup and specify deployment stack name to clean up"
     echo "  -h    Show this help message"
     echo ""
     echo "Example:"
     echo "  ./deploy-wa-analyzer.sh -r us-east-1 -c docker"
+    echo "  ./deploy-wa-analyzer.sh -r us-east-1 -c docker -a iac-analyzer-deployment-stack-no-auth"
 }
 
 # Parse command line arguments
-while getopts "r:c:h" flag; do
+while getopts "r:c:a:h" flag; do
     case "${flag}" in
         r) REGION=${OPTARG};;
         c) CONTAINER_TOOL=${OPTARG};;
+        a) AUTO_CLEANUP=true
+           DEPLOYMENT_STACK_NAME=${OPTARG};;
         h) print_usage
            exit 0;;
         *) print_usage
@@ -69,8 +73,25 @@ if [[ "$CONTAINER_TOOL" != "finch" && "$CONTAINER_TOOL" != "docker" ]]; then
     exit 1
 fi
 
+# Validate stack name if auto-cleanup is enabled
+if [ "$AUTO_CLEANUP" = true ] && [ -z "$DEPLOYMENT_STACK_NAME" ]; then
+    echo "❌ Error: When using -a flag, you must provide a deployment stack name"
+    print_usage
+    exit 1
+fi
+
 # Set AWS region for deployment
 export CDK_DEPLOY_REGION=$REGION
+
+# Set AUTO_CLEANUP and DEPLOYMENT_STACK_NAME environment variables for CDK
+if [ "$AUTO_CLEANUP" = true ]; then
+    echo "✅ Auto-cleanup of deployment stack enabled for stack: $DEPLOYMENT_STACK_NAME"
+    export AUTO_CLEANUP=true
+    export DEPLOYMENT_STACK_NAME="$DEPLOYMENT_STACK_NAME"
+else
+    export AUTO_CLEANUP=false
+    export DEPLOYMENT_STACK_NAME=""
+fi
 
 # Function to check Docker daemon
 check_docker_daemon() {
