@@ -23,6 +23,12 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
   - View conversation history with markdown support
   - Download or delete chat histories for each analysis
 ---
+- **NEW** ** Multi-lens support:
+  - Analyze infrastructure against specialized Well-Architected lenses
+  - Support for domain-specific lenses including Serverless, IoT, SaaS, Machine Learning, and more
+  - Get tailored recommendations specific to your workload type
+  - Switch between different lenses for comprehensive analysis
+---
 
 - Upload and analyze Infrastructure as Code templates:
   - CloudFormation (YAML/JSON)
@@ -617,6 +623,7 @@ AWS_SESSION_TOKEN=your-session-token
 
 # Well-Architected Framework Resources
 WA_DOCS_S3_BUCKET=your-knowledgebase-source-bucket-name
+LENS_METADATA_TABLE=your-lens-metadata-table-name
 KNOWLEDGE_BASE_ID=your-kb-id
 MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
 

@@ -21,6 +21,7 @@ export interface ChatContextType {
     openChatWithPrompt: (prompt: string) => void;
     openChatWithSupportPrompt: (prompt: string, id?: string) => void;
     isLoadingMessages: boolean;
+    lensName?: string;
 }
 
 export type Message = {

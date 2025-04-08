@@ -4,19 +4,41 @@ import { IaCTemplateType } from '../shared/dto/analysis.dto';
 /**
  * Generates a system prompt for analyzing architecture diagrams
  * @param question The question group containing best practices to evaluate
+ * @param lensName Optional lens name
+ * @param pillarNames Comma-separated pillar names  
+ * @param lensPillars Optional record of pillar IDs to names
  * @returns A system prompt for architecture diagram analysis
  */
-export function buildImageSystemPrompt(question: QuestionGroup): string {
+export function buildImageSystemPrompt(
+  question: QuestionGroup, 
+  lensName?: string,
+  pillarNames?: string,
+  lensPillars?: Record<string, string>
+): string {
   const numberOfBestPractices = question.bestPractices.length;
+  
+  // Format pillar names as comma-separated string if lensPillars is provided
+  const formattedPillarNames = pillarNames || 
+    'Operational Excellence Pillar, Security Pillar, Reliability Pillar, Performance Efficiency Pillar, Cost Optimization Pillar, and Sustainability Pillar';
+
+  // Count pillars if available
+  const pillarCount = lensPillars ? Object.keys(lensPillars).length : 6;
+  
+  // Determine lens context
+  const lensContext = lensName && lensName !== 'Well-Architected Framework'
+    ? `AWS Well-Architected ${lensName}`
+    : 'AWS Well-Architected Framework';
 
   return `
-  You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the AWS Well-Architected Framework, using a process called the Well-Architected Framework Review (WAFR).
-  The WAFR process consists of evaluating the provided solution architecture document against the 6 pillars of the Well-Architected Framework, namely - Operational Excellence Pillar, Security Pillar, Reliability Pillar, Performance Efficiency Pillar, Cost Optimization Pillar, and Sustainability Pillar - by asking fixed questions for each pillar.
+  You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).
+  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
   An architecture diagram has been provided. Follow the instructions listed under "<instructions>" section below.
 
   <instructions>
-1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the Well-Architected Framework. For each Best Practice, first, determine if it is relevant to the given architecture diagram image (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given architecture diagram image.
-2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create your respond in the following EXACT JSON format only:
+1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given architecture diagram image (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given architecture diagram image.
+2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
+\`\`\`
+<json_response>
 {
   "bestPractices": [
     {
@@ -29,8 +51,12 @@ export function buildImageSystemPrompt(question: QuestionGroup): string {
     }
   ]
 }
+</json_response>
+\`\`\`
 
 For your reference, below is an example of how the JSON-formatted response should look like:
+\`\`\`
+<json_response>
 {
     "bestPractices": [
         {
@@ -58,10 +84,12 @@ For your reference, below is an example of how the JSON-formatted response shoul
         }
     ]
 }
+</json_response>
+\`\`\`
 
 3) Do not rephrase or summarize the practice name, and DO NOT skip any of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section.
 4) Do not make any assumptions or make up information. Your responses should only be based on the actual architecture diagram provided.
-5) You are also provided with a Knowledge Base which has more information about the specific question from the Well-Architected Framework. The relevant parts from the Knowledge Base will be provided under the "<kb>" section.
+5) You are also provided with a Knowledge Base which has more information about the specific question from the ${lensContext}. The relevant parts from the Knowledge Base will be provided under the "<kb>" section.
 
 <note_on_relevance>
 When determining if a best practice is "relevant", consider whether it can be meaningfully assessed from the technical artifact provided:
@@ -89,19 +117,42 @@ For best practices marked as "relevant: false", do not include the "applied" fie
  * Generates a system prompt for analyzing IaC templates (CloudFormation, Terraform, CDK)
  * @param fileContent The content of the template file
  * @param question The question group containing best practices to evaluate
+ * @param lensName Optional lens name
+ * @param pillarNames Comma-separated pillar names  
+ * @param lensPillars Optional record of pillar IDs to names
  * @returns A system prompt for IaC template analysis
  */
-export function buildSystemPrompt(fileContent: string, question: QuestionGroup): string {
+export function buildSystemPrompt(
+  fileContent: string, 
+  question: QuestionGroup,
+  lensName?: string,
+  pillarNames?: string,
+  lensPillars?: Record<string, string>
+): string {
   const numberOfBestPractices = question.bestPractices.length;
 
+  // Format pillar names as comma-separated string if lensPillars is provided
+  const formattedPillarNames = pillarNames || 
+    'Operational Excellence Pillar, Security Pillar, Reliability Pillar, Performance Efficiency Pillar, Cost Optimization Pillar, and Sustainability Pillar';
+
+  // Count pillars if available
+  const pillarCount = lensPillars ? Object.keys(lensPillars).length : 6;
+  
+  // Determine lens context
+  const lensContext = lensName && lensName !== 'Well-Architected Framework'
+    ? `AWS Well-Architected ${lensName}`
+    : 'AWS Well-Architected Framework';
+
   return `
-  You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the AWS Well-Architected Framework, using a process called the Well-Architected Framework Review (WAFR).
-  The WAFR process consists of evaluating the provided solution architecture document against the 6 pillars of the Well-Architected Framework, namely - Operational Excellence Pillar, Security Pillar, Reliability Pillar, Performance Efficiency Pillar, Cost Optimization Pillar, and Sustainability Pillar - by asking fixed questions for each pillar.
+  You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).
+  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
   The content of a CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) template document is provided below in the "uploaded_template_document" section. Follow the instructions listed under "<instructions>" section below.
   
   <instructions>
-  1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the Well-Architected Framework. For each Best Practice, first, determine if it is relevant to the given CloudFormation, Terraform or AWS CDK template document (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given CloudFormation, Terraform or AWS CDK template document.
-  2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create your respond in the following EXACT JSON format only:
+  1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given CloudFormation, Terraform or AWS CDK template document (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given CloudFormation, Terraform or AWS CDK template document.
+  2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
+  \`\`\`
+  <json_response>
   {
       "bestPractices": [
         {
@@ -114,36 +165,42 @@ export function buildSystemPrompt(fileContent: string, question: QuestionGroup):
         }
       ]
   }
+  </json_response>
+  \`\`\`
 
   For your reference, below is an example of how the JSON-formatted response should look like:
-    {
-        "bestPractices": [
-            {
-            "name": "Implement secure key and certificate management",
-            "applied": true,
-            "reasonApplied": "The template provisions an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit."
-            },
-            {
-            "name": "Enforce encryption in transit",
-            "applied": true,
-            "reasonApplied": "The Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
-            },
-            {
-            "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
-            "applied": false,
-            "reasonNotApplied": "The template does not provide details about the overall network topology or interconnections between multiple VPCs.",
-            "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs."
-            },
-            {
-            "name": "Evaluate external customer needs",
-            "relevant": false
-            }
-        ]
-    }
+  \`\`\`
+  <json_response>
+  {
+      "bestPractices": [
+          {
+          "name": "Implement secure key and certificate management",
+          "applied": true,
+          "reasonApplied": "The template provisions an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit."
+          },
+          {
+          "name": "Enforce encryption in transit",
+          "applied": true,
+          "reasonApplied": "The Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
+          },
+          {
+          "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
+          "applied": false,
+          "reasonNotApplied": "The template does not provide details about the overall network topology or interconnections between multiple VPCs.",
+          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs."
+          },
+          {
+          "name": "Evaluate external customer needs",
+          "relevant": false
+          }
+      ]
+  }
+  </json_response>
+  \`\`\`
 
   3) Do not rephrase or summarize the practice name, and DO NOT skip any of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section.
   4) Do not make any assumptions or make up information. Your responses should only be based on the actual solution document provided in the "uploaded_template_document" section below.
-  5) You are also provided with a Knowledge Base which has more information about the specific question from the Well-Architected Framework. The relevant parts from the Knowledge Base will be provided under the "<kb>" section.
+  5) You are also provided with a Knowledge Base which has more information about the specific question from the ${lensContext}. The relevant parts from the Knowledge Base will be provided under the "<kb>" section.
 
   <note_on_relevance>
 When determining if a best practice is "relevant", consider whether it can be meaningfully assessed from the technical artifact provided:
@@ -175,19 +232,42 @@ For best practices marked as "relevant: false", do not include the "applied" fie
  * Generates a system prompt for analyzing projects with multiple files (ZIP or multiple files)
  * @param projectContent The packed content of the project
  * @param question The question group containing best practices to evaluate
+ * @param lensName Optional lens name
+ * @param pillarNames Comma-separated pillar names  
+ * @param lensPillars Optional record of pillar IDs to names
  * @returns A system prompt for project analysis
  */
-export function buildProjectSystemPrompt(projectContent: string, question: QuestionGroup): string {
+export function buildProjectSystemPrompt(
+  projectContent: string, 
+  question: QuestionGroup,
+  lensName?: string,
+  pillarNames?: string,
+  lensPillars?: Record<string, string>
+): string {
   const numberOfBestPractices = question.bestPractices.length;
 
+  // Format pillar names as comma-separated string if lensPillars is provided
+  const formattedPillarNames = pillarNames || 
+    'Operational Excellence Pillar, Security Pillar, Reliability Pillar, Performance Efficiency Pillar, Cost Optimization Pillar, and Sustainability Pillar';
+
+  // Count pillars if available
+  const pillarCount = lensPillars ? Object.keys(lensPillars).length : 6;
+  
+  // Determine lens context
+  const lensContext = lensName && lensName !== 'Well-Architected Framework'
+    ? `AWS Well-Architected ${lensName}`
+    : 'AWS Well-Architected Framework';
+
   return `
-  You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the AWS Well-Architected Framework, using a process called the Well-Architected Framework Review (WAFR).
-  The WAFR process consists of evaluating the provided solution architecture document against the 6 pillars of the Well-Architected Framework, namely - Operational Excellence Pillar, Security Pillar, Reliability Pillar, Performance Efficiency Pillar, Cost Optimization Pillar, and Sustainability Pillar - by asking fixed questions for each pillar.
+  You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).
+  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
   A complete project containing multiple Infrastructure as Code (IaC) files is provided below in the "uploaded_project" section. The project could contain multiple CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) files that together define the complete infrastructure or application. Follow the instructions listed under "<instructions>" section below.
   
   <instructions>
-  1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the Well-Architected Framework. For each Best Practice, first, determine if it is relevant to the given project (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given project.
-  2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create your respond in the following EXACT JSON format only:
+  1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given project (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given project.
+  2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
+  \`\`\`
+  <json_response>
   {
       "bestPractices": [
         {
@@ -200,32 +280,38 @@ export function buildProjectSystemPrompt(projectContent: string, question: Quest
         }
       ]
   }
+  </json_response>
+  \`\`\`
 
   For your reference, below is an example of how the JSON-formatted response should look like:
-    {
-        "bestPractices": [
-            {
-            "name": "Implement secure key and certificate management",
-            "applied": true,
-            "reasonApplied": "The project implements secure key management in 'network/load_balancer.tf' where an AWS Certificate Manager (ACM) certificate is provisioned for the Application Load Balancer to enforce HTTPS encryption in transit."
-            },
-            {
-            "name": "Enforce encryption in transit",
-            "applied": true,
-            "reasonApplied": "In 'network/load_balancer.tf', the Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
-            },
-            {
-            "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
-            "applied": false,
-            "reasonNotApplied": "The project does not implement any specific network topology in the VPC configuration files ('network/vpc.tf' and 'network/subnets.tf').",
-            "recommendations": "In 'network/vpc.tf', you should implement a hub-and-spoke model using transit gateways instead of the direct VPC peering seen in the file. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity, potential misconfiguration leading to reachability issues, and difficulty applying consistent network policies across VPCs."
-            }
-        ]
-    }
+  \`\`\`
+  <json_response>
+  {
+      "bestPractices": [
+          {
+          "name": "Implement secure key and certificate management",
+          "applied": true,
+          "reasonApplied": "The project implements secure key management in 'network/load_balancer.tf' where an AWS Certificate Manager (ACM) certificate is provisioned for the Application Load Balancer to enforce HTTPS encryption in transit."
+          },
+          {
+          "name": "Enforce encryption in transit",
+          "applied": true,
+          "reasonApplied": "In 'network/load_balancer.tf', the Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
+          },
+          {
+          "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
+          "applied": false,
+          "reasonNotApplied": "The project does not implement any specific network topology in the VPC configuration files ('network/vpc.tf' and 'network/subnets.tf').",
+          "recommendations": "In 'network/vpc.tf', you should implement a hub-and-spoke model using transit gateways instead of the direct VPC peering seen in the file. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity, potential misconfiguration leading to reachability issues, and difficulty applying consistent network policies across VPCs."
+          }
+      ]
+  }
+  </json_response>
+  \`\`\`
 
   3) Do not rephrase or summarize the practice name, and DO NOT skip any of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section.
   4) Do not make any assumptions or make up information. Your responses should only be based on the actual project provided in the "uploaded_project" section below.
-  5) You are also provided with a Knowledge Base which has more information about the specific question from the Well-Architected Framework. The relevant parts from the Knowledge Base will be provided under the "<kb>" section.
+  5) You are also provided with a Knowledge Base which has more information about the specific question from the ${lensContext}. The relevant parts from the Knowledge Base will be provided under the "<kb>" section.
   6) When referencing files in your response, use the exact file paths as shown in the "Directory Structure" section of the uploaded project.
 
   <note_on_relevance>
@@ -255,9 +341,10 @@ For best practices marked as "relevant: false", do not include the "applied" fie
 
 /**
  * Generates a system prompt for getting detailed analysis of best practices
+ * @param lensName Optional lens name
  * @returns A system prompt for detailed analysis
  */
-export function buildDetailsSystemPrompt(modelId?: string): string {
+export function buildDetailsSystemPrompt(modelId?: string, lensName?: string): string {
   const useSonnet37 = modelId && (
     modelId.includes('anthropic.claude-3-7-sonnet') ||
     modelId.includes('us.anthropic.claude-3-7-sonnet')
@@ -266,8 +353,13 @@ export function buildDetailsSystemPrompt(modelId?: string): string {
   const outputLengthGuidance = useSonnet37 ?
     `5. If you have completed your detailed analysis, add the marker "<end_of_details_generation>" at the very end\n6. If you have more details to provide, end your response with "<details_truncated>"\n7. Your response should be detailed and comprehensive, between 1000-3000 words in length` :
     `5. If you have completed your detailed analysis, add the marker "<end_of_details_generation>" at the very end\n6. If you have more details to provide, end your response with "<details_truncated>"`;
+  
+  // Determine lens context
+  const lensContext = lensName && lensName !== 'Well-Architected Framework'
+  ? `AWS Well-Architected ${lensName}`
+  : 'AWS Well-Architected Framework';
 
-  return `You are an AWS Cloud Solutions Architect who specializes in reviewing solution architectures and Infrastructure As Code (IaC) documents against the AWS Well-Architected Framework. Your answer should be formatted in Markdown.
+  return `You are an AWS Cloud Solutions Architect who specializes in reviewing solution architectures and Infrastructure As Code (IaC) documents against the ${lensContext}. Your answer should be formatted in Markdown.
 
 In the <iac_document_or_project> section, you are provided with the content of IaC document(s) or complete IaC project. First, make sure you review in detail the content of the IaC document(s) or project provided in the <iac_document_or_project> section.
 
@@ -293,9 +385,10 @@ Structure your response as:
 /**
  * Generates a system prompt for IaC template generation from architecture diagrams
  * @param templateType The type of IaC template to generate
+ * @param lensName Optional lens name
  * @returns A system prompt for IaC template generation
  */
-export function buildIacGenerationSystemPrompt(templateType: IaCTemplateType, modelId?: string): string {
+export function buildIacGenerationSystemPrompt(templateType: IaCTemplateType, modelId?: string, lensName?: string): string {
   const useSonnet37 = modelId && (
     modelId.includes('anthropic.claude-3-7-sonnet') ||
     modelId.includes('us.anthropic.claude-3-7-sonnet')
@@ -305,9 +398,14 @@ export function buildIacGenerationSystemPrompt(templateType: IaCTemplateType, mo
   const isCdkTemplate = templateType.includes('AWS CDK');
   const language = isCdkTemplate ? templateType.split('-')[1].trim().split(' ')[0] : null;
 
+  // Determine lens context
+  const lensContext = lensName && lensName !== 'Well-Architected Framework'
+    ? `AWS Well-Architected ${lensName}`
+    : 'AWS Well-Architected Framework';
+
   // Base instructions
   const baseInstructions = `You are an AWS Cloud Solutions Architect who specializes in creating Infrastructure as Code (IaC) templates. 
-      An architecture diagram has been provided along with AWS Well-Architected Framework recommendations for your reference.
+      An architecture diagram has been provided along with ${lensContext} recommendations for your reference.
 
       ${isCdkTemplate
       ? `Generate AWS CDK code in ${language} that implements this architecture following AWS best practices.`
@@ -341,9 +439,10 @@ export function buildIacGenerationSystemPrompt(templateType: IaCTemplateType, mo
 /**
  * Generates a system prompt for detailed analysis of architecture diagrams
  * @param templateType The type of IaC template to reference in examples
+ * @param lensName Optional lens name
  * @returns A system prompt for architecture diagram detailed analysis
  */
-export function buildImageDetailsSystemPrompt(templateType: IaCTemplateType, modelId?: string): string {
+export function buildImageDetailsSystemPrompt(templateType: IaCTemplateType, modelId?: string, lensName?: string): string {
   const useSonnet37 = modelId && (
     modelId.includes('anthropic.claude-3-7-sonnet') ||
     modelId.includes('us.anthropic.claude-3-7-sonnet')
@@ -362,7 +461,12 @@ export function buildImageDetailsSystemPrompt(templateType: IaCTemplateType, mod
     `5. If you have completed your detailed analysis, add the marker "<end_of_details_generation>" at the very end\n6. If you have more details to provide, end your response with "<details_truncated>"\n7. Your response should be detailed and comprehensive, between 1000-3000 words in length` :
     `5. If you have completed your detailed analysis, add the marker "<end_of_details_generation>" at the very end\n6. If you have more details to provide, end your response with "<details_truncated>"`;
 
-  return `You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the AWS Well-Architected Framework. Your answer should be formatted in Markdown.
+  // Determine lens context
+  const lensContext = lensName && lensName !== 'Well-Architected Framework'
+    ? `AWS Well-Architected ${lensName}`
+    : 'AWS Well-Architected Framework';
+
+  return `You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the ${lensContext}. Your answer should be formatted in Markdown.
 
       You are provided attached with architecture diagram image. First, make sure you review in detail architecture diagram.
 

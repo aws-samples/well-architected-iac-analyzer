@@ -25,7 +25,7 @@ export class AnalyzerController {
   private getUserEmail(userDataHeader: string): string | null {
     // Check if authentication is enabled
     const isAuthEnabled = this.configService.get<boolean>('auth.enabled', false);
-    
+
     if (!isAuthEnabled) {
       // Return default "iac-analyzer" email when auth is disabled
       return 'iac-analyzer';
@@ -64,6 +64,38 @@ export class AnalyzerController {
     try {
       const email = this.getUserEmail(userDataHeader);
       const userId = email ? this.storageService.createUserIdHash(email) : null;
+      const lensAlias = analyzeRequest.lensAliasArn?.split('/')?.pop();
+
+      // If workloadId is provided, mark it as protected in the workloadIds map
+      let workloadIds: Record<string, { id: string; protected: boolean }> | undefined;
+      if (analyzeRequest.workloadId && lensAlias && !analyzeRequest.isTempWorkload) {
+        workloadIds = {
+          [lensAlias]: {
+            id: analyzeRequest.workloadId,
+            protected: true // Provided by user, so it's protected
+          }
+        };
+      }
+
+      // If we have a workitem, update it with the workloadIds map
+      if (userId) {
+        try {
+          const workItem = await this.storageService.getWorkItem(userId, analyzeRequest.fileId);
+          if (workItem && workloadIds) {
+            // Merge with existing workloadIds if present
+            if (workItem.workloadIds) {
+              workloadIds = { ...workItem.workloadIds, ...workloadIds };
+            }
+            
+            await this.storageService.updateWorkItem(userId, analyzeRequest.fileId, {
+              workloadIds,
+              lastModified: new Date().toISOString(),
+            });
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to update work item with workloadId: ${error.message}`);
+        }
+      }
 
       return await this.analyzerService.analyze(
         analyzeRequest.fileId,
@@ -73,6 +105,10 @@ export class AnalyzerController {
         userId,
         analyzeRequest.supportingDocumentId,
         analyzeRequest.supportingDocumentDescription,
+        lensAlias,
+        analyzeRequest.lensAliasArn,
+        analyzeRequest.lensName,
+        analyzeRequest.lensPillars
       );
     } catch (error) {
       this.logger.error('Analysis failed:', error);
@@ -89,18 +125,23 @@ export class AnalyzerController {
       fileId: string;
       recommendations: any[];
       templateType: IaCTemplateType;
+      lensAliasArn?: string;
+      lensName?: string;
     },
     @Headers('x-amzn-oidc-data') userDataHeader: string,
   ) {
     try {
       const email = this.getUserEmail(userDataHeader);
       const userId = email ? this.storageService.createUserIdHash(email) : null;
+      const lensAlias = body.lensAliasArn?.split('/')?.pop() || body.lensAliasArn;
 
       const result = await this.analyzerService.generateIacDocument(
         body.fileId,
         body.recommendations,
         body.templateType,
         userId,
+        lensAlias,
+        body.lensName
       );
       return result;
     } catch (error) {
@@ -119,17 +160,22 @@ export class AnalyzerController {
     selectedItems: any[];
     fileId: string;
     templateType?: IaCTemplateType;
+    lensAliasArn?: string;
+    lensName?: string;
   },
-  @Headers('x-amzn-oidc-data') userDataHeader: string,) {
+    @Headers('x-amzn-oidc-data') userDataHeader: string,) {
     try {
       const email = this.getUserEmail(userDataHeader);
       const userId = email ? this.storageService.createUserIdHash(email) : null;
+      const lensAlias = body.lensAliasArn?.split('/')?.pop() || body.lensAliasArn;
 
       const result = await this.analyzerService.getMoreDetails(
         body.selectedItems,
         userId,
         body.fileId,
-        body.templateType
+        body.templateType,
+        lensAlias,
+        body.lensName
       );
       return result;
     } catch (error) {
@@ -163,12 +209,13 @@ export class AnalyzerController {
 
   @Post('chat')
   async chat(
-    @Body() body: { fileId: string; message: string },
+    @Body() body: { fileId: string; message: string, lensName?: string, lensAliasArn?: string },
     @Headers('x-amzn-oidc-data') userDataHeader: string,
   ) {
     try {
       const email = this.getUserEmail(userDataHeader);
       const userId = email ? this.storageService.createUserIdHash(email) : null;
+      const lensAlias = body.lensAliasArn?.split('/')?.pop() || 'wellarchitected';
 
       if (!userId) {
         throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
@@ -177,9 +224,11 @@ export class AnalyzerController {
       const result = await this.analyzerService.chat(
         body.fileId,
         body.message,
-        userId
+        userId,
+        body.lensName,
+        lensAlias
       );
-      
+
       return { content: result };
     } catch (error) {
       this.logger.error('Chat processing failed:', error);

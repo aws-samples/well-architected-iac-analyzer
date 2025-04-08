@@ -12,6 +12,7 @@ export const storageApi = {
   // Supporting documents upload
   async uploadSupportingDocument(formData: FormData): Promise<{ fileId: string }> {
     try {
+      // lensAlias is expected to be part of the formData now
       const response = await api.post('/work-items/upload-supporting', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -27,10 +28,10 @@ export const storageApi = {
   },
 
   // Supporting document download
-  async downloadSupportingDocument(fileId: string, mainFileId: string, fileName: string): Promise<void> {
+  async downloadSupportingDocument(fileId: string, mainFileId: string, fileName: string, lensAlias?: string): Promise<void> {
     try {
-      // Updated endpoint to include main file ID
-      const response = await api.get(`/work-items/${mainFileId}/supporting-document/${fileId}`, {
+      // Updated endpoint to include main file ID and lens alias
+      const response = await api.get(`/work-items/${mainFileId}/supporting-document/${fileId}/${lensAlias}`, {
         responseType: 'arraybuffer'
       });
 
@@ -86,9 +87,14 @@ export const storageApi = {
     }
   },
 
-  async getWorkItem(fileId: string): Promise<WorkItemResponse> {
+  async getWorkItem(fileId: string, lensAliasArn?: string): Promise<WorkItemResponse> {
     try {
-      const response = await api.get(`/work-items/${fileId}`);
+      // Updated to optionally include lensAlias
+      const url = lensAliasArn 
+        ? `/work-items/${fileId}?lensAliasArn=${lensAliasArn}`
+        : `/work-items/${fileId}`;
+        
+      const response = await api.get(url);
       return response.data;
     } catch (error) {
       throw new Error(
@@ -218,6 +224,30 @@ export const storageApi = {
       console.error('Delete error:', error);
       throw new Error(
         error instanceof Error ? error.message : 'Failed to delete chat history'
+      );
+    }
+  },
+
+  // Get analysis results 
+  async getAnalysisResults(fileId: string, lensAlias: string): Promise<any> {
+    try {
+      const response = await api.get(`/work-items/${fileId}/analysis/${lensAlias}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error instanceof Error ? error.message : 'Failed to get analysis results'
+      );
+    }
+  },
+
+  // Get IaC document
+  async getIaCDocument(fileId: string, extension: string, lensAlias: string): Promise<string> {
+    try {
+      const response = await api.get(`/work-items/${fileId}/iac-document/${extension}/${lensAlias}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error instanceof Error ? error.message : 'Failed to get IaC document'
       );
     }
   }

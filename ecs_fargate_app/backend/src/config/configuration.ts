@@ -20,5 +20,8 @@ export default () => ({
       knowledgeBaseId: process.env.KNOWLEDGE_BASE_ID,
       modelId: process.env.MODEL_ID,
     },
+    ddb: {
+      lensMetadataTable: process.env.LENS_METADATA_TABLE,
+    }    
   },
 });

@@ -18,7 +18,7 @@ import {
     @Post('generate')
     async generateReport(@Body() generateReportDto: GenerateReportDto) {
       try {
-        return await this.reportService.generateReport(generateReportDto.workloadId);
+        return await this.reportService.generateReport(generateReportDto.workloadId, generateReportDto.lensAliasArn);
       } catch (error) {
         this.logger.error('Failed to generate report:', error);
         throw new HttpException(

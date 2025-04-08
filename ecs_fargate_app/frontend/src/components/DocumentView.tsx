@@ -16,12 +16,14 @@ interface DocumentViewProps {
     content: string;
     fileName: string;
     selectedIaCType: IaCTemplateType;
+    lensAlias?: string;
 }
 
 export const DocumentView: React.FC<DocumentViewProps> = ({
     content,
     fileName,
     selectedIaCType,
+    lensAlias = 'unknown_lens',
 }) => {
     const getTemplateType = (): string => {
         const match = selectedIaCType.match(/\(([^\)]+)\)/);
@@ -31,7 +33,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({
     const handleDownload = () => {
         const safeFileName = fileName.replace(/\./g, '_');
         
-        const newFileName = `IaCAnalyzer_Generated_IaC_Doc_${safeFileName}${getTemplateType()}`;
+        const newFileName = `IaCAnalyzer_${lensAlias}_Generated_IaC_Doc_${safeFileName}${getTemplateType()}`;
         
         const blob = new Blob([content], { type: 'text/plain' });
         const url = window.URL.createObjectURL(blob);

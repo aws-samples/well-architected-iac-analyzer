@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AwsConfigService } from '../../config/aws.config';
 import {
     ConverseCommand,
-    ContentBlock,
     Message,
     SystemContentBlock
 } from '@aws-sdk/client-bedrock-runtime';
@@ -17,6 +16,7 @@ import { AnalysisResult } from '../../shared/interfaces/analysis.interface';
 import { StorageService } from '../storage/storage.service';
 import * as Prompts from '../../prompts';
 import { FileUploadMode } from '../../shared/dto/analysis.dto';
+import { LensInfo } from '../../shared/interfaces/storage.interface';
 
 
 interface QuestionGroup {
@@ -33,6 +33,7 @@ interface WellArchitectedBestPractice {
     questionId: string;
     'Best Practice': string;
     bestPracticeId: string;
+    pillarId: string;
 }
 
 interface BestPractice {
@@ -127,7 +128,7 @@ export class AnalyzerService {
      * @param userId The user ID for looking up relevant data
      * @returns A response message from the AI assistant
      */
-    async chat(fileId: string, message: string, userId: string): Promise<string> {
+    async chat(fileId: string, message: string, userId: string, lensName?: string, lensAlias?: string): Promise<string> {
         try {
             if (!fileId || !userId) {
                 throw new Error('File ID and User ID are required for chat');
@@ -141,12 +142,14 @@ export class AnalyzerService {
             }
 
             // Only allow chat if analysis is completed or partial
-            if (workItem.analysisStatus !== 'COMPLETED' && workItem.analysisStatus !== 'PARTIAL') {
+            if (!workItem.analysisStatus?.[lensAlias] || 
+                (workItem.analysisStatus[lensAlias] !== 'COMPLETED' && 
+                 workItem.analysisStatus[lensAlias] !== 'PARTIAL')) {
                 throw new Error('Analysis must be completed before chatting');
             }
 
             // Get analysis results
-            const analysisResults = await this.storageService.getAnalysisResults(userId, fileId);
+            const analysisResults = await this.storageService.getAnalysisResults(userId, fileId, lensAlias);
 
             if (!analysisResults || !Array.isArray(analysisResults) || analysisResults.length === 0) {
                 throw new Error('No analysis results found for this file');
@@ -209,7 +212,8 @@ export class AnalyzerService {
             const systemPrompt = Prompts.buildChatSystemPrompt(
                 uploadMode,
                 analysisContext,
-                fileType
+                fileType,
+                lensName
             );
 
             // Create array of messages for conversation
@@ -445,6 +449,10 @@ export class AnalyzerService {
         userId?: string,
         supportingDocumentId?: string,
         supportingDocumentDescription?: string,
+        lensAlias?: string,
+        lensAliasArn?: string,
+        lensName?: string,
+        lensPillars?: Record<string, string>,
     ): Promise<{ results: AnalysisResult[]; isCancelled: boolean; error?: string; fileId?: string }> {
         const results: AnalysisResult[] = [];
         let workItem;
@@ -460,6 +468,10 @@ export class AnalyzerService {
             // Get existing work item
             workItem = await this.storageService.getWorkItem(userId, fileId);
 
+            // Use the provided lens or default to wellarchitected
+            const currentLensAlias = lensAlias || 'wellarchitected';
+            const currentLensName = lensName || 'Well-Architected Framework';
+
             // Get supporting document content if provided
             let supportingDocContent = null;
             let supportingDocType = null;
@@ -467,10 +479,12 @@ export class AnalyzerService {
 
             if (supportingDocumentId) {
                 try {
+                    // Note: Passing lens alias to getSupportingDocument
                     const supportingDoc = await this.storageService.getSupportingDocument(
                         userId,
                         fileId,
-                        supportingDocumentId
+                        supportingDocumentId,
+                        currentLensAlias
                     );
 
                     // Convert to base64 for images and PDFs, leave as text for text files
@@ -483,34 +497,62 @@ export class AnalyzerService {
                     supportingDocType = supportingDoc.contentType;
                     supportingDocName = supportingDoc.fileName;
 
-                    // Link the supporting document to the work item if not already linked
-                    if (!workItem.supportingDocumentId) {
-                        await this.storageService.linkSupportingDocumentToWorkItem(
-                            userId,
-                            fileId,
-                            supportingDocumentId,
-                            supportingDocName,
-                            supportingDocType,
-                            supportingDocumentDescription || ''
-                        );
-                    }
+                    // Link the supporting document to the work item for this lens
+                    // Create/update supporting document record maps
+                    const supportingDocIdMap = { ...(workItem.supportingDocumentId || {}) };
+                    const supportingDocAddedMap = { ...(workItem.supportingDocumentAdded || {}) };
+                    const supportingDocNameMap = { ...(workItem.supportingDocumentName || {}) };
+                    const supportingDocTypeMap = { ...(workItem.supportingDocumentType || {}) };
+                    const supportingDocDescMap = { ...(workItem.supportingDocumentDescription || {}) };
+
+                    // Set values for this lens
+                    supportingDocIdMap[currentLensAlias] = supportingDocumentId;
+                    supportingDocAddedMap[currentLensAlias] = true;
+                    supportingDocNameMap[currentLensAlias] = supportingDocName;
+                    supportingDocTypeMap[currentLensAlias] = supportingDocType;
+                    supportingDocDescMap[currentLensAlias] = supportingDocumentDescription || '';
+
+                    await this.storageService.updateWorkItem(userId, fileId, {
+                        supportingDocumentId: supportingDocIdMap,
+                        supportingDocumentAdded: supportingDocAddedMap,
+                        supportingDocumentName: supportingDocNameMap,
+                        supportingDocumentType: supportingDocTypeMap,
+                        supportingDocumentDescription: supportingDocDescMap,
+                        lastModified: new Date().toISOString(),
+                    });
                 } catch (error) {
                     this.logger.warn(`Failed to retrieve supporting document: ${error.message}. Continuing without it.`);
                 }
             }
 
+            // Update the usedLenses array if this lens doesn't exist
+            let usedLenses = [...(workItem.usedLenses || [])];
+            if (!usedLenses.some(lens => lens.lensAlias === currentLensAlias)) {
+                usedLenses.push({
+                    lensAlias: currentLensAlias,
+                    lensName: currentLensName,
+                    lensAliasArn: lensAliasArn,
+                });
+            }
+
+            // Create or update lens-specific status maps
+            const initialAnalysisStatusMap = { ...(workItem.analysisStatus || {}) };
+            const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
+
+            // Set the status for this lens
+            initialAnalysisStatusMap[currentLensAlias] = 'IN_PROGRESS';
+            analysisProgressMap[currentLensAlias] = 0;
+
             await this.storageService.updateWorkItem(userId, fileId, {
-                analysisStatus: 'IN_PROGRESS',
-                analysisProgress: 0,
+                analysisStatus: initialAnalysisStatusMap,
+                analysisProgress: analysisProgressMap,
+                usedLenses,
                 lastModified: new Date().toISOString(),
             });
 
-            // Load all best practices once
-            await this.loadBestPractices(workloadId);
-
             // Pre-calculate question groups for all selected pillars
             const pillarQuestionGroups = await Promise.all(
-                selectedPillars.map(pillar => this.retrieveBestPractices(pillar, workloadId))
+                selectedPillars.map(pillar => this.retrieveBestPractices(pillar, workloadId, lensAliasArn, lensPillars))
             );
 
             // Calculate total questions
@@ -543,19 +585,32 @@ export class AnalyzerService {
                         ]);
 
                         if (isCancelled) {
+                            // Update lens-specific status maps
+                            const updatedAnalysisStatusMap = { ...(workItem.analysisStatus || {}) };
+                            const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
+                            const analysisErrorMap = { ...(workItem.analysisError || {}) };
+                            const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
+
+                            // Update status for this lens
+                            updatedAnalysisStatusMap[currentLensAlias] = 'PARTIAL';
+                            analysisProgressMap[currentLensAlias] = Math.round((processedQuestions / totalQuestions) * 100);
+                            analysisErrorMap[currentLensAlias] = 'Analysis cancelled by user.';
+                            analysisPartialResultsMap[currentLensAlias] = true;
+
                             if (workItem && results.length > 0) {
-                                // Store partial results before marking as cancelled
+                                // Store partial results with lensAlias
                                 await this.storageService.storeAnalysisResults(
                                     userId,
                                     workItem.fileId,
                                     results,
+                                    currentLensAlias
                                 );
 
                                 await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                    analysisStatus: 'PARTIAL',
-                                    analysisProgress: Math.round((processedQuestions / totalQuestions) * 100),
-                                    analysisError: 'Analysis cancelled by user.',
-                                    analysisPartialResults: true,
+                                    analysisStatus: updatedAnalysisStatusMap,
+                                    analysisProgress: analysisProgressMap,
+                                    analysisError: analysisErrorMap,
+                                    analysisPartialResults: analysisPartialResultsMap,
                                     lastModified: new Date().toISOString(),
                                 });
                             }
@@ -574,7 +629,8 @@ export class AnalyzerService {
                             kbContexts = await this.retrieveFromKnowledgeBase(
                                 question.pillar,
                                 question.title,
-                                question
+                                question,
+                                lensName
                             );
                         } catch (error) {
                             if (workItem && results.length > 0) {
@@ -583,13 +639,25 @@ export class AnalyzerService {
                                     userId,
                                     workItem.fileId,
                                     results,
+                                    currentLensAlias
                                 );
 
+                                const progress = Math.round((processedQuestions / totalQuestions) * 100);
+                                const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
+                                const analysisStatusMap = { ...(workItem.analysisStatus || {}) };
+                                const analysisErrorMap = { ...(workItem.analysisError || {}) };
+                                const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
+
+                                analysisProgressMap[currentLensAlias] = progress;
+                                analysisStatusMap[currentLensAlias] = 'PARTIAL';
+                                analysisErrorMap[currentLensAlias] = `Error retrieving from knowledge base: ${error}`;
+                                analysisPartialResultsMap[currentLensAlias] = true;
+
                                 await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                    analysisStatus: 'PARTIAL',
-                                    analysisProgress: Math.round((processedQuestions / totalQuestions) * 100),
-                                    analysisError: `Error retrieving from knowledge base: ${error}`,
-                                    analysisPartialResults: true,
+                                    analysisStatus: analysisStatusMap,
+                                    analysisProgress: analysisProgressMap,
+                                    analysisError: analysisErrorMap,
+                                    analysisPartialResults: analysisPartialResultsMap,
                                     lastModified: new Date().toISOString(),
                                 });
                             }
@@ -619,15 +687,20 @@ export class AnalyzerService {
                                 supportingDocContent,
                                 supportingDocType,
                                 supportingDocName,
-                                supportingDocumentDescription
+                                supportingDocumentDescription,
+                                lensName,
+                                lensPillars
                             );
                             results.push(analysis);
 
                             // Update work item progress if storage is enabled
                             if (workItem) {
                                 const progress = Math.round((processedQuestions / totalQuestions) * 100);
+                                const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
+                                analysisProgressMap[currentLensAlias] = progress;
+
                                 await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                    analysisProgress: progress,
+                                    analysisProgress: analysisProgressMap,
                                     lastModified: new Date().toISOString(),
                                 });
                             }
@@ -639,13 +712,25 @@ export class AnalyzerService {
                                     userId,
                                     workItem.fileId,
                                     results,
+                                    currentLensAlias
                                 );
 
+                                const progress = Math.round((processedQuestions / totalQuestions) * 100);
+                                const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
+                                const analysisStatusMap = { ...(workItem.analysisStatus || {}) };
+                                const analysisErrorMap = { ...(workItem.analysisError || {}) };
+                                const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
+
+                                analysisProgressMap[currentLensAlias] = progress;
+                                analysisStatusMap[currentLensAlias] = 'PARTIAL';
+                                analysisErrorMap[currentLensAlias] = `${error}. Error analyzing question "${question.pillar} - ${question.title}". Analysis stopped, ${processedQuestions} questions where analyzed out of ${totalQuestions}.`;
+                                analysisPartialResultsMap[currentLensAlias] = true;
+
                                 await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                    analysisStatus: 'PARTIAL',
-                                    analysisProgress: Math.round((processedQuestions / totalQuestions) * 100),
-                                    analysisError: `${error}. Error analyzing question "${question.pillar} - ${question.title}". Analysis stopped, ${processedQuestions} questions where analyzed out of ${totalQuestions}.`,
-                                    analysisPartialResults: true,
+                                    analysisStatus: analysisStatusMap,
+                                    analysisProgress: analysisProgressMap,
+                                    analysisError: analysisErrorMap,
+                                    analysisPartialResults: analysisPartialResultsMap,
                                     lastModified: new Date().toISOString(),
                                 });
                             }
@@ -667,60 +752,92 @@ export class AnalyzerService {
                             currentQuestion: question.title,
                         });
                     } catch (error) {
+                        // Update lens-specific error status
+                        const progress = Math.round((processedQuestions / totalQuestions) * 100);
+                        const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
+                        const analysisStatusMap = { ...(workItem.analysisStatus || {}) };
+                        const analysisErrorMap = { ...(workItem.analysisError || {}) };
+                        const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
+
+                        analysisStatusMap[currentLensAlias] = 'PARTIAL';
+                        analysisErrorMap[currentLensAlias] = error.message || 'Error during analysis';
+                        analysisPartialResultsMap[currentLensAlias] = true;
+                        analysisProgressMap[currentLensAlias] = progress;
+
                         if (workItem && results.length > 0) {
-                            // Store partial results before marking as failed
+                            // Store partial results with lensAlias
                             await this.storageService.storeAnalysisResults(
                                 userId,
                                 workItem.fileId,
                                 results,
+                                currentLensAlias
                             );
 
                             await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                analysisStatus: 'PARTIAL',
-                                analysisProgress: Math.round((processedQuestions / totalQuestions) * 100),
-                                analysisError: error.message,
-                                analysisPartialResults: true,
+                                analysisStatus: analysisStatusMap,
+                                analysisProgress: analysisProgressMap,
+                                analysisError: analysisErrorMap,
+                                analysisPartialResults: analysisPartialResultsMap,
                                 lastModified: new Date().toISOString(),
                             });
                         }
+
                         return {
                             results,
                             isCancelled: false,
-                            error: 'Error processing question. Analysis stopped.',
+                            error: `Error analyzing question "${question.pillar} - ${question.title}". Analysis stopped.`,
                             fileId: workItem?.fileId
                         };
                     }
                 }
             }
 
-            // Store final results if storage is enabled
-            if (workItem) {
-                await this.storageService.storeAnalysisResults(
-                    userId,
-                    fileId,
-                    results,
-                );
-                await this.storageService.updateWorkItem(userId, fileId, {
-                    analysisStatus: 'COMPLETED',
-                    analysisProgress: 100,
-                    lastModified: new Date().toISOString(),
-                });
-            }
+            // Update lens-specific completed status
+            const completeAnalysisStatusMap = { ...(workItem.analysisStatus || {}) };
+            completeAnalysisStatusMap[currentLensAlias] = 'COMPLETED';
+
+            const completeAnalysisProgressMap = { ...(workItem.analysisProgress || {}) };
+            completeAnalysisProgressMap[currentLensAlias] = 100;
+
+            // Store final results for this lens
+            await this.storageService.storeAnalysisResults(
+                userId,
+                fileId,
+                results,
+                currentLensAlias
+            );
+
+            await this.storageService.updateWorkItem(userId, fileId, {
+                analysisStatus: completeAnalysisStatusMap,
+                analysisProgress: completeAnalysisProgressMap,
+                lastModified: new Date().toISOString(),
+            });
 
             return { results, isCancelled: false, fileId: workItem.fileId };
         } catch (error) {
+            const usedLensAlias = lensAlias || 'wellarchitected';
             // Store partial results if available before marking as failed
             if (workItem && results.length > 0) {
+                // Update lens-specific error status
+                const analysisStatusMap = { ...(workItem.analysisStatus || {}) };
+                const analysisErrorMap = { ...(workItem.analysisError || {}) };
+                const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
+
+                analysisStatusMap[usedLensAlias] = 'PARTIAL';
+                analysisErrorMap[usedLensAlias] = error.message || 'Error during analysis';
+                analysisPartialResultsMap[usedLensAlias] = true;
+
                 await this.storageService.storeAnalysisResults(
                     userId,
                     fileId,
                     results,
+                    usedLensAlias
                 );
 
                 await this.storageService.updateWorkItem(userId, fileId, {
-                    analysisStatus: 'PARTIAL',
-                    analysisError: error.message,
-                    analysisPartialResults: true,
+                    analysisStatus: analysisStatusMap,
+                    analysisError: analysisErrorMap,
+                    analysisPartialResults: analysisPartialResultsMap,
                     lastModified: new Date().toISOString(),
                 });
             }
@@ -737,9 +854,10 @@ export class AnalyzerService {
         recommendations: any[],
         templateType: IaCTemplateType,
         userId?: string,
+        lensAlias?: string,
+        lensName?: string
     ): Promise<{ content: string; isCancelled: boolean; error?: string }> {
         try {
-
             if (!userId) {
                 throw new Error('User ID is required for IaC generation');
             }
@@ -752,9 +870,20 @@ export class AnalyzerService {
                 throw new Error('This operation is only supported for architecture diagrams');
             }
 
+            // Use provided lens or default to 'wellarchitected'
+            const currentLensAlias = lensAlias || 'wellarchitected';
+            const currentLensName = lensName || 'Well-Architected Framework';
+
+            // Update lens-specific IaC generation status
+            const iacGenerationStatusMap = { ...(workItem.iacGenerationStatus || {}) };
+            const iacGenerationProgressMap = { ...(workItem.iacGenerationProgress || {}) };
+
+            iacGenerationStatusMap[currentLensAlias] = 'IN_PROGRESS';
+            iacGenerationProgressMap[currentLensAlias] = 0;
+
             await this.storageService.updateWorkItem(userId, fileId, {
-                iacGenerationStatus: 'IN_PROGRESS',
-                iacGenerationProgress: 0,
+                iacGenerationStatus: iacGenerationStatusMap,
+                iacGenerationProgress: iacGenerationProgressMap,
                 lastModified: new Date().toISOString(),
             });
 
@@ -777,13 +906,14 @@ export class AnalyzerService {
                         progress,
                     });
 
-                    // Update storage progress if enabled
-                    if (this.storageEnabled && userId && fileId) {
-                        await this.storageService.updateWorkItem(userId, fileId, {
-                            iacGenerationProgress: progress,
-                            lastModified: new Date().toISOString(),
-                        });
-                    }
+                    // Update lens-specific storage progress
+                    const iacGenerationProgressMap = { ...(workItem.iacGenerationProgress || {}) };
+                    iacGenerationProgressMap[currentLensAlias] = progress;
+
+                    await this.storageService.updateWorkItem(userId, fileId, {
+                        iacGenerationProgress: iacGenerationProgressMap,
+                        lastModified: new Date().toISOString(),
+                    });
 
                     iteration++;
 
@@ -793,7 +923,12 @@ export class AnalyzerService {
                         recommendations,
                         allSections.length,
                         allSections.length > 0 ? `${JSON.stringify(allSections, null, 2)}` : 'No previous sections generated yet',
-                        templateType
+                        templateType,
+                        null,
+                        null,
+                        null,
+                        null,
+                        currentLensName
                     );
 
                     // Handle cancellation and storage updates
@@ -804,25 +939,38 @@ export class AnalyzerService {
                             `# ${section.description}\n${section.content}`
                         ).join('\n\n');
 
-                        if (this.storageEnabled && userId && fileId && allSections.length > 0) {
+                        if (allSections.length > 0) {
                             const extension = templateType.includes('yaml') ? 'yaml' :
                                 templateType.includes('json') ? 'json' : 'tf';
 
-                            // Store partial content
+                            // Store partial content with lens alias
                             await this.storageService.storeIaCDocument(
                                 userId,
                                 fileId,
                                 partialContent,
                                 extension,
                                 templateType,
+                                currentLensAlias
                             );
 
+                            // Update lens-specific IaC generation status
+                            const progress = Math.min(Math.round((allSections.length / 10) * 100), 90)
+                            const iacGenerationStatusMap = { ...(workItem.iacGenerationStatus || {}) };
+                            const iacGenerationErrorMap = { ...(workItem.iacGenerationError || {}) };
+                            const iacPartialResultsMap = { ...(workItem.iacPartialResults || {}) };
+                            const iacGenerationProgressMap = { ...(workItem.iacGenerationProgress || {}) };
+
+
+                            iacGenerationStatusMap[currentLensAlias] = 'PARTIAL';
+                            iacGenerationErrorMap[currentLensAlias] = 'Generation cancelled by user';
+                            iacPartialResultsMap[currentLensAlias] = true;
+                            iacGenerationProgressMap[currentLensAlias] = progress;
+
                             await this.storageService.updateWorkItem(userId, fileId, {
-                                iacGenerationStatus: 'PARTIAL',
-                                iacGenerationProgress: Math.min(Math.round((allSections.length / 10) * 100), 90), // Estimate progress
-                                iacGenerationError: 'Generation cancelled by user',
-                                iacPartialResults: true,
-                                iacGeneratedFileType: templateType,
+                                iacGenerationStatus: iacGenerationStatusMap,
+                                iacGenerationProgress: iacGenerationProgressMap,
+                                iacGenerationError: iacGenerationErrorMap,
+                                iacPartialResults: iacPartialResultsMap,
                                 lastModified: new Date().toISOString(),
                             });
                         }
@@ -844,30 +992,6 @@ export class AnalyzerService {
                             `# ${section.description}\n${section.content}`
                         ).join('\n\n');
 
-                        if (this.storageEnabled && userId && fileId) {
-                            const extension = templateType.includes('yaml') ? 'yaml' :
-                                templateType.includes('json') ? 'json' : 'tf';
-
-                            await this.storageService.storeIaCDocument(
-                                userId,
-                                fileId,
-                                partialContent,
-                                extension,
-                                templateType,
-                            );
-                        }
-                    }
-
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                } catch (error) {
-                    // Handle error and save partial results if available
-                    if (this.storageEnabled && userId && fileId && allSections.length > 0) {
-                        const sortedSections = allSections.sort((a, b) => a.order - b.order);
-                        const errorNote = '# Note: Template generation encountered an error. Below is a partial version.\n\n';
-                        const partialContent = errorNote + sortedSections.map(section =>
-                            `# ${section.description}\n${section.content}`
-                        ).join('\n\n');
-
                         const extension = templateType.includes('yaml') ? 'yaml' :
                             templateType.includes('json') ? 'json' : 'tf';
 
@@ -877,14 +1001,50 @@ export class AnalyzerService {
                             partialContent,
                             extension,
                             templateType,
+                            currentLensAlias
+                        );
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (error) {
+                    // Handle error and save partial results if available
+                    if (allSections.length > 0) {
+                        const sortedSections = allSections.sort((a, b) => a.order - b.order);
+                        const errorNote = '# Note: Template generation encountered an error. Below is a partial version.\n\n';
+                        const partialContent = errorNote + sortedSections.map(section =>
+                            `# ${section.description}\n${section.content}`
+                        ).join('\n\n');
+
+                        const extension = templateType.includes('yaml') ? 'yaml' :
+                            templateType.includes('json') ? 'json' : 'tf';
+
+                        // Store partial content with lens alias
+                        await this.storageService.storeIaCDocument(
+                            userId,
+                            fileId,
+                            partialContent,
+                            extension,
+                            templateType,
+                            currentLensAlias
                         );
 
+                        // Update lens-specific error status
+                        const progress = Math.min(Math.round((allSections.length / 10) * 100), 90)
+                        const iacGenerationStatusMap = { ...(workItem.iacGenerationStatus || {}) };
+                        const iacGenerationErrorMap = { ...(workItem.iacGenerationError || {}) };
+                        const iacPartialResultsMap = { ...(workItem.iacPartialResults || {}) };
+                        const iacGenerationProgressMap = { ...(workItem.iacGenerationProgress || {}) };
+
+                        iacGenerationStatusMap[currentLensAlias] = 'PARTIAL';
+                        iacGenerationErrorMap[currentLensAlias] = error.message || 'Error during IaC generation';
+                        iacPartialResultsMap[currentLensAlias] = true;
+                        iacGenerationProgressMap[currentLensAlias] = progress;
+
                         await this.storageService.updateWorkItem(userId, fileId, {
-                            iacGenerationStatus: 'PARTIAL',
-                            iacGenerationProgress: Math.min(Math.round((allSections.length / 10) * 100), 90),
-                            iacGenerationError: error.message,
-                            iacPartialResults: true,
-                            iacGeneratedFileType: templateType,
+                            iacGenerationStatus: iacGenerationStatusMap,
+                            iacGenerationProgress: iacGenerationProgressMap,
+                            iacGenerationError: iacGenerationErrorMap,
+                            iacPartialResults: iacPartialResultsMap,
                             lastModified: new Date().toISOString(),
                         });
 
@@ -908,38 +1068,50 @@ export class AnalyzerService {
                 `# ${section.description}\n${section.content}`
             ).join('\n\n');
 
-            // Store final results if storage is enabled
-            if (this.storageEnabled && userId && fileId) {
-                const extension = templateType.includes('yaml') ? 'yaml' :
-                    templateType.includes('json') ? 'json' : 'tf';
+            // Store final results with lens alias
+            const extension = templateType.includes('yaml') ? 'yaml' :
+                templateType.includes('json') ? 'json' : 'tf';
 
-                await this.storageService.storeIaCDocument(
-                    userId,
-                    fileId,
-                    content,
-                    extension,
-                    templateType,
-                );
+            await this.storageService.storeIaCDocument(
+                userId,
+                fileId,
+                content,
+                extension,
+                templateType,
+                currentLensAlias
+            );
 
-                await this.storageService.updateWorkItem(userId, fileId, {
-                    iacGenerationStatus: 'COMPLETED',
-                    iacGenerationProgress: 100,
-                    iacGeneratedFileType: templateType,
-                    lastModified: new Date().toISOString(),
-                });
-            }
+            // Update lens-specific completed status
+            const finalIacGenerationStatusMap = { ...(workItem.iacGenerationStatus || {}) };
+            const finalIacGenerationProgressMap = { ...(workItem.iacGenerationProgress || {}) };
+            finalIacGenerationStatusMap[currentLensAlias] = 'COMPLETED';
+            finalIacGenerationProgressMap[currentLensAlias] = 100;
+
+            await this.storageService.updateWorkItem(userId, fileId, {
+                iacGenerationStatus: finalIacGenerationStatusMap,
+                iacGenerationProgress: finalIacGenerationProgressMap,
+                lastModified: new Date().toISOString(),
+            });
 
             return {
                 content,
                 isCancelled: false
             };
-
         } catch (error) {
             this.logger.error('Error generating IaC document:', error);
+            const currentLensForIac = lensAlias || 'wellarchitected';
             if (userId && fileId) {
+                // Update lens-specific error status
+                const workItem = await this.storageService.getWorkItem(userId, fileId);
+                const iacGenerationStatusMap = { ...(workItem.iacGenerationStatus || {}) };
+                const iacGenerationErrorMap = { ...(workItem.iacGenerationError || {}) };
+
+                iacGenerationStatusMap[currentLensForIac] = 'FAILED';
+                iacGenerationErrorMap[currentLensForIac] = error.message || 'Error during IaC generation';
+
                 await this.storageService.updateWorkItem(userId, fileId, {
-                    iacGenerationStatus: 'FAILED',
-                    iacGenerationError: error.message,
+                    iacGenerationStatus: iacGenerationStatusMap,
+                    iacGenerationError: iacGenerationErrorMap,
                     lastModified: new Date().toISOString(),
                 });
             }
@@ -979,7 +1151,9 @@ export class AnalyzerService {
         selectedItems: any[],
         userId: string,
         fileId: string,
-        templateType?: IaCTemplateType
+        templateType?: IaCTemplateType,
+        lensAlias?: string,
+        lensName?: string
     ): Promise<{ content: string; error?: string }> {
         const filteredItems = selectedItems.filter(item => !item.applied && item.relevant === true);
         try {
@@ -1012,12 +1186,15 @@ export class AnalyzerService {
             let supportingDocName = null;
             let supportingDocDescription = null;
 
+            const usedLensAlias = lensAlias || 'wellarchitected';
+
             if (workItem.supportingDocumentId && workItem.supportingDocumentAdded) {
                 try {
                     const supportingDoc = await this.storageService.getSupportingDocument(
                         userId,
                         fileId,
-                        workItem.supportingDocumentId
+                        workItem.supportingDocumentId[usedLensAlias],
+                        usedLensAlias
                     );
 
                     // Convert to base64 for images and PDFs, leave as text for text files
@@ -1138,7 +1315,7 @@ export class AnalyzerService {
                                 messages,
                                 system: [
                                     {
-                                        text: Prompts.buildImageDetailsSystemPrompt(templateType, modelId)
+                                        text: Prompts.buildImageDetailsSystemPrompt(templateType, modelId, lensName)
                                     }
                                 ]
                             });
@@ -1210,7 +1387,7 @@ export class AnalyzerService {
                                 messages,
                                 system: [
                                     {
-                                        text: Prompts.buildDetailsSystemPrompt(modelId)
+                                        text: Prompts.buildDetailsSystemPrompt(modelId, lensName)
                                     }
                                 ]
                             });
@@ -1318,14 +1495,19 @@ export class AnalyzerService {
         };
     }
 
-    private async retrieveFromKnowledgeBase(pillar: string, question: string, questionGroup: QuestionGroup): Promise<string[]> {
+    private async retrieveFromKnowledgeBase(
+        pillar: string,
+        question: string,
+        questionGroup: QuestionGroup,
+        lensName?: string
+    ): Promise<string[]> {
         const bedrockAgent = this.awsConfig.createBedrockAgentClient();
         const knowledgeBaseId = this.configService.get<string>('aws.bedrock.knowledgeBaseId');
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
 
         const command = new RetrieveAndGenerateCommand({
             input: {
-                text: Prompts.buildKnowledgeBaseInputPrompt(question, pillar, questionGroup),
+                text: Prompts.buildKnowledgeBaseInputPrompt(question, pillar, questionGroup, lensName),
             },
             retrieveAndGenerateConfiguration: {
                 type: "KNOWLEDGE_BASE",
@@ -1335,6 +1517,12 @@ export class AnalyzerService {
                     retrievalConfiguration: {
                         vectorSearchConfiguration: {
                             numberOfResults: 10,
+                            filter: {
+                                equals: {
+                                    key: "lens_name",
+                                    value: lensName
+                                }
+                            }
                         },
                     },
                     generationConfiguration: {
@@ -1345,7 +1533,7 @@ export class AnalyzerService {
                             }
                         },
                         promptTemplate: {
-                            textPromptTemplate: Prompts.buildKnowledgeBasePromptTemplate()
+                            textPromptTemplate: Prompts.buildKnowledgeBasePromptTemplate(lensName)
                         }
                     }
                 }
@@ -1367,7 +1555,9 @@ export class AnalyzerService {
         supportingDocContent?: string,
         supportingDocType?: string,
         supportingDocName?: string,
-        supportingDocDescription?: string
+        supportingDocDescription?: string,
+        lensName?: string,
+        lensPillars?: Record<string, string>
     ): Promise<any> {
         try {
             // Determine if it's an image
@@ -1380,12 +1570,16 @@ export class AnalyzerService {
                     ? Prompts.buildPrompt(question, kbContexts, supportingDocName, supportingDocDescription)
                     : Prompts.buildProjectPrompt(question, kbContexts, supportingDocName, supportingDocDescription);
 
+            // Get pillar names as comma-separated string for prompts
+            const pillarNames = lensPillars ? Object.values(lensPillars).join(', ') :
+                'Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability';
+
             // Choose the appropriate system prompt based on uploadMode
             const systemPrompt = isImage
-                ? Prompts.buildImageSystemPrompt(question)
+                ? Prompts.buildImageSystemPrompt(question, lensName, pillarNames, lensPillars)
                 : uploadMode === FileUploadMode.SINGLE_FILE
-                    ? Prompts.buildSystemPrompt(fileContent, question)
-                    : Prompts.buildProjectSystemPrompt(fileContent, question);
+                    ? Prompts.buildSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars)
+                    : Prompts.buildProjectSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars);
 
             // Ensure fileContent is properly formatted for images
             if (isImage && !fileContent.startsWith('data:')) {
@@ -1423,7 +1617,18 @@ export class AnalyzerService {
     }
 
     private cleanJsonString(jsonString: string): string {
-        // First trim everything outside the outermost curly braces
+        // First trim everything outside the outermost json_response tags
+        const startTag = "<json_response>";
+        const endTag = "</json_response>";
+        const startIndex = jsonString.indexOf(startTag);
+        const endIndex = jsonString.lastIndexOf(endTag);
+
+        if (startIndex !== -1 && endIndex !== -1) {
+            // Extract content between tags (excluding the tags themselves)
+            jsonString = jsonString.substring(startIndex + startTag.length, endIndex);
+        }
+
+        // Then trim everything outside the outermost curly braces
         const firstCurlyBrace = jsonString.indexOf('{');
         const lastCurlyBrace = jsonString.lastIndexOf('}');
 
@@ -1655,7 +1860,8 @@ export class AnalyzerService {
         supportingDocContent?: string,
         supportingDocType?: string,
         supportingDocName?: string,
-        supportingDocDescription?: string
+        supportingDocDescription?: string,
+        lensName?: string
     ): Promise<{ content: string; isCancelled: boolean }> {
         const bedrockClient = this.awsConfig.createBedrockClient();
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
@@ -1663,7 +1869,7 @@ export class AnalyzerService {
         // Get model parameters based on the model type
         const modelParams = this.getModelParameters();
 
-        const systemPrompt = Prompts.buildIacGenerationSystemPrompt(templateType, modelId);
+        const systemPrompt = Prompts.buildIacGenerationSystemPrompt(templateType, modelId, lensName);
         const prompt = Prompts.buildIacGenerationPrompt(
             previousSections,
             allPreviousSections,
@@ -1791,7 +1997,7 @@ export class AnalyzerService {
         }
     }
 
-    private async loadWellArchitectedAnswers(workloadId: string): Promise<WellArchitectedAnswer> {
+    private async loadWellArchitectedAnswers(workloadId: string, lensAlias?: string): Promise<WellArchitectedAnswer> {
         const waClient = this.awsConfig.createWAClient();
 
         try {
@@ -1800,11 +2006,14 @@ export class AnalyzerService {
                 WorkloadId: workloadId,
             };
 
+            // Use the provided lens alias or default to wellarchitected
+            const usedLensAlias = lensAlias || 'wellarchitected';
+
             const paginator = paginateListAnswers(
                 { client: waClient },
                 {
                     WorkloadId: workloadId,
-                    LensAlias: 'wellarchitected'
+                    LensAlias: usedLensAlias
                 }
             );
 
@@ -1831,20 +2040,26 @@ export class AnalyzerService {
     }
 
     // Load best practices once
-    private async loadBestPractices(workloadId: string): Promise<WellArchitectedBestPractice[]> {
-        if (this.cachedBestPractices) {
-            return this.cachedBestPractices;
-        }
+    private async loadBestPractices(workloadId: string, lensAliasArn: string, lensPillars: Record<string, string>): Promise<WellArchitectedBestPractice[]> {
 
         const s3Client = this.awsConfig.createS3Client();
         const waDocsBucket = this.configService.get<string>('aws.s3.waDocsBucket');
 
         try {
+            // Extract the lens name from the lens alias (everything after the last slash)
+            let lensName = 'wellarchitected';
+            if (lensAliasArn) {
+                lensName = lensAliasArn.split('/').pop() || 'wellarchitected';
+            }
+
+            // Create the path to the best practices JSON file
+            const bestPracticesPath = `${lensName}/best_practices_list/${lensName}_best_practices.json`;
+
             // Fetch best practices from S3
             const s3Response = await s3Client.send(
                 new GetObjectCommand({
                     Bucket: waDocsBucket,
-                    Key: 'well_architected_best_practices.json'
+                    Key: bestPracticesPath
                 })
             );
 
@@ -1856,7 +2071,7 @@ export class AnalyzerService {
             const baseBestPractices: WellArchitectedBestPractice[] = JSON.parse(responseBody);
 
             // Fetch WA Tool answers
-            const waAnswers = await this.loadWellArchitectedAnswers(workloadId);
+            const waAnswers = await this.loadWellArchitectedAnswers(workloadId, lensAliasArn);
 
             // Create mappings for both ChoiceIds and QuestionIds
             const choiceIdMapping = new Map<string, string>();
@@ -1876,17 +2091,26 @@ export class AnalyzerService {
                 });
             });
 
+            // Create the reverse mapping (from pillar name to ID)
+            const reversePillarMapping = {};
+            Object.entries(lensPillars).forEach(([id, name]) => {
+                reversePillarMapping[name] = id;
+            });
+
             // Enhance best practices with their corresponding ChoiceIds and QuestionIds
             this.cachedBestPractices = baseBestPractices.map(bp => {
                 // Create the same unique key for lookup
                 const uniqueKey = `${bp.Question}|||${bp['Best Practice']}`;
+
+                const pillarId = reversePillarMapping[bp.Pillar];
 
                 return {
                     ...bp,
                     bestPracticeId: choiceIdMapping.get(uniqueKey) ||
                         this.generateFallbackBestPracticeId(`${bp.Question}-${bp['Best Practice']}`),
                     questionId: questionIdMapping.get(bp.Question) ||
-                        this.generateFallbackBestPracticeId(bp.Question)
+                        this.generateFallbackBestPracticeId(bp.Question),
+                    pillarId: pillarId
                 };
             });
 
@@ -1897,11 +2121,11 @@ export class AnalyzerService {
         }
     }
 
-    private async retrieveBestPractices(pillarId: string, workloadId: string): Promise<QuestionGroup[]> {
+    private async retrieveBestPractices(pillarId: string, workloadId: string, lensAliasArn?: string, lensPillars?: Record<string, string>): Promise<QuestionGroup[]> {
         try {
-            const allBestPractices = await this.loadBestPractices(workloadId);
+            const allBestPractices = await this.loadBestPractices(workloadId, lensAliasArn, lensPillars);
             const pillarBestPractices = allBestPractices.filter(
-                bp => bp.Pillar.toLowerCase().replace(/\s+/g, '-') === pillarId
+                bp => bp.pillarId === pillarId
             );
 
             const questionGroups = new Map<string, {

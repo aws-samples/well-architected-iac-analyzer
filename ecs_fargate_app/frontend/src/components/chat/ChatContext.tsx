@@ -6,9 +6,11 @@ import { storageApi } from '../../services/storage';
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-export const ChatProvider: React.FC<{ children: React.ReactNode, fileId?: string }> = ({
+export const ChatProvider: React.FC<{ children: React.ReactNode, fileId?: string, lensName?: string, lensAliasArn?: string }> = ({
     children,
-    fileId
+    fileId,
+    lensName = 'Well-Architected Framework', // Default value if not provided
+    lensAliasArn = 'arn:aws:wellarchitected::aws:lens/wellarchitected' // Default value if not provided
 }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -19,7 +21,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode, fileId?: string
     const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
     const [pendingSupportPrompts, setPendingSupportPrompts] = useState<SupportPrompt[] | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
-
 
     // Track when fileId changes to reset and reload chat history
     useEffect(() => {
@@ -253,7 +254,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode, fileId?: string
         setIsLoading(true);
 
         try {
-            const response = await analyzerApi.sendChatMessage(idToUse, message);
+            const response = await analyzerApi.sendChatMessage(idToUse, message, lensName, lensAliasArn);
 
             // Replace loading message with actual response
             setMessages(prev => {
@@ -289,7 +290,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode, fileId?: string
         } finally {
             setIsLoading(false);
         }
-    }, [addMessage, fileId, currentFileId]);
+    }, [addMessage, fileId, currentFileId, lensName]);
 
     const toggleChat = useCallback(() => {
         // If user is opening the chat and it's not initialized, set isInitialized to false to trigger reload
@@ -332,6 +333,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode, fileId?: string
         openChatWithPrompt,
         openChatWithSupportPrompt,
         isLoadingMessages,
+        lensName,
     };
 
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

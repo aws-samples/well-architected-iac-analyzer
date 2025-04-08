@@ -5,9 +5,10 @@ import { ChatWindow } from './ChatWindow';
 interface ChatComponentProps {
     isAnalysisComplete: boolean;
     fileId?: string;
+    lensName?: string;
 }
 
-export const Chat: React.FC<ChatComponentProps> = ({ isAnalysisComplete, fileId }) => {
+export const Chat: React.FC<ChatComponentProps> = ({ isAnalysisComplete, fileId, lensName }) => {
 
     if (!isAnalysisComplete) {
         return null;
@@ -16,7 +17,7 @@ export const Chat: React.FC<ChatComponentProps> = ({ isAnalysisComplete, fileId 
     return (
         <>
             <ChatButton isAnalysisComplete={isAnalysisComplete} />
-            <ChatWindow isAnalysisComplete={isAnalysisComplete} fileId={fileId} />
+            <ChatWindow isAnalysisComplete={isAnalysisComplete} fileId={fileId} lensName={lensName} />
         </>
     );
 };

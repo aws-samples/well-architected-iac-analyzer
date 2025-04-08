@@ -16,9 +16,10 @@ import './styles.css';
 interface ChatWindowProps {
     isAnalysisComplete: boolean;
     fileId?: string;
+    lensName?: string;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ isAnalysisComplete, fileId }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ isAnalysisComplete, fileId, lensName }) => {
     const { messages, sendMessage, isChatOpen, toggleChat, isLoading: isSendingMessage, loadChatHistory, isLoadingMessages } = useChat();
     const [inputValue, setInputValue] = useState('');
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -321,7 +322,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ isAnalysisComplete, file
                                     value={inputValue}
                                     onChange={({ detail }) => setInputValue(detail.value)}
                                     onAction={handleSend}
-                                    placeholder="Ask about your results or Well-Architected best practices..."
+                                    placeholder={`Ask about your results or ${lensName} best practices...`}
                                     disabled={isSendingMessage || !fileId}
                                     actionButtonAriaLabel="Send message"
                                     actionButtonIconName="send"

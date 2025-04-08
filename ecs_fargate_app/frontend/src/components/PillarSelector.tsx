@@ -2,13 +2,14 @@ import React, { useCallback, useMemo } from 'react';
 import { NonCancelableCustomEvent, Multiselect, FormField, Header } from '@cloudscape-design/components';
 import type { MultiselectProps } from '@cloudscape-design/components';
 import { HelpButton } from './utils/HelpButton';
-import { WellArchitectedPillar } from '../types';
+import { WellArchitectedPillar, LensMetadata } from '../types';
 
 interface PillarSelectorProps {
   pillars: WellArchitectedPillar[];
   selectedPillars: string[];
   onChange: (selectedPillarIds: string[]) => void;
   disabled?: boolean;
+  selectedLens?: LensMetadata;
 }
 
 export const PillarSelector: React.FC<PillarSelectorProps> = ({
@@ -16,6 +17,7 @@ export const PillarSelector: React.FC<PillarSelectorProps> = ({
   selectedPillars,
   onChange,
   disabled = false,
+  selectedLens
 }) => {
   // Memoize options to prevent unnecessary recalculations
   const options = useMemo(
@@ -48,12 +50,17 @@ export const PillarSelector: React.FC<PillarSelectorProps> = ({
     [onChange]
   );
 
+  // Determine the header text based on selected lens
+  const headerText = selectedLens 
+    ? `2. Select the ${selectedLens.lensName} Pillars to review`
+    : '2. Select the Well-Architected Pillars to review';
+
   return (
     <FormField
       label={
         <>
           <Header variant="h3">
-            2. Select the Well-Architected Pillars to review <HelpButton contentId="pillarSelection" />
+            {headerText} <HelpButton contentId="pillarSelection" />
           </Header>
         </>
       }
@@ -62,7 +69,7 @@ export const PillarSelector: React.FC<PillarSelectorProps> = ({
         selectedOptions={selectedOptions}
         onChange={handleChange}
         options={options}
-        placeholder="Select Well-Architected Pillars"
+        placeholder={selectedLens ? `Select ${selectedLens.lensName} Pillars` : "Select Well-Architected Pillars"}
         selectedAriaLabel="Selected"
         disabled={disabled}
         expandToViewport={true}

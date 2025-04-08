@@ -18,16 +18,16 @@ interface AnalysisResult {
 @Injectable()
 export class ReportService {
   private readonly logger = new Logger(ReportService.name);
-  private readonly lensAlias = 'wellarchitected';
+  private readonly lensAliasArn = 'arn:aws:wellarchitected::aws:lens/wellarchitected';
 
   constructor(private readonly awsConfig: AwsConfigService) {}
 
-  async generateReport(workloadId: string) {
+  async generateReport(workloadId: string, lensAliasArn?: string) {
     try {
       const waClient = this.awsConfig.createWAClient();
       const command = new GetLensReviewReportCommand({
         WorkloadId: workloadId,
-        LensAlias: this.lensAlias,
+        LensAlias: lensAliasArn || this.lensAliasArn,
       });
 
       const response = await waClient.send(command);

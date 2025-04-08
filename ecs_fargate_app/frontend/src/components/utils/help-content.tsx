@@ -13,13 +13,14 @@ export const helpContent = {
                 <ul>
                     <li><strong>IaC Analysis:</strong> Upload CloudFormation (YAML/JSON), Terraform or AWS CDK templates for automated analysis</li>
                     <li><strong>Architecture Review:</strong> Upload architecture diagrams (PNG/JPG) and get IaC recommendations</li>
-                    <li><strong>Well-Architected Integration:</strong> Directly update your AWS Well-Architected Tool workload</li>
+                    <li><strong>Analyzer Assistant chatbot:</strong> Ask questions, seek clarification, and receive personalized guidance about analysis results</li>
+                    <li><strong>AWS Well-Architected Integration:</strong> Directly update your AWS Well-Architected Tool workload</li>
                     <li><strong>AI-Powered Analysis:</strong> Get detailed recommendations using AWS Bedrock</li>
                 </ul>
                 <Box variant="h4">How to Use</Box>
                 <ol>
                     <li>Upload your IaC document(s) or architecture diagram</li>
-                    <li>Select the Well-Architected pillars to review</li>
+                    <li>Select the Well-Architected pillars to review. You can also select different lenses to be used for the analysis</li>
                     <li>Optionally upload a supporting document to provide additional context for better analysis</li>
                     <li>Optionally provide a Well-Architected Tool workload ID</li>
                     <li>Review the analysis results and recommendations</li>
@@ -230,5 +231,32 @@ export const helpContent = {
                 </Box>
             </SpaceBetween>
         )
-    }
+    },
+    lensSelection: {
+        header: 'Well-Architected Lens Selection',
+        body: (
+          <SpaceBetween size="xxs">
+            <Box variant="p">
+              Select which AWS Well-Architected lens to use for analyzing your infrastructure:
+            </Box>
+            <ul>
+              <li><strong>Well-Architected Framework:</strong> The standard Well-Architected Framework with six pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability)</li>
+              <li><strong>Specialized Lenses:</strong> Additional lenses focusing on specific technologies or domains, such as:</li>
+              <ul>
+                <li>Serverless Lens - For serverless application architectures</li>
+                <li>IoT Lens - For Internet of Things workloads</li>
+                <li>SaaS Lens - For Software-as-a-Service architectures</li>
+                <li>And other specialized industry and technology lenses</li>
+              </ul>
+            </ul>
+            <Box variant="p">
+              Each lens provides tailored best practices and recommendations specific to that domain or technology. The pillars available for review will change based on your selected lens.
+            </Box>
+            <Box variant="h4">Why use specialized lenses?</Box>
+            <Box variant="p">
+              Specialized lenses provide more targeted guidance for specific workload types. For example, the Serverless Lens includes best practices specifically relevant to serverless architecture that may not be covered in the standard Well-Architected Framework.
+            </Box>
+          </SpaceBetween>
+        )
+      },
 };

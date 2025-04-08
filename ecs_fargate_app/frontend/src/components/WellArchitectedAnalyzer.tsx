@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DocumentView } from './DocumentView';
-import { SpaceBetween, Container, Button, StatusIndicator, ProgressBar, Tabs, Alert, ExpandableSection, KeyValuePairs } from '@cloudscape-design/components';
+import { SpaceBetween, Container, Button, StatusIndicator, ProgressBar, Tabs, Alert, ExpandableSection, KeyValuePairs, Badge, Select, Popover } from '@cloudscape-design/components';
 import { FileUpload } from './FileUpload';
 import { SupportingDocumentUpload } from './SupportingDocumentUpload';
 import { WorkloadIdInput } from './WorkloadIdInput';
@@ -8,12 +8,13 @@ import { PillarSelector } from './PillarSelector';
 import { AnalysisResults } from './AnalysisResults';
 import { RiskSummary } from './RiskSummary';
 import { useAnalyzer } from '../hooks/useAnalyzer';
-import { UploadedFile, UploadedFiles, WellArchitectedPillar, IaCTemplateType, UpdatedDocument, WorkItem, WorkItemResponse, WorkItemContent, FileUploadMode } from '../types';
+import { UploadedFile, UploadedFiles, WellArchitectedPillar, IaCTemplateType, UpdatedDocument, WorkItem, WorkItemContent, FileUploadMode, LensMetadata } from '../types';
 import { analyzerApi } from '../services/api';
 import { storageApi } from '../services/storage';
 import { socketService } from '../services/socket';
 import { IaCTemplateSelector } from './IaCTemplateSelector';
 import { Chat } from './chat';
+import { LensSelector } from './LensSelector';
 
 const DEFAULT_PILLARS: WellArchitectedPillar[] = [
   { id: 'operational-excellence', name: 'Operational Excellence', selected: true },
@@ -31,9 +32,11 @@ interface ImplementationProgress {
 
 interface Props {
   onWorkItemsRefreshNeeded?: () => void;
+  onAnalysisStart?: (lensAliasArn: string, lensName: string) => void;
+  onCurrentLensResultsSelection?: (lensAliasArn?: string, lensName?: string) => void;
 }
 
-export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNeeded }) => {
+export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNeeded, onAnalysisStart, onCurrentLensResultsSelection }) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFiles | null>(null);
   const [updatedDocument, setUpdatedDocument] = useState<UpdatedDocument | null>(null);
   const [workloadId, setWorkloadId] = useState<string | null>(null);
@@ -65,13 +68,19 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
   const [downloadingOriginalFileId, setDownloadingOriginalFileId] = useState<string | null>(null);
   const [downloadingSupportingDocId, setDownloadingSupportingDocId] = useState<string | null>(null);
   const [isSupportingDocUploading, setIsSupportingDocUploading] = useState<boolean>(false);
+  const [selectedLens, setSelectedLens] = useState<LensMetadata | undefined>();
+  const [pillarsFromLens, setPillarsFromLens] = useState<WellArchitectedPillar[]>(DEFAULT_PILLARS);
+  const [optionalSettingsTabId, setOptionalSettingsTabId] = useState('lens-selector');
+  const [activeLensAlias, setActiveLensAlias] = useState<string | undefined>('wellarchitected');
+  const [activeLensAliasArn, setActiveLensAliasArn] = useState<string | undefined>('arn:aws:wellarchitected::aws:lens/wellarchitected');
+  const [activeLensName, setActiveLensName] = useState<string>('Well-Architected Framework');
+  const [currentWorkloadId, setCurrentWorkloadId] = useState<string | undefined>(undefined);
+  const [isLoadingResults, setIsLoadingResults] = useState(false);
 
   const {
     analyze,
     cancelAnalysis,
     isCancellingAnalysis,
-    showAnalysisCancellationAlert,
-    setShowAnalysisCancellationAlert,
     updateWorkload,
     generateReport,
     downloadRecommendations,
@@ -80,6 +89,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
     setError,
     analysisResults,
     riskSummary,
+    setRiskSummary,
     isAnalyzing,
     isUpdating,
     error,
@@ -88,12 +98,20 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
     isGeneratingReport,
     isDeleting,
     canDeleteWorkload,
+    setCanDeleteWorkload,
     createdWorkloadId,
+    showAnalysisCancellationAlert,
+    setShowAnalysisCancellationAlert,
     showPartialResultsWarning,
     setShowPartialResultsWarning,
     partialResultsError,
     setAnalysisResults,
     setPartialResultsError,
+    currentLensWorkloadId,
+    setCurrentLensWorkloadId,
+    setProgressTracking,
+    progressTracking,
+    awsRegion,
   } = useAnalyzer();
 
   // Check if analysis is complete and results are available
@@ -108,6 +126,35 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
       cleanup();
     };
   }, []);
+
+  // Handle lens selection
+  const handleLensChange = (lensAliasArn: string, lensMetadata: LensMetadata) => {
+    setSelectedLens(lensMetadata);
+
+    const lensAlias = lensAliasArn?.split('/')?.pop();
+
+    setActiveLensAlias(lensAlias);
+    setActiveLensAliasArn(lensAliasArn);
+    setActiveLensName(lensMetadata?.lensName);
+
+    setSupportingDocumentId(null);
+    setSupportingDocument(null);
+    setSupportingDocumentDescription('');
+
+    // Update pillars based on the lens
+    if (lensMetadata && lensMetadata.lensPillars) {
+      const newPillars = Object.entries(lensMetadata.lensPillars).map(([pillarId, pillarName]) => ({
+        id: pillarId,
+        name: pillarName,
+        selected: true,
+        pillarId // Store the original ID
+      }));
+      setPillarsFromLens(newPillars);
+
+      // Reset selected pillars when lens changes
+      setSelectedPillars(newPillars.map(p => p.id));
+    }
+  };
 
   // Handle supporting document upload
   const handleSupportingDocumentUploaded = (file: UploadedFile, description: string, fileId: string) => {
@@ -129,18 +176,36 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
   const handleAnalyze = async () => {
     if (!uploadedFiles || !activeWorkItem) return;
 
+    // Reset risk summary when starting a new analysis
+    setRiskSummary(null);
+    setProgressTracking(null);
+
     try {
       // Refresh side navigation when analysis starts
       onWorkItemsRefreshNeeded?.();
 
-      // Set uploadMode from uploadedFiles to analyze properly
+      // Use the currently selected lens alias and name
+      const currentLensAliasArn = activeLensAliasArn || 'arn:aws:wellarchitected::aws:lens/wellarchitected';
+      const currentLensAlias = activeLensAlias || 'wellarchitected';
+      const currentLensName = activeLensName || 'Well-Architected Framework';
+
+      // Notify the parent App component about the lens information
+      if (onAnalysisStart) {
+        onAnalysisStart(currentLensAliasArn, currentLensName);
+      }
+
+      setCurrentWorkItemName(`${activeWorkItem.fileName}`);
+
       const result = await analyze(
         activeWorkItem.fileId,
-        workloadId,
+        workloadId || currentWorkloadId || currentLensWorkloadId,
         selectedPillars,
         uploadedFiles.mode,
         supportingDocumentId,
-        supportingDocumentDescription
+        supportingDocumentDescription,
+        currentLensAliasArn,
+        currentLensName,
+        selectedLens?.lensPillars
       );
 
       // Update activeWorkItem with fileId from analysis result, even for partial results
@@ -149,15 +214,49 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
         setActiveWorkItem({
           ...activeWorkItem,
           fileId: result.fileId,
-          supportingDocumentId: supportingDocumentId || undefined,
-          supportingDocumentAdded: Boolean(supportingDocumentId),
-          supportingDocumentDescription: supportingDocumentDescription || undefined,
-          supportingDocumentName: supportingDocument?.name,
-          supportingDocumentType: supportingDocument?.type,
+          // Initialize or update usedLenses array
+          usedLenses: [
+            ...(activeWorkItem.usedLenses || []),
+            {
+              lensAlias: currentLensAlias,
+              lensName: currentLensName,
+              lensAliasArn: currentLensAliasArn
+            }
+          ].filter((lens, index, self) =>
+            // Remove duplicates based on lensAlias
+            index === self.findIndex(t => t.lensAlias === lens.lensAlias)
+          ),
+          // Initialize or update lens-specific fields 
+          supportingDocumentId: {
+            ...(activeWorkItem.supportingDocumentId || {}),
+            [currentLensAlias]: supportingDocumentId || undefined
+          },
+          supportingDocumentAdded: {
+            ...(activeWorkItem.supportingDocumentAdded || {}),
+            [currentLensAlias]: Boolean(supportingDocumentId)
+          },
+          supportingDocumentDescription: {
+            ...(activeWorkItem.supportingDocumentDescription || {}),
+            [currentLensAlias]: supportingDocumentDescription || undefined
+          },
+          supportingDocumentName: {
+            ...(activeWorkItem.supportingDocumentName || {}),
+            [currentLensAlias]: supportingDocument?.name
+          },
+          supportingDocumentType: {
+            ...(activeWorkItem.supportingDocumentType || {}),
+            [currentLensAlias]: supportingDocument?.type
+          },
         });
-        setCurrentWorkItemName(`${activeWorkItem.fileName}`);
-        if (!isImageFile) {
+
+        // Clear IaC Document tab content if no IaC generation attempted for activeWorkItem
+        const lensIacStatus = activeWorkItem.iacGenerationStatus?.[currentLensAlias];
+        if (!isImageFile || lensIacStatus === 'NOT_STARTED' || lensIacStatus === 'FAILED' || !lensIacStatus) {
           setUpdatedDocument(null);
+          // If currently on the IaC Document tab, switch to analysis tab
+          if (activeTabId === 'diff') {
+            setActiveTabId('analysis');
+          }
         }
       } else if (result.fileId) {
         // If we don't have an activeWorkItem but have a fileId, create a new minimal WorkItem
@@ -171,18 +270,34 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
             uploadedFiles.zipFile?.type ||
             'application/multiple-files',
           uploadDate: new Date().toISOString(),
-          analysisStatus: 'IN_PROGRESS',
-          analysisProgress: 0,
-          iacGenerationStatus: 'NOT_STARTED',
-          iacGenerationProgress: 0,
           s3Prefix: `${result.fileId}`,
           lastModified: new Date().toISOString(),
           uploadMode: uploadedFiles.mode,
-          supportingDocumentId: supportingDocumentId || undefined,
-          supportingDocumentAdded: Boolean(supportingDocumentId),
-          supportingDocumentDescription: supportingDocumentDescription || undefined,
-          supportingDocumentName: supportingDocument?.name,
-          supportingDocumentType: supportingDocument?.type,
+          usedLenses: [{
+            lensAlias: currentLensAlias,
+            lensName: currentLensName,
+            lensAliasArn: currentLensAliasArn
+          }],
+          // Initialize lens-specific maps with the current lens
+          analysisStatus: { [currentLensAlias]: 'IN_PROGRESS' },
+          analysisProgress: { [currentLensAlias]: 0 },
+          iacGenerationStatus: { [currentLensAlias]: 'NOT_STARTED' },
+          iacGenerationProgress: { [currentLensAlias]: 0 },
+          supportingDocumentId: supportingDocumentId ? {
+            [currentLensAlias]: supportingDocumentId
+          } : undefined,
+          supportingDocumentAdded: supportingDocumentId ? {
+            [currentLensAlias]: true
+          } : undefined,
+          supportingDocumentDescription: supportingDocumentDescription ? {
+            [currentLensAlias]: supportingDocumentDescription
+          } : undefined,
+          supportingDocumentName: supportingDocument?.name ? {
+            [currentLensAlias]: supportingDocument.name
+          } : undefined,
+          supportingDocumentType: supportingDocument?.type ? {
+            [currentLensAlias]: supportingDocument.type
+          } : undefined,
         });
         setCurrentWorkItemName(`${uploadedFiles.singleFile?.name || uploadedFiles.zipFile?.name || 'Multiple files'}`);
         if (!isImageFile) {
@@ -199,8 +314,12 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
     }
   };
 
-  const handleUpdate = async () => {
-    await updateWorkload(workloadId);
+  const handleUpdate = async (activeWorkItem?: any, specificWorkloadId?: string, specificLensAliasArn?: string) => {
+    // Use provided values or the current state values
+    const activeWorkloadId = specificWorkloadId || workloadId || createdWorkloadId || currentWorkloadId;
+    const activeLensArn = specificLensAliasArn || activeLensAliasArn;
+
+    await updateWorkload(activeWorkloadId, activeLensArn, activeWorkItem);
   };
 
   const handleFileUploaded = (files: UploadedFiles, fileId: string) => {
@@ -220,7 +339,15 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
       setIsImageFile(false);
     }
 
+    // Reset current workload ID, active workItem and other states to defaults for new file uploaded
     setActiveWorkItem(null);
+    setCurrentWorkloadId(undefined);
+    setCurrentLensWorkloadId(undefined);
+    setCanDeleteWorkload(false);
+    setRiskSummary(null);
+    setSupportingDocumentId(null);
+    setSupportingDocument(null);
+    setSupportingDocumentDescription('');
 
     // Check if we need to show token limit warning
     if (files.exceedsTokenLimit) {
@@ -254,15 +381,9 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
       fileName: fileName,
       fileType: fileType,
       uploadDate: new Date().toISOString(),
-      analysisStatus: 'NOT_STARTED',
-      analysisProgress: 0,
-      iacGenerationStatus: 'NOT_STARTED',
-      iacGenerationProgress: 0,
       s3Prefix: `${fileId}`,
       lastModified: new Date().toISOString(),
       uploadMode: files.mode,
-      exceedsTokenLimit: files.exceedsTokenLimit,
-      tokenCount: files.tokenCount,
     });
   };
 
@@ -275,10 +396,12 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
 
       setDownloadingSupportingDocId(supportingDocId);
 
+      // Pass the lens alias when downloading supporting document
       await storageApi.downloadSupportingDocument(
         supportingDocId,
         activeWorkItem.fileId,
-        fileName
+        fileName,
+        activeLensAlias
       );
     } catch (error) {
       console.error("Failed to download supporting document:", error);
@@ -288,16 +411,39 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
     }
   };
 
-  const handleGenerateReport = async () => {
-    const activeWorkloadId = workloadId || createdWorkloadId;
+  const handleGenerateReport = async (specificWorkloadId?: string, specificLensAliasArn?: string) => {
+    // Use provided values or the current state values
+    const activeWorkloadId = specificWorkloadId || workloadId || createdWorkloadId || currentWorkloadId;
+    const activeLensArn = specificLensAliasArn || activeLensAliasArn;
     if (!activeWorkloadId) return;
-    await generateReport(activeWorkloadId, uploadedFiles?.singleFile?.name || 'unknown_file');
+    await generateReport(activeWorkloadId, uploadedFiles?.singleFile?.name || 'unknown_file', activeLensArn);
   };
 
-  const handleRefresh = () => {
-    const activeWorkloadId = workloadId || createdWorkloadId;
-    if (!activeWorkloadId) return;
-    refreshSummary(activeWorkloadId);
+  const handleRefresh = async (specificWorkloadId?: string, specificLensAliasArn?: string) => {
+    // Use provided values or the current state values
+    const activeWorkloadId = specificWorkloadId || workloadId || createdWorkloadId || currentWorkloadId;
+    const activeLensArn = specificLensAliasArn || activeLensAliasArn;
+
+    if (!activeWorkloadId) {
+      // If no workload ID available, reset the risk summary
+      setRiskSummary(null);
+      return;
+    }
+
+    // Make sure we're passing a string ID and not an object
+    let workloadIdToUse = activeWorkloadId;
+
+    // Handle case when workloadId might be an object with an id property
+    if (typeof activeWorkloadId === 'object' && activeWorkloadId !== null) {
+      workloadIdToUse = (activeWorkloadId as any).id || '';
+    }
+
+    // Call the refresh function with the workload ID and lens alias
+    if (typeof workloadIdToUse === 'string') {
+      refreshSummary(workloadIdToUse, activeLensArn);
+    } else {
+      setError('Invalid workload ID format');
+    }
   };
 
   const handleGenerateIacDocument = async () => {
@@ -314,7 +460,9 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
       const result = await analyzerApi.generateIacDocument(
         activeWorkItem.fileId,
         analysisResults,
-        selectedIaCType
+        selectedIaCType,
+        activeLensAliasArn,
+        selectedLens?.lensName
       );
 
       // Refresh side navigation when IaC generation completes (success, failure, or cancelled)
@@ -353,7 +501,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
       await downloadRecommendations(
         uploadedFiles?.singleFile?.name ||
         uploadedFiles?.zipFile?.name ||
-        'analysis_results'
+        'analysis_results', activeLensAlias
       );
     } finally {
       setIsDownloading(false);
@@ -391,14 +539,99 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
     return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
   };
 
-  const handleWorkItemSelect = useCallback(async (workItem: WorkItem) => {
+  const handleWorkItemSelect = useCallback(async (workItem: WorkItem, loadResults?: boolean, lensAliasArn?: string) => {
     try {
+      // Set loading state if we're loading results
+      if (loadResults) {
+        setIsLoadingResults(true);
+      }
+
+      setProgressTracking(null);
       setActiveWorkItem(workItem);
+
+      const lensAlias = lensAliasArn?.split('/')?.pop();
+      let lensName = '';
+
+      // Reset risk summary when switching work items
+      setRiskSummary(null);
+
+      // If lensAlias is provided, set it as active
+      if (lensAlias) {
+        setActiveLensAlias(lensAlias);
+        setActiveLensAliasArn(lensAliasArn);
+
+        // Find the lens in workItem.usedLenses to get the lens name
+        const lens = workItem.usedLenses?.find(l => l.lensAlias === lensAlias);
+        if (lens) {
+          setActiveLensName(lens.lensName);
+          lensName = lens.lensName;
+        }
+
+        // Check if there's a workloadId for this lens
+        if (workItem.workloadIds && workItem.workloadIds[lensAlias]) {
+          setCurrentWorkloadId(workItem.workloadIds[lensAlias].id);
+          setCurrentLensWorkloadId(workItem.workloadIds[lensAlias].id);
+          // Set canDeleteWorkload based on protected status
+          setCanDeleteWorkload(!workItem.workloadIds[lensAlias].protected);
+
+          // After setting the current workload ID, refresh the summary
+          if (loadResults) {
+            setTimeout(() => {
+              const workloadId = workItem.workloadIds?.[lensAlias]?.id;
+              if (workloadId) {
+                handleRefresh(workloadId, lensAliasArn);
+              }
+            }, 100);
+          }
+        } else {
+          // No workloadIds for current work item. Reset currentWorkloadId and currentLensWorkloadId
+          setCurrentWorkloadId(undefined);
+          setCurrentLensWorkloadId(undefined);
+          setCanDeleteWorkload(false);
+        }
+      } else if (workItem.usedLenses && workItem.usedLenses.length > 0) {
+        // Default to the first lens if no specific lens is provided
+        const defaultLensAlias = workItem.usedLenses[0].lensAlias;
+        setActiveLensAlias(defaultLensAlias);
+
+        const lensAliasArn = workItem.usedLenses[0].lensAliasArn;
+        setActiveLensAliasArn(lensAliasArn);
+        setActiveLensName(workItem.usedLenses[0].lensName);
+        lensName = workItem.usedLenses[0].lensName;
+
+        // Check if there's a workloadId for this lens
+        if (workItem.workloadIds && workItem.workloadIds[defaultLensAlias]) {
+          setCurrentWorkloadId(workItem.workloadIds[defaultLensAlias].id);
+          setCurrentLensWorkloadId(workItem.workloadIds[defaultLensAlias].id);
+          // Set canDeleteWorkload based on protected status
+          setCanDeleteWorkload(!workItem.workloadIds[defaultLensAlias].protected);
+
+          // After setting the current workload ID, refresh the summary
+          if (loadResults) {
+            setTimeout(() => {
+              const workloadId = workItem.workloadIds?.[defaultLensAlias]?.id;
+              if (workloadId && lensAliasArn) {
+                handleRefresh(workloadId, lensAliasArn);
+              }
+            }, 100);
+          }
+        } else {
+          // No workloadIds for current work item. Reset currentWorkloadId and currentLensWorkloadId
+          setCurrentWorkloadId(undefined);
+          setCurrentLensWorkloadId(undefined);
+          setCanDeleteWorkload(false);
+        }
+      }
+
+      const currentLensAlias = lensAlias ||
+        (workItem.usedLenses && workItem.usedLenses.length > 0 ?
+          workItem.usedLenses[0].lensAlias :
+          'wellarchitected');
 
       setCurrentWorkItemName(`[${formatDateTime(workItem.lastModified)}] ${workItem.fileName}`);
 
       // Get the complete work item with all results
-      const result = await storageApi.getWorkItem(workItem.fileId) as WorkItemResponse;
+      const result = await storageApi.getWorkItem(workItem.fileId, lensAliasArn);
 
       // Only proceed if we got results
       if (!result) {
@@ -406,23 +639,36 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
         return;
       }
 
+      // Set workItem loaded from backend
+      const loadedWorkItem = result.workItem;
+
+      // Notify the parent App component about the lens information
+      if (onCurrentLensResultsSelection) {
+        onCurrentLensResultsSelection(lensAliasArn, lensName);
+      }
+
       // Set image file flag
-      if (workItem.uploadMode === FileUploadMode.SINGLE_FILE && workItem.fileType?.startsWith('image/')) {
+      if (loadedWorkItem.uploadMode === FileUploadMode.SINGLE_FILE && loadedWorkItem.fileType?.startsWith('image/')) {
         setIsImageFile(true);
       } else {
         setIsImageFile(false);
       }
 
-      // Show token warning if applicable
-      if (workItem.exceedsTokenLimit) {
+      // Show token warning if applicable - check the token count for the current lens
+      const lensTokenCount = loadedWorkItem.tokenCount?.[currentLensAlias];
+      const lensExceedsTokenLimit = loadedWorkItem.exceedsTokenLimit?.[currentLensAlias];
+
+      if (lensExceedsTokenLimit) {
         setShowTokenLimitWarning(true);
-        setTokenCount(workItem.tokenCount || 0);
+        setTokenCount(lensTokenCount || 0);
       } else {
         setShowTokenLimitWarning(false);
         setTokenCount(null);
       }
 
-      if (workItem?.iacGenerationStatus === 'NOT_STARTED' || workItem?.iacGenerationStatus === 'FAILED') {
+      // Check if IaC generation is started for this lens
+      const lensIacStatus = loadedWorkItem.iacGenerationStatus?.[currentLensAlias];
+      if (lensIacStatus === 'NOT_STARTED' || lensIacStatus === 'FAILED' || !lensIacStatus) {
         setUpdatedDocument(null);
         // If currently on the IaC Document tab, switch to analysis tab
         if (activeTabId === 'diff') {
@@ -430,15 +676,15 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
         }
       }
 
-      // Check if there's a supporting document
-      if (workItem.supportingDocumentAdded && workItem.supportingDocumentId) {
-        setSupportingDocumentId(workItem.supportingDocumentId);
-        setSupportingDocumentDescription(workItem.supportingDocumentDescription || '');
-        if (workItem.supportingDocumentName && workItem.supportingDocumentType) {
+      // Check if there's a supporting document for this lens
+      if (loadedWorkItem.supportingDocumentAdded?.[currentLensAlias] && loadedWorkItem.supportingDocumentId?.[currentLensAlias]) {
+        setSupportingDocumentId(loadedWorkItem.supportingDocumentId[currentLensAlias]);
+        setSupportingDocumentDescription(loadedWorkItem.supportingDocumentDescription?.[currentLensAlias] || '');
+        if (loadedWorkItem.supportingDocumentName?.[currentLensAlias] && loadedWorkItem.supportingDocumentType?.[currentLensAlias]) {
           setSupportingDocument({
-            name: workItem.supportingDocumentName,
+            name: loadedWorkItem.supportingDocumentName[currentLensAlias],
             content: '', // Not loaded, would be loaded on demand
-            type: workItem.supportingDocumentType,
+            type: loadedWorkItem.supportingDocumentType[currentLensAlias],
             size: 0 // Size unknown, not critical for display
           });
         }
@@ -449,7 +695,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
         setSupportingDocumentDescription('');
       }
 
-      // Create appropriate uploadedFiles object based on workItem.uploadMode
+      // Create appropriate uploadedFiles object based on loadedWorkItem.uploadMode
       if (result.content) {
         let fileContent: string;
 
@@ -458,11 +704,11 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
           fileContent = result.content;
         } else {
           const contentObj = result.content as WorkItemContent;
-          if (workItem.uploadMode === FileUploadMode.SINGLE_FILE && workItem.fileType.startsWith('image/')) {
+          if (loadedWorkItem.uploadMode === FileUploadMode.SINGLE_FILE && loadedWorkItem.fileType.startsWith('image/')) {
             // For images, ensure proper base64 format
             fileContent = contentObj.data.startsWith('data:')
               ? contentObj.data
-              : `data:${workItem.fileType};base64,${contentObj.data}`;
+              : `data:${loadedWorkItem.fileType};base64,${contentObj.data}`;
           } else {
             // For text content
             fileContent = contentObj.data;
@@ -470,50 +716,56 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
         }
 
         let files: UploadedFiles = {
-          mode: workItem.uploadMode || FileUploadMode.SINGLE_FILE,
+          mode: loadedWorkItem.uploadMode || FileUploadMode.SINGLE_FILE,
         };
 
-        if (workItem.uploadMode === FileUploadMode.SINGLE_FILE) {
+        if (loadedWorkItem.uploadMode === FileUploadMode.SINGLE_FILE) {
           files.singleFile = {
-            name: workItem.fileName,
+            name: loadedWorkItem.fileName,
             content: fileContent,
-            type: workItem.fileType,
+            type: loadedWorkItem.fileType,
             size: new Blob([fileContent]).size,
           };
-        } else if (workItem.uploadMode === FileUploadMode.ZIP_FILE) {
+        } else if (loadedWorkItem.uploadMode === FileUploadMode.ZIP_FILE) {
           files.zipFile = {
-            name: workItem.fileName,
+            name: loadedWorkItem.fileName,
             content: fileContent,
-            type: workItem.fileType,
+            type: loadedWorkItem.fileType,
             size: new Blob([fileContent]).size,
           };
-          files.exceedsTokenLimit = workItem.exceedsTokenLimit;
-          files.tokenCount = workItem.tokenCount;
+          // For lens-specific token counts
+          files.exceedsTokenLimit = loadedWorkItem.exceedsTokenLimit?.[currentLensAlias];
+          files.tokenCount = loadedWorkItem.tokenCount?.[currentLensAlias];
         } else {
           files.multipleFiles = [{
-            name: workItem.fileName,
+            name: loadedWorkItem.fileName,
             content: fileContent,
-            type: workItem.fileType,
+            type: loadedWorkItem.fileType,
             size: new Blob([fileContent]).size,
           }];
-          files.exceedsTokenLimit = workItem.exceedsTokenLimit;
-          files.tokenCount = workItem.tokenCount;
+          // For lens-specific token counts
+          files.exceedsTokenLimit = loadedWorkItem.exceedsTokenLimit?.[currentLensAlias];
+          files.tokenCount = loadedWorkItem.tokenCount?.[currentLensAlias];
         }
 
         setUploadedFiles(files);
       }
 
-      // Load analysis results if completed
-      if ((workItem.analysisStatus === 'COMPLETED' || workItem.analysisStatus === 'PARTIAL') && result.analysisResults) {
+      // Load analysis results if completed for this lens
+      if ((loadedWorkItem.analysisStatus?.[currentLensAlias] === 'COMPLETED' ||
+        loadedWorkItem.analysisStatus?.[currentLensAlias] === 'PARTIAL') &&
+        result.analysisResults) {
         setAnalysisResults(result.analysisResults);
         setActiveTabId('analysis');
       }
 
-      // Load IaC document if completed
-      if ((workItem.iacGenerationStatus === 'COMPLETED' || workItem.iacGenerationStatus === 'PARTIAL') && result.iacDocument) {
+      // Load IaC document if completed for this lens
+      if ((loadedWorkItem.iacGenerationStatus?.[currentLensAlias] === 'COMPLETED' ||
+        loadedWorkItem.iacGenerationStatus?.[currentLensAlias] === 'PARTIAL') &&
+        result.iacDocument) {
         setUpdatedDocument({
           content: result.iacDocument,
-          name: workItem.fileName,
+          name: loadedWorkItem.fileName,
           templateType: selectedIaCType,
         });
         if (!result.analysisResults) {
@@ -521,29 +773,40 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
         }
       }
 
-      // Show any errors if either process failed
-      if (workItem.analysisError || workItem.iacGenerationError) {
+      // Show any errors if either process failed for this lens
+      if (loadedWorkItem.analysisError?.[currentLensAlias] || loadedWorkItem.iacGenerationError?.[currentLensAlias]) {
         setShowPartialResultsWarning(true);
         setPartialResultsError(
           `Previous errors encountered: ${[
-            workItem.analysisError,
-            workItem.iacGenerationError,
+            loadedWorkItem.analysisError?.[currentLensAlias],
+            loadedWorkItem.iacGenerationError?.[currentLensAlias],
           ]
             .filter(Boolean)
             .join(', ')}`
         );
       }
+
+      setActiveWorkItem(loadedWorkItem);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to load work item');
+    } finally {
+      // Reset loading state when complete
+      if (loadResults) {
+        setIsLoadingResults(false);
+      }
     }
-  }, [setActiveWorkItem, setError, setUploadedFiles, setAnalysisResults, setActiveTabId, setUpdatedDocument, selectedIaCType]);
+  }, [setActiveWorkItem, setError, setUploadedFiles, setAnalysisResults, setActiveTabId, setUpdatedDocument, selectedIaCType, setActiveLensAlias, setActiveLensAliasArn, setCanDeleteWorkload]);
 
   // Effect to listen for workItemSelected events
   useEffect(() => {
     const handleWorkItemSelected = async (event: Event) => {
-      const customEvent = event as CustomEvent<{ workItem: WorkItem }>;
+      const customEvent = event as CustomEvent<{ workItem: WorkItem, lensAliasArn?: string }>;
       try {
-        await handleWorkItemSelect(customEvent.detail.workItem);
+        await handleWorkItemSelect(
+          customEvent.detail.workItem,
+          true,
+          customEvent.detail.lensAliasArn
+        );
 
         // Dispatch loadComplete event
         const element = document.querySelector('[data-testid="well-architected-analyzer"]');
@@ -584,39 +847,85 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
 
           <PillarSelector
             key="pillar-selector"
-            pillars={DEFAULT_PILLARS}
+            pillars={pillarsFromLens}
             selectedPillars={selectedPillars}
             onChange={setSelectedPillars}
             disabled={isAnalyzing || isUpdating}
+            selectedLens={selectedLens}
           />
 
           <ExpandableSection
-            key="optional-settings"
+            headerText="Optional Settings"
             variant="inline"
-            headerText="Optional settings"
           >
-            <SpaceBetween size="l">
-              <SupportingDocumentUpload
-                key="supporting-document-upload"
-                onDocumentUploaded={handleSupportingDocumentUploaded}
-                onUploadStatusChange={setIsSupportingDocUploading}
-                disabled={!uploadedFiles || isAnalyzing || isUpdating}
-                activeWorkItemId={activeWorkItem?.fileId}
-              />
-              <WorkloadIdInput
-                key="workload-id-input"
-                value={workloadId || ''}
-                onChange={(value) => setWorkloadId(value || null)}
-                optional={true}
-                disabled={!!createdWorkloadId}
-              />
-              <IaCTemplateSelector
-                key="iac-template-selector"
-                value={selectedIaCType}
-                onChange={setSelectedIaCType}
-                disabled={isAnalyzing || isUpdating || !isImageFile}
-              />
-            </SpaceBetween>
+            <Tabs
+              activeTabId={optionalSettingsTabId}
+              variant="container"
+              onChange={({ detail }) => setOptionalSettingsTabId(detail.activeTabId)}
+              tabs={[
+                {
+                  id: 'lens-selector',
+                  label: 'Lens Selector',
+                  content: (
+                    <SpaceBetween direction="vertical" size="l">
+                      <LensSelector
+                        value={selectedLens?.lensAlias || ''}
+                        onChange={handleLensChange}
+                        disabled={isAnalyzing || isUpdating}
+                      />
+                    </SpaceBetween>
+                  )
+                },
+                {
+                  id: 'supporting-document',
+                  label: 'Supporting Document Upload',
+                  content: (
+                    <SpaceBetween direction="vertical" size="l">
+                      <SupportingDocumentUpload
+                        onDocumentUploaded={handleSupportingDocumentUploaded}
+                        disabled={isAnalyzing || isUpdating || !uploadedFiles}
+                        onUploadStatusChange={setIsSupportingDocUploading}
+                        activeWorkItemId={activeWorkItem?.fileId}
+                        lensAliasArn={activeLensAliasArn}
+                      />
+                    </SpaceBetween>
+                  )
+                },
+                {
+                  id: 'well-architected-tool',
+                  label: 'Well-Architected Tool',
+                  content: (
+                    <SpaceBetween direction="vertical" size="l">
+                      <WorkloadIdInput
+                        value={workloadId || ''}
+                        onChange={setWorkloadId}
+                        optional={true}
+                        disabled={!!createdWorkloadId}
+                      />
+                    </SpaceBetween>
+                  )
+                },
+                {
+                  id: 'iac-generation',
+                  label: 'IaC Generation',
+                  content: (
+                    <SpaceBetween direction="vertical" size="l">
+                      <IaCTemplateSelector
+                        value={selectedIaCType}
+                        onChange={setSelectedIaCType}
+                        disabled={isAnalyzing || isUpdating || isLoadingDetails || isImplementing}
+                      />
+                      {!isImageFile && (
+                        <Alert type="info">
+                          IaC template generation is only available when analyzing architecture diagram images.
+                        </Alert>
+                      )}
+                    </SpaceBetween>
+                  ),
+                  disabled: !isImageFile
+                }
+              ]}
+            />
           </ExpandableSection>
 
           {error && (
@@ -774,7 +1083,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
       {currentWorkItemName && (
         <Container>
           <KeyValuePairs
-            columns={3}
+            columns={4}
             items={[
               {
                 label: "Current Work Item",
@@ -794,7 +1103,90 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                 )
               },
               {
-                label: "Supporting Document",
+                label: "Current Lens",
+                value: (
+                  <SpaceBetween direction="horizontal" size="xs" alignItems="center">
+                    {activeWorkItem && activeWorkItem.usedLenses && activeWorkItem.usedLenses.length > 0 ? (
+                      <Select
+                        selectedOption={
+                          activeLensAlias ?
+                            {
+                              label: activeWorkItem.usedLenses.find(lens => lens.lensAlias === activeLensAlias)?.lensName || activeLensName,
+                              value: activeLensAlias
+                            } : null
+                        }
+                        onChange={({ detail }) => {
+                          if (detail.selectedOption) {
+                            const selectedLensAlias = detail.selectedOption.value as string;
+                            const selectedLens = activeWorkItem.usedLenses?.find(lens => lens.lensAlias === selectedLensAlias);
+
+                            if (selectedLens) {
+                              setActiveLensAlias(selectedLens.lensAlias);
+                              setActiveLensAliasArn(selectedLens.lensAliasArn);
+                              setActiveLensName(selectedLens.lensName);
+
+                              // Load results for the selected lens
+                              handleWorkItemSelect(activeWorkItem, true, selectedLens.lensAliasArn);
+                            }
+                          }
+                        }}
+                        options={activeWorkItem.usedLenses.map(lens => ({
+                          label: lens.lensName,
+                          value: lens.lensAlias,
+                          description: lens.lensAliasArn
+                        }))}
+                        filteringType="auto"
+                        placeholder="Select a lens"
+                        disabled={isLoadingResults}
+                      />
+                    ) : (
+                      activeLensName
+                    )}
+                  </SpaceBetween>
+                )
+              },
+              {
+                label: "Current Lens Results Status",
+                value: (
+                  <SpaceBetween direction="horizontal" size="xs" alignItems="center">
+                    {activeWorkItem && activeLensAlias && activeWorkItem.analysisProgress &&
+                      activeWorkItem.analysisProgress[activeLensAlias] !== undefined ? (
+                      <>
+                        {activeWorkItem.analysisStatus && activeWorkItem.analysisStatus[activeLensAlias] === 'PARTIAL' ? (
+                          <Badge color="blue">
+                            Partial results - Stopped at {activeWorkItem.analysisProgress[activeLensAlias]}%
+                          </Badge>
+                        ) : activeWorkItem.analysisStatus && activeWorkItem.analysisStatus[activeLensAlias] === 'IN_PROGRESS' ? (
+                          <Badge color="blue">
+                            In progress - {activeWorkItem.analysisProgress[activeLensAlias]}%
+                          </Badge>
+                        ) : activeWorkItem.analysisStatus && activeWorkItem.analysisStatus[activeLensAlias] === 'COMPLETED' ? (
+                          <Badge color="green">
+                            Completed
+                          </Badge>
+                        ) : activeWorkItem.analysisStatus && activeWorkItem.analysisStatus[activeLensAlias] === 'FAILED' ? (
+                          <Badge color="red">
+                            Failed
+                          </Badge>
+                        ) : <Badge color="grey">Not Started</Badge>}
+                      </>
+                    ) : isAnalyzing && progressTracking ? (<ProgressBar
+                      key="current-lens-analysis-progress-bar"
+                      value={Math.round((progressTracking.processedQuestions / progressTracking.totalQuestions) * 100)}
+                      description="In progress"
+                    />) : !isAnalyzing && progressTracking ? (
+                      Math.round((progressTracking.processedQuestions / progressTracking.totalQuestions) * 100) === 100 ? (
+                        <Badge color="green">Completed</Badge>
+                      ) : (
+                        <Badge color="blue">Partial results - Stopped at {Math.round((progressTracking.processedQuestions / progressTracking.totalQuestions) * 100)}%</Badge>
+                      )
+                    ) : <Badge color="grey">Not Started</Badge>
+                    }
+                  </SpaceBetween>
+                )
+              },
+              {
+                label: "Current Lens Supporting Document",
                 value: supportingDocument && supportingDocumentId ? (
                   <SpaceBetween direction="horizontal" size="xs" alignItems="center">
                     {supportingDocument.name}
@@ -807,13 +1199,19 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                         onClick={() => handleDownloadSupportingDocument(supportingDocumentId, supportingDocument.name)}
                       />
                     )}
+                    {activeWorkItem && (
+                      <Popover
+                        header="Supporting Document Description"
+                        dismissButton={true}
+                        position="top"
+                        triggerType="custom"
+                        content={supportingDocumentDescription}
+                      >
+                        <Button iconName="status-info" variant="icon" />
+                      </Popover>
+                    )}
                   </SpaceBetween>
                 ) : "N/A"
-              },
-              {
-                label: "Supporting Document Description",
-                value: (supportingDocument && supportingDocumentId && supportingDocumentDescription) ?
-                  supportingDocumentDescription : "N/A"
               }
             ]}
           />
@@ -838,7 +1236,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                   <AnalysisResults
                     key="analysis-results"
                     results={analysisResults}
-                    isAnalyzing={isAnalyzing}
+                    isAnalyzing={isAnalyzing || isLoadingResults}
                     onDownloadRecommendations={handleDownloadRecommendations}
                     onGenerateIacDocument={handleGenerateIacDocument}
                     isDownloading={isDownloading}
@@ -850,6 +1248,8 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                     setError={setError}
                     fileId={activeWorkItem?.fileId || ''}
                     fileName={uploadedFiles?.singleFile?.name || uploadedFiles?.zipFile?.name || 'unknown_file'}
+                    lensAliasArn={activeLensAliasArn}
+                    lensName={activeLensName}
                   />
                 </div>
               )
@@ -863,16 +1263,18 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                   <RiskSummary
                     key="risk-summary"
                     summary={riskSummary}
-                    onUpdate={handleUpdate}
-                    onGenerateReport={handleGenerateReport}
-                    onDeleteWorkload={deleteWorkload}
-                    onRefresh={handleRefresh}
+                    onUpdate={() => handleUpdate(activeWorkItem, currentLensWorkloadId, activeLensAliasArn)}
+                    onGenerateReport={() => handleGenerateReport(currentLensWorkloadId, activeLensAliasArn)}
+                    onDeleteWorkload={() => deleteWorkload(activeWorkItem, activeLensAlias)}
+                    onRefresh={() => handleRefresh(currentLensWorkloadId, activeLensAliasArn)}
                     isUpdating={isUpdating}
-                    isRefreshing={isRefreshing}
+                    isRefreshing={isRefreshing || isLoadingResults}
                     isGeneratingReport={isGeneratingReport}
                     isDeleting={isDeleting}
                     canDeleteWorkload={canDeleteWorkload}
                     hasProvidedWorkloadId={!!workloadId}
+                    currentWorkloadId={currentLensWorkloadId}
+                    awsRegion={awsRegion}
                   />
                 </div>
               )
@@ -889,6 +1291,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                       content={updatedDocument.content}
                       fileName={updatedDocument.name}
                       selectedIaCType={selectedIaCType}
+                      lensAlias={activeLensAlias}
                     />
                   )}
                 </div>
@@ -897,9 +1300,10 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
           ]}
         />
       )}
-      <Chat 
-        isAnalysisComplete={isAnalysisComplete} 
+      <Chat
+        isAnalysisComplete={isAnalysisComplete}
         fileId={activeWorkItem?.fileId}
+        lensName={activeLensName}
       />
     </SpaceBetween>
   );

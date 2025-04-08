@@ -5,12 +5,14 @@ import { QuestionGroup } from '../shared/interfaces/analysis.interface';
  * @param question The question string
  * @param pillar The pillar name
  * @param questionGroup The question group containing best practices
+ * @param lensName Optional lens name
  * @returns The formatted input text for the knowledge base query
  */
 export function buildKnowledgeBaseInputPrompt(
   question: string, 
   pillar: string, 
-  questionGroup: QuestionGroup
+  questionGroup: QuestionGroup,
+  lensName?: string
 ): string {
   const bestPracticesJson = JSON.stringify({
     pillar: questionGroup.pillar,
@@ -18,7 +20,12 @@ export function buildKnowledgeBaseInputPrompt(
     bestPractices: questionGroup.bestPractices
   }, null, 2);
 
-  return `Below <best_practices_to_retrieve> section contains the list of best practices of the question "${question}" in the Well-Architected pillar "${pillar}":
+  // Determine the lens context
+  const lensContext = lensName && lensName !== 'Well-Architected Framework' 
+    ? `AWS Well-Architected ${lensName} pillar "${pillar}"` 
+    : `Well-Architected pillar "${pillar}"`;
+
+  return `Below <best_practices_to_retrieve> section contains the list of best practices of the question "${question}" in the ${lensContext}:
 <best_practices_to_retrieve>
 ${bestPracticesJson}
 </best_practices_to_retrieve>
@@ -32,10 +39,16 @@ For each best practice provide:
 
 /**
  * Builds the text prompt template for the knowledge base generation configuration
+ * @param lensName Optional lens name
  * @returns The formatted text prompt template for the knowledge base
  */
-export function buildKnowledgeBasePromptTemplate(): string {
-  return `You are an AWS Well-Architected Framework expert. Using the following retrieved information about AWS Well-Architected best practices:
+export function buildKnowledgeBasePromptTemplate(lensName?: string): string {
+  // Determine the lens context
+  const lensContext = lensName && lensName !== 'Well-Architected Framework' 
+    ? `AWS Well-Architected ${lensName} expert. Using the following retrieved information about the ${lensName} lens best practices` 
+    : `AWS Well-Architected Framework expert. Using the following retrieved information about AWS Well-Architected best practices`;
+
+  return `You are an ${lensContext}:
   
   $search_results$
   

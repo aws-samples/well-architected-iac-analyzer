@@ -40,6 +40,8 @@ interface AnalysisResultsProps {
   setError: (error: string | null) => void;
   fileId: string;
   fileName: string;
+  lensAliasArn?: string;
+  lensName: string;
 }
 
 interface EnhancedBestPractice extends BestPractice {
@@ -53,7 +55,7 @@ interface PreferencesType {
   visibleContent: readonly string[];
 }
 
-export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAnalyzing, onDownloadRecommendations, onGenerateIacDocument, isDownloading, isImplementing, isLoadingDetails, setIsLoadingDetails, uploadedFileType, selectedIaCType, setError, fileId, fileName }) => {
+export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAnalyzing, onDownloadRecommendations, onGenerateIacDocument, isDownloading, isImplementing, isLoadingDetails, setIsLoadingDetails, uploadedFileType, selectedIaCType, setError, fileId, fileName, lensAliasArn, lensName }) => {
   const [preferences, setPreferences] = useState<PreferencesType>({
     pageSize: 10,
     visibleContent: ['pillar', 'question', 'name', 'status', 'reason', 'recommendations'],
@@ -76,7 +78,9 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
       const result = await analyzerApi.getMoreDetails(
         selectedItems,
         fileId,
-        selectedIaCType
+        selectedIaCType,
+        lensAliasArn,
+        lensName
       );
 
       if (result.error) {
@@ -97,7 +101,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
   };
 
   const getBestPracticeCounts = (practices: EnhancedBestPractice[]) => {
-    return practices.reduce(
+    const counts = practices.reduce(
       (acc, practice) => ({
         applied: acc.applied + (practice.relevant && practice.applied ? 1 : 0),
         notApplied: acc.notApplied + (practice.relevant && !practice.applied ? 1 : 0),
@@ -105,6 +109,11 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
       }),
       { applied: 0, notApplied: 0, notRelevant: 0 }
     );
+  
+    return {
+      ...counts,
+      totalReviewed: counts.applied + counts.notApplied + counts.notRelevant
+    };
   };
 
   // Transform the nested structure into a flat array
@@ -117,7 +126,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
     }))
   );
 
-  const { applied, notApplied, notRelevant } = getBestPracticeCounts(flattenedBestPractices);
+  const { applied, notApplied, notRelevant, totalReviewed } = getBestPracticeCounts(flattenedBestPractices);
 
   const { items, actions, filteredItemsCount, collectionProps, propertyFilterProps, paginationProps } = useCollection(
     flattenedBestPractices,
@@ -161,14 +170,23 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
     openChatWithSupportPrompt(prompt);
   };
 
+  // Extract alias from lensAliasArn
+  const lensAlias = lensAliasArn?.split('/')?.pop() || 'wellarchitected';
+
   return (
     <div>
       <Container
         variant="stacked"
       >
         <KeyValuePairs
-          columns={3}
+          columns={4}
           items={[
+            {
+              label: "Best Practices Reviewed",
+              value: isAnalyzing ?
+                <StatusIndicator type="loading">Loading</StatusIndicator> :
+                <StatusIndicator type="info">{totalReviewed}</StatusIndicator>
+            },
             {
               label: "Best Practices Applied",
               value: isAnalyzing ?
@@ -254,7 +272,11 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
             id: 'name',
             header: 'Best Practice',
             cell: item => (
-              <Link external href={`https://docs.aws.amazon.com/wellarchitected/latest/framework/${item.id}.html`}>
+              <Link external href={
+                lensAlias === 'wellarchitected' 
+                  ? `https://docs.aws.amazon.com/wellarchitected/latest/framework/${item.id}.html`
+                  : `https://docs.aws.amazon.com/search/doc-search.html?searchPath=documentation-guide&searchQuery=${encodeURIComponent(`"${lensName}"+"${item.pillar}"`)}`
+              }>
                 {item.name}
               </Link>
             ),
@@ -372,6 +394,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
         content={detailsContent}
         error={detailsError || undefined}
         originalFileName={fileName}
+        lensAlias={lensAlias}
       />
     </div>
   );

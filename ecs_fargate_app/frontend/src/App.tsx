@@ -20,6 +20,8 @@ function AppContent() {
   const sideNavRef = useRef<WorkSideNavigationRef>(null);
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
   const appLayoutRef = useRef<{ closeNavigationIfNecessary: () => void }>(null);
+  const [activeLensName, setActiveLensName] = useState<string | undefined>('Well-Architected Framework');
+  const [activeLensAliasArn, setActiveLensAliasArn] = useState<string | undefined>('arn:aws:wellarchitected::aws:lens/wellarchitected');
 
   // Effect to handle initial navigation state
   useEffect(() => {
@@ -35,6 +37,16 @@ function AppContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const handleAnalysisStart = (lensAliasArn: string, lensName: string) => {
+    setActiveLensAliasArn(lensAliasArn);
+    setActiveLensName(lensName);
+  };
+
+  const handleCurrentLensResultsSelection = (lensAliasArn?: string, lensName?: string) => {
+    setActiveLensAliasArn(lensAliasArn);
+    setActiveLensName(lensName);
+  };
+
   const handleResetActiveFile = () => {
     setActiveFileId(undefined);
   };
@@ -43,8 +55,10 @@ function AppContent() {
     setActiveFileId(workItem.fileId);
   };
 
-  const handleWorkItemSelect = async (workItem: WorkItem, loadResults: boolean = true) => {
+  const handleWorkItemSelect = async (workItem: WorkItem, loadResults: boolean = true, lensAliasArn?: string, lensName?: string) => {
     setActiveFileId(workItem.fileId);
+    setActiveLensName(lensName);
+    setActiveLensAliasArn(lensAliasArn);
 
     if (loadResults) {
       // Get reference to WellArchitectedAnalyzer component
@@ -53,7 +67,7 @@ function AppContent() {
         return new Promise<void>((resolve) => {
           // Create and dispatch the event
           const event = new CustomEvent('workItemSelected', {
-            detail: { workItem },
+            detail: { workItem, lensAliasArn },
             bubbles: true
           });
 
@@ -89,7 +103,7 @@ function AppContent() {
         }}
         utilities={userMenuUtilities}
       />
-      <ChatProvider fileId={activeFileId}>
+      <ChatProvider fileId={activeFileId} lensName={activeLensName} lensAliasArn={activeLensAliasArn}>
         <AppLayout
           content={
             <ContentLayout
@@ -103,7 +117,7 @@ function AppContent() {
               }
             >
               <div data-testid="well-architected-analyzer" key="analyzer">
-                <WellArchitectedAnalyzer onWorkItemsRefreshNeeded={handleWorkItemsRefresh} />
+                <WellArchitectedAnalyzer onWorkItemsRefreshNeeded={handleWorkItemsRefresh} onAnalysisStart={handleAnalysisStart} onCurrentLensResultsSelection={handleCurrentLensResultsSelection} />
               </div>
             </ContentLayout>
           }

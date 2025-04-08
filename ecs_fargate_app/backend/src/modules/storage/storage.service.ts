@@ -21,6 +21,8 @@ import {
   WorkItemUpdate,
   S3Locations,
   StorageConfig,
+  LensInfo,
+  WorkloadIdInfo
 } from '../../shared/interfaces/storage.interface';
 import { FileUploadMode } from '../../shared/dto/analysis.dto';
 import { ProjectPacker } from '../../shared/utils/project-packer';
@@ -58,11 +60,26 @@ export class StorageService {
     return {
       metadata: `${prefix}/metadata.json`,
       originalContent: `${prefix}/original_content`,
-      analysisResults: `${prefix}/analysis/analysis_results.json`,
-      iacDocument: `${prefix}/iac_templates/generated_template`,
       packedContent: `${prefix}/packed_content`,
-      supportingDocument: `${prefix}/supporting_document`,
       chatHistory: `${prefix}/chat_history.json`,
+      
+      // Get lens-specific paths
+      getAnalysisResultsPath: (lensAlias: string): string => {
+        return `${prefix}/analysis/${lensAlias}/analysis_results.json`;
+      },
+      
+      getIaCDocumentPath: (lensAlias: string, extension?: string): string => {
+        const basePath = `${prefix}/iac_templates/${lensAlias}/generated_template`;
+        return extension ? `${basePath}.${extension}` : basePath;
+      },
+      
+      getSupportingDocumentPath: (lensAlias: string, documentId: string): string => {
+        return `${prefix}/supporting_documents/${lensAlias}/${documentId}`;
+      },
+      
+      getSupportingDocumentMetadataPath: (lensAlias: string, documentId: string): string => {
+        return `${prefix}/supporting_documents/${lensAlias}/${documentId}_metadata.json`;
+      }
     };
   }
 
@@ -230,28 +247,30 @@ export class StorageService {
     fileName: string,
     fileType: string,
     fileBuffer: Buffer,
-    description: string
+    description: string,
+    lensAlias: string,
+    lensAliasArn: string,
   ): Promise<string> {
     if (!this.config.enabled) {
       throw new Error('Storage is not enabled');
     }
 
-    // Generate a unique ID for the supporting document that includes the main file ID reference
-    const supportingDocId = this.createFileIdHash(`supporting_${mainFileId}_${fileName}_${Date.now().toString()}`);
+    // Generate a unique ID for the supporting document
+    const supportingDocIdHash = this.createFileIdHash(`supporting_${mainFileId}_${fileName}_${Date.now().toString()}`);
     const timestamp = new Date().toISOString();
     const s3Client = this.awsConfig.createS3Client();
+    const dynamoClient = this.awsConfig.createDynamoDBClient();
 
-    // Use the main file's S3 prefix for organization
-    const mainFileLocations = this.getS3Locations(userId, mainFileId);
-    const supportingDocKey = `${userId}/${mainFileId}/supporting_documents/${supportingDocId}`;
-
+    // Get S3 locations
+    const s3Locations = this.getS3Locations(userId, mainFileId);
+    
     try {
-      // Store supporting document in S3
+      // Store supporting document in S3 with lens-specific path
       const upload = new Upload({
         client: s3Client,
         params: {
           Bucket: this.config.bucket,
-          Key: supportingDocKey,
+          Key: s3Locations.getSupportingDocumentPath(lensAlias, supportingDocIdHash),
           Body: fileBuffer,
           ContentType: fileType,
         },
@@ -262,13 +281,14 @@ export class StorageService {
       // Store metadata for the supporting document
       const metadata = {
         userId,
-        fileId: supportingDocId,
-        mainFileId, // Store reference to main file
+        fileId: supportingDocIdHash,
+        mainFileId,
         fileName,
         fileType,
         uploadDate: timestamp,
         lastModified: timestamp,
-        description: description,
+        description,
+        lensAlias,
         type: 'supporting-document',
       };
 
@@ -276,7 +296,7 @@ export class StorageService {
         client: s3Client,
         params: {
           Bucket: this.config.bucket,
-          Key: `${userId}/${mainFileId}/supporting_documents/${supportingDocId}_metadata.json`,
+          Key: s3Locations.getSupportingDocumentMetadataPath(lensAlias, supportingDocIdHash),
           Body: JSON.stringify(metadata),
           ContentType: 'application/json',
         },
@@ -284,28 +304,86 @@ export class StorageService {
 
       await metadataUpload.done();
 
-      // Update the main work item to reference this supporting document
-      await this.linkSupportingDocumentToWorkItem(
-        userId,
-        mainFileId,
-        supportingDocId,
-        fileName,
-        fileType,
-        description
-      );
+      // Get current work item to update lens-specific supporting document fields
+      const workItem = await this.getWorkItem(userId, mainFileId);
+      
+      // Initialize or update lens information
+      let usedLenses: LensInfo[] = workItem.usedLenses || [];
+      
+      // Get lens name from existing lenses or use default
+      const lensName = this.getLensNameFromAlias(usedLenses, lensAlias);
+      
+      // Check if lens already exists in usedLenses
+      if (!usedLenses.some(lens => lens.lensAlias === lensAlias)) {
+        usedLenses.push({ lensAlias, lensName, lensAliasArn });
+      }
+      
+      // Initialize or update lens-specific supporting document maps
+      let supportingDocId: Record<string, string> = { 
+        ...(workItem.supportingDocumentId || {})
+      };
+      let supportingDocAdded: Record<string, boolean> = {
+        ...(workItem.supportingDocumentAdded || {})
+      };
+      let supportingDocDesc: Record<string, string> = {
+        ...(workItem.supportingDocumentDescription || {})
+      };
+      let supportingDocName: Record<string, string> = {
+        ...(workItem.supportingDocumentName || {})
+      };
+      let supportingDocType: Record<string, string> = {
+        ...(workItem.supportingDocumentType || {})
+      };
+      
+      // Set values for this lens
+      supportingDocId[lensAlias] = supportingDocIdHash;
+      supportingDocAdded[lensAlias] = true;
+      supportingDocDesc[lensAlias] = description;
+      supportingDocName[lensAlias] = fileName;
+      supportingDocType[lensAlias] = fileType;
 
-      return supportingDocId;
+      // Update the work item
+      await this.updateWorkItem(userId, mainFileId, {
+        usedLenses,
+        supportingDocumentId: supportingDocId,
+        supportingDocumentAdded: supportingDocAdded,
+        supportingDocumentDescription: supportingDocDesc,
+        supportingDocumentName: supportingDocName,
+        supportingDocumentType: supportingDocType,
+        lastModified: timestamp
+      });
+
+      return supportingDocIdHash;
     } catch (error) {
       this.logger.error('Error storing supporting document:', error);
       throw new Error('Failed to store supporting document');
     }
   }
 
+  // Helper method to get lens name from alias
+  private getLensNameFromAlias(lenses: LensInfo[], lensAlias: string): string {
+    const lens = lenses.find(l => l.lensAlias === lensAlias);
+    if (lens) {
+      return lens.lensName;
+    }
+    
+    // Default names for common lenses if not found
+    if (lensAlias === 'wellarchitected') {
+      return 'Well-Architected Framework';
+    } else if (lensAlias === 'serverless') {
+      return 'Serverless Lens';
+    }
+    
+    // Generic fallback
+    return `Lens: ${lensAlias}`;
+  }
+
   // Method to get supporting document
   async getSupportingDocument(
     userId: string,
     mainFileId: string,
-    supportingDocId: string
+    supportingDocId: string,
+    lensAlias: string
   ): Promise<{ data: Buffer; contentType: string; fileName: string }> {
     if (!this.config.enabled) {
       throw new Error('Storage is not enabled');
@@ -317,16 +395,22 @@ export class StorageService {
       // Get the main work item to validate the supporting document relationship
       const workItem = await this.getWorkItem(userId, mainFileId);
 
-      if (!workItem.supportingDocumentId || !workItem.supportingDocumentAdded) {
-        throw new Error('No supporting document available for this work item');
+      // Check if lens is in the usedLenses list
+      if (!workItem.usedLenses?.some(lens => lens.lensAlias === lensAlias)) {
+        throw new Error(`No lens '${lensAlias}' found for this work item`);
       }
 
-      if (workItem.supportingDocumentId !== supportingDocId) {
-        throw new Error('Supporting document ID does not match the work item record');
+      if (!workItem.supportingDocumentId?.[lensAlias] || !workItem.supportingDocumentAdded?.[lensAlias]) {
+        throw new Error(`No supporting document available for lens '${lensAlias}'`);
       }
 
-      // Get the supporting document from S3
-      const supportingDocKey = `${userId}/${mainFileId}/supporting_documents/${supportingDocId}`;
+      if (workItem.supportingDocumentId[lensAlias] !== supportingDocId) {
+        throw new Error('Supporting document ID does not match the work item record for this lens');
+      }
+
+      // Get the supporting document from S3 using lens-specific path
+      const s3Locations = this.getS3Locations(userId, mainFileId);
+      const supportingDocKey = s3Locations.getSupportingDocumentPath(lensAlias, supportingDocId);
 
       const result = await s3Client.send(
         new GetObjectCommand({
@@ -341,35 +425,12 @@ export class StorageService {
       return {
         data: Buffer.from(response),
         contentType,
-        fileName: workItem.supportingDocumentName || 'supporting-document'
+        fileName: workItem.supportingDocumentName?.[lensAlias] || 'supporting-document'
       };
     } catch (error) {
       this.logger.error('Error getting supporting document:', error);
       throw new Error('Failed to get supporting document');
     }
-  }
-
-  // Update the updateWorkItem method to support linking a supporting document to a work item
-  async linkSupportingDocumentToWorkItem(
-    userId: string,
-    fileId: string,
-    supportingDocId: string,
-    docName: string,
-    docType: string,
-    description: string
-  ): Promise<WorkItem> {
-    if (!this.config.enabled) {
-      throw new Error('Storage is not enabled');
-    }
-
-    return await this.updateWorkItem(userId, fileId, {
-      supportingDocumentId: supportingDocId,
-      supportingDocumentAdded: true,
-      supportingDocumentDescription: description,
-      supportingDocumentName: docName,
-      supportingDocumentType: docType,
-      lastModified: new Date().toISOString(),
-    });
   }
 
   /**
@@ -383,7 +444,7 @@ export class StorageService {
     userId: string,
     filename: string,
     buffer: Buffer
-  ): Promise<{ fileId: string; tokenCount: number; exceedsTokenLimit: boolean }> {
+  ): Promise<{ fileId: string; tokenCount?: number; exceedsTokenLimit?: boolean }> {
     try {
       // Process the zip file
       const packedProject = await this.projectPacker.processZipFile(buffer, filename);
@@ -391,7 +452,7 @@ export class StorageService {
       // Create file ID
       const fileId = this.createFileIdHash(filename + Date.now().toString());
       const timestamp = new Date().toISOString();
-
+      
       // Create work item
       const workItem: WorkItem = {
         userId,
@@ -399,15 +460,9 @@ export class StorageService {
         fileName: filename,
         fileType: 'application/zip',
         uploadDate: timestamp,
-        analysisStatus: 'NOT_STARTED',
-        analysisProgress: 0,
-        iacGenerationStatus: 'NOT_STARTED',
-        iacGenerationProgress: 0,
         s3Prefix: `${userId}/${fileId}`,
         lastModified: timestamp,
         uploadMode: FileUploadMode.ZIP_FILE,
-        tokenCount: packedProject.tokenCount,
-        exceedsTokenLimit: packedProject.exceedsTokenLimit,
       };
 
       // Store work item in DynamoDB
@@ -448,7 +503,7 @@ export class StorageService {
   async handleMultipleFiles(
     userId: string,
     files: Array<{ filename: string; buffer: Buffer; mimetype: string }>
-  ): Promise<{ fileId: string; tokenCount: number; exceedsTokenLimit: boolean }> {
+  ): Promise<{ fileId: string; tokenCount?: number; exceedsTokenLimit?: boolean }> {
     try {
       const filesWithType = files.map(file => ({
         filename: file.filename,
@@ -470,23 +525,16 @@ export class StorageService {
       const combinedFilename = files.length < 2
         ? files.map(f => f.filename).join('_')
         : `${files[0].filename}_and_${files.length - 1}_more_files.zip`;
-
-      // Create work item
+      
       const workItem: WorkItem = {
         userId,
         fileId,
         fileName: combinedFilename,
         fileType: 'application/multiple-files',
         uploadDate: timestamp,
-        analysisStatus: 'NOT_STARTED',
-        analysisProgress: 0,
-        iacGenerationStatus: 'NOT_STARTED',
-        iacGenerationProgress: 0,
         s3Prefix: `${userId}/${fileId}`,
         lastModified: timestamp,
         uploadMode: FileUploadMode.MULTIPLE_FILES,
-        tokenCount: packedProject.tokenCount,
-        exceedsTokenLimit: packedProject.exceedsTokenLimit,
       };
 
       // Store work item in DynamoDB
@@ -629,10 +677,6 @@ export class StorageService {
       fileName,
       fileType,
       uploadDate: timestamp,
-      analysisStatus: 'NOT_STARTED',
-      analysisProgress: 0,
-      iacGenerationStatus: 'NOT_STARTED',
-      iacGenerationProgress: 0,
       s3Prefix: `${userId}/${fileId}`,
       lastModified: timestamp,
       uploadMode,
@@ -680,32 +724,73 @@ export class StorageService {
     }
   }
 
-  async updateWorkItem(
-    userId: string,
-    fileId: string,
-    updates: WorkItemUpdate,
-  ): Promise<WorkItem> {
+  async updateWorkItem(userId: string, fileId: string, updates: WorkItemUpdate): Promise<WorkItem> {
     if (!this.config.enabled) {
       throw new Error('Storage is not enabled');
     }
 
     const dynamoClient = this.awsConfig.createDynamoDBClient();
-    const updateExpr = [];
-    const exprAttrNames = {};
-    const exprAttrValues = {};
-    let updateExprStr = 'SET ';
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value !== undefined) {
-        updateExpr.push(`#${key} = :${key}`);
-        exprAttrNames[`#${key}`] = key;
-        exprAttrValues[`:${key}`] = value;
-      }
-    });
-
-    updateExprStr += updateExpr.join(', ');
-
+    
     try {
+      // Get the current work item to correctly merge updates
+      const currentWorkItem = await this.getWorkItem(userId, fileId);
+      
+      // Build the update expression parts
+      const updateExpressions: string[] = [];
+      const expressionAttributeNames: Record<string, string> = {};
+      const expressionAttributeValues: Record<string, any> = {};
+      
+      // Handle flat fields
+      const flatFields = ['lastModified', 'uploadMode', 'hasChatHistory', 'workloadId'];
+      flatFields.forEach(field => {
+        if (updates[field] !== undefined) {
+          updateExpressions.push(`#${field} = :${field}`);
+          expressionAttributeNames[`#${field}`] = field;
+          expressionAttributeValues[`:${field}`] = updates[field];
+        }
+      });
+      
+      // Handle usedLenses specially
+      if (updates.usedLenses !== undefined) {
+        updateExpressions.push(`#usedLenses = :usedLenses`);
+        expressionAttributeNames[`#usedLenses`] = 'usedLenses';
+        expressionAttributeValues[`:usedLenses`] = updates.usedLenses;
+      }
+
+      // Handle workloadIds map specially
+      if (updates.workloadIds !== undefined) {
+        updateExpressions.push(`#workloadIds = :workloadIds`);
+        expressionAttributeNames[`#workloadIds`] = 'workloadIds';
+        expressionAttributeValues[`:workloadIds`] = updates.workloadIds;
+      }
+      
+      // Handle lens-specific map fields
+      const mapFields = [
+        'analysisStatus', 'analysisProgress', 'analysisError', 'analysisPartialResults',
+        'iacGenerationStatus', 'iacGenerationProgress', 'iacGenerationError', 
+        'iacGeneratedFileType', 'iacPartialResults',
+        'exceedsTokenLimit', 'tokenCount',
+        'supportingDocumentId', 'supportingDocumentAdded', 'supportingDocumentDescription',
+        'supportingDocumentName', 'supportingDocumentType'
+      ];
+      
+      mapFields.forEach(field => {
+        if (updates[field] !== undefined) {
+          // For new work items or updating entire map
+          updateExpressions.push(`#${field} = :${field}`);
+          expressionAttributeNames[`#${field}`] = field;
+          expressionAttributeValues[`:${field}`] = updates[field];
+        }
+      });
+      
+      // If there are no updates, return the current work item
+      if (updateExpressions.length === 0) {
+        return currentWorkItem;
+      }
+      
+      // Build the update expression
+      const updateExpression = `SET ${updateExpressions.join(', ')}`;
+      
       const result = await dynamoClient.send(
         new UpdateItemCommand({
           TableName: this.config.table,
@@ -713,9 +798,9 @@ export class StorageService {
             userId,
             fileId,
           }),
-          UpdateExpression: updateExprStr,
-          ExpressionAttributeNames: exprAttrNames,
-          ExpressionAttributeValues: marshall(exprAttrValues),
+          UpdateExpression: updateExpression,
+          ExpressionAttributeNames: expressionAttributeNames,
+          ExpressionAttributeValues: marshall(expressionAttributeValues, { removeUndefinedValues: true }),
           ReturnValues: 'ALL_NEW',
         }),
       );
@@ -829,6 +914,7 @@ export class StorageService {
     userId: string,
     fileId: string,
     results: any,
+    lensAlias: string
   ): Promise<void> {
     if (!this.config.enabled) {
       throw new Error('Storage is not enabled');
@@ -842,7 +928,7 @@ export class StorageService {
         client: s3Client,
         params: {
           Bucket: this.config.bucket,
-          Key: s3Locations.analysisResults,
+          Key: s3Locations.getAnalysisResultsPath(lensAlias),
           Body: JSON.stringify(results),
           ContentType: 'application/json',
         },
@@ -855,7 +941,7 @@ export class StorageService {
     }
   }
 
-  async getAnalysisResults(userId: string, fileId: string): Promise<any> {
+  async getAnalysisResults(userId: string, fileId: string, lensAlias: string): Promise<any> {
     if (!this.config.enabled) {
       throw new Error('Storage is not enabled');
     }
@@ -867,7 +953,7 @@ export class StorageService {
       const result = await s3Client.send(
         new GetObjectCommand({
           Bucket: this.config.bucket,
-          Key: s3Locations.analysisResults,
+          Key: s3Locations.getAnalysisResultsPath(lensAlias),
         }),
       );
 
@@ -884,7 +970,8 @@ export class StorageService {
     fileId: string,
     content: string,
     extension: string,
-    templateType?: string,
+    templateType: string,
+    lensAlias: string
   ): Promise<void> {
     if (!this.config.enabled) {
       throw new Error('Storage is not enabled');
@@ -898,19 +985,28 @@ export class StorageService {
         client: s3Client,
         params: {
           Bucket: this.config.bucket,
-          Key: `${s3Locations.iacDocument}.${extension}`,
+          Key: s3Locations.getIaCDocumentPath(lensAlias, extension),
           Body: content,
         },
       });
 
       await upload.done();
 
-      if (templateType) {
-        await this.updateWorkItem(userId, fileId, {
-          iacGeneratedFileType: templateType,
-          lastModified: new Date().toISOString(),
-        });
-      }
+      // Get the current work item to update lens-specific fields
+      const workItem = await this.getWorkItem(userId, fileId);
+      
+      // Initialize or update lens-specific iacGeneratedFileType
+      let iacGeneratedFileType: Record<string, string> = {
+        ...(workItem.iacGeneratedFileType || {})
+      };
+      
+      // Set the template type for this lens
+      iacGeneratedFileType[lensAlias] = templateType;
+
+      await this.updateWorkItem(userId, fileId, {
+        iacGeneratedFileType,
+        lastModified: new Date().toISOString(),
+      });
     } catch (error) {
       this.logger.error('Error storing IaC document:', error);
       throw new Error('Failed to store IaC document');
@@ -921,6 +1017,7 @@ export class StorageService {
     userId: string,
     fileId: string,
     extension: string,
+    lensAlias: string,
     workItem?: WorkItem,
   ): Promise<string> {
     if (!this.config.enabled) {
@@ -931,16 +1028,26 @@ export class StorageService {
     const s3Locations = this.getS3Locations(userId, fileId);
 
     try {
-      // If workItem is provided and has iacGeneratedFileType, use that instead of the provided extension
-      const iacGeneratedExtension = workItem?.iacGeneratedFileType ?
-        this.getExtensionFromTemplateType(workItem.iacGeneratedFileType) :
+      // If workItem is not provided, fetch it
+      if (!workItem) {
+        workItem = await this.getWorkItem(userId, fileId);
+      }
+      
+      // Check if this lens exists in the workItem
+      if (!workItem.usedLenses?.some(lens => lens.lensAlias === lensAlias)) {
+        throw new Error(`No lens '${lensAlias}' found for this work item`);
+      }
+
+      // If workItem is provided and has lens-specific iacGeneratedFileType, use that instead of the provided extension
+      const iacGeneratedExtension = workItem.iacGeneratedFileType?.[lensAlias] ?
+        this.getExtensionFromTemplateType(workItem.iacGeneratedFileType[lensAlias]) :
         extension;
 
       const result = await s3Client.send(
         new GetObjectCommand({
           Bucket: this.config.bucket,
-          Key: `${s3Locations.iacDocument}.${iacGeneratedExtension}`,
-        }),
+          Key: s3Locations.getIaCDocumentPath(lensAlias, iacGeneratedExtension),
+        })
       );
 
       return await result.Body.transformToString();

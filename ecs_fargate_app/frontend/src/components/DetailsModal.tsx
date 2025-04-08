@@ -15,6 +15,7 @@ interface DetailsModalProps {
     content: string;
     error?: string | undefined;
     originalFileName?: string;
+    lensAlias?: string;
 }
 
 export const DetailsModal: React.FC<DetailsModalProps> = ({
@@ -22,12 +23,13 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
     onDismiss,
     content,
     error,
-    originalFileName = 'unknown_file'
+    originalFileName = 'unknown_file',
+    lensAlias = 'unknown_lens'
 }) => {
     const handleDownload = () => {
         const safeFileName = originalFileName.replace(/\./g, '_');
         
-        const newFileName = `IaCAnalyzer_Recommendation_Details_${safeFileName}.md`;
+        const newFileName = `IaCAnalyzer_${lensAlias}_Recommendation_Details_${safeFileName}.md`;
         
         const blob = new Blob([content], { type: 'text/markdown' });
         const url = window.URL.createObjectURL(blob);

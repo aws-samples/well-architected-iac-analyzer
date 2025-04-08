@@ -8,6 +8,7 @@ import {
   Box,
   StatusIndicator,
 } from '@cloudscape-design/components';
+import type { BadgeProps } from '@cloudscape-design/components/badge';
 import type { SideNavigationProps } from '@cloudscape-design/components/side-navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { storageApi } from '../services/storage';
@@ -15,7 +16,7 @@ import { WorkItem, WorkItemStatus } from '../types';
 
 export interface WorkSideNavigationProps {
   activeFileId?: string;
-  onItemSelect: (workItem: WorkItem, loadResults?: boolean) => void;
+  onItemSelect: (workItem: WorkItem, loadResults?: boolean, lensAliasArn?: string, lensName?: string) => void;
   onSectionExpand: (workItem: WorkItem) => void;
   onResetActiveFile: () => void;
 }
@@ -36,7 +37,6 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<WorkItem | null>(null);
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
-  const [downloadingSupportingDocId, setDownloadingSupportingDocId] = useState<string | null>(null);
   const [loadingFileId, setLoadingFileId] = useState<string | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [isReloading, setIsReloading] = useState(false);
@@ -45,6 +45,22 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
   const [deletingChatHistoryId, setDeletingChatHistoryId] = useState<string | null>(null);
   const [deleteChatModalVisible, setDeleteChatModalVisible] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<WorkItem | null>(null);
+
+  // Helper function to determine badge color based on analysis status
+  const getBadgeColor = (status?: WorkItemStatus): BadgeProps['color'] => {
+    switch (status) {
+      case 'COMPLETED':
+        return 'green';
+      case 'FAILED':
+        return 'red';
+      case 'PARTIAL':
+        return 'blue';
+      case 'IN_PROGRESS':
+        return 'blue';
+      default:
+        return 'grey';
+    }
+  };
 
   // Check if a file has chat history
   const hasChatHistory = (item: WorkItem): boolean => {
@@ -82,32 +98,6 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
       console.error('Failed to download file:', error);
     } finally {
       setDownloadingFileId(null);
-    }
-  };
-
-  // Handle supporting document download
-  const handleSupportingDocDownload = async (item: WorkItem, event: any) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    // Keep section expanded without loading results
-    onItemSelect(item, false);
-
-    if (!item.supportingDocumentId || !item.supportingDocumentName) {
-      return;
-    }
-
-    setDownloadingSupportingDocId(item.supportingDocumentId);
-    try {
-      await storageApi.downloadSupportingDocument(
-        item.supportingDocumentId,
-        item.fileId,
-        item.supportingDocumentName
-      );
-    } catch (error) {
-      console.error('Failed to download supporting document:', error);
-    } finally {
-      setDownloadingSupportingDocId(null);
     }
   };
 
@@ -202,35 +192,6 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
     }
   };
 
-  const getStatusBadge = (status: WorkItemStatus, progress: number) => {
-    switch (status) {
-      case 'COMPLETED':
-        return <Badge color="green">Completed</Badge>;
-      case 'FAILED':
-        return <Badge color="red">Failed</Badge>;
-      case 'PARTIAL':
-        return (
-          <SpaceBetween direction="horizontal" size="xs">
-            <Badge key="partial-badge" color="blue">Partial results - Stopped at {progress}%</Badge>
-          </SpaceBetween>
-        );
-      case 'IN_PROGRESS':
-        return (
-          <SpaceBetween direction="horizontal" size="xs">
-            <Badge key="progress-badge" color="blue">In Progress - {progress}%</Badge>
-          </SpaceBetween>
-        );
-      default:
-        return <Badge color="grey">Not Started</Badge>;
-    }
-  };
-
-  const canLoad = (item: WorkItem) =>
-    item.analysisStatus === 'COMPLETED' ||
-    item.analysisStatus === 'PARTIAL' ||
-    item.iacGenerationStatus === 'COMPLETED' ||
-    item.iacGenerationStatus === 'PARTIAL';
-
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const pad = (num: number) => String(num).padStart(2, '0');
@@ -246,34 +207,77 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
   };
 
   const navigationItems: SideNavigationProps.Item[] = [
-    ...items.map(item => ({
-      type: 'section' as const,
-      text: `[${formatDateTime(item.lastModified)}] ${item.fileName}`,
-      defaultExpanded: activeFileId === item.fileId,
-      key: `section-${item.fileId}`,
-      items: [
+    ...items.map(item => {
+      // Create file-level items (non-lens specific)
+      const fileItems = [
+        // Lenses section with badges for each lens
         {
           type: 'link' as const,
-          text: 'Analysis Results status:',
-          href: `/status/analysis/${item.fileId}`,
-          key: `analysis-status-${item.fileId}`,
+          text: 'Lenses:',
+          href: `/lenses/${item.fileId}`,
+          key: `lenses-${item.fileId}`,
           info: (
             <SpaceBetween direction="horizontal" size="xxxs">
-              {getStatusBadge(item.analysisStatus, item.analysisProgress)}
+              {(item.usedLenses || []).map(lens => (
+                <Badge 
+                  key={lens.lensAlias} 
+                  color={getBadgeColor(item.analysisStatus?.[lens.lensAlias])}
+                >
+                  {lens.lensAlias}
+                </Badge>
+              ))}
             </SpaceBetween>
           )
         },
-        ...(item.iacGenerationStatus !== 'NOT_STARTED' ? [{
+        // Load results - prioritize wellarchitected lens or first lens alphabetically
+        {
           type: 'link' as const,
-          text: 'IaC Generation status:',
-          href: `/status/iac/${item.fileId}`,
-          key: `iac-status-${item.fileId}`,
+          text: 'Load results:',
+          href: `/load/${item.fileId}`,
+          key: `load-${item.fileId}`,
           info: (
-            <SpaceBetween direction="horizontal" size="xxxs">
-              {getStatusBadge(item.iacGenerationStatus, item.iacGenerationProgress)}
-            </SpaceBetween>
+            <Button
+              iconName="refresh"
+              onClick={async (e: any) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setLoadingFileId(item.fileId);
+                
+                try {
+                  // Prioritize 'wellarchitected' lens if available
+                  const wellArchitectedLens = item.usedLenses?.find(lens => lens.lensAlias === 'wellarchitected');
+                  
+                  // Or use first lens alphabetically
+                  const sortedLenses = [...(item.usedLenses || [])].sort((a, b) => 
+                    a.lensAlias.localeCompare(b.lensAlias)
+                  );
+                  
+                  // Select the lens to load
+                  const lensToLoad = wellArchitectedLens || (sortedLenses.length > 0 ? sortedLenses[0] : undefined);
+                  
+                  if (lensToLoad) {
+                    await onItemSelect(
+                      item, 
+                      true, 
+                      lensToLoad.lensAliasArn,
+                      lensToLoad.lensName
+                    );
+                  } else {
+                    await onItemSelect(item, true);
+                  }
+                } finally {
+                  setLoadingFileId(null);
+                }
+              }}
+              ariaLabel="Load results"
+              variant="inline-icon"
+              loading={loadingFileId === item.fileId}
+            >
+              Load
+            </Button>
           )
-        }] : []),
+        },
+        // Original file download
         {
           type: 'link' as const,
           text: 'Download original file:',
@@ -289,21 +293,7 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
             />
           )
         },
-        ...(item.supportingDocumentId && item.supportingDocumentAdded ? [{
-          type: 'link' as const,
-          text: 'Download supporting document:',
-          href: `/download-supporting/${item.fileId}/${item.supportingDocumentId}`,
-          key: `download-supporting-${item.fileId}`,
-          info: (
-            <Button
-              iconName="download"
-              ariaLabel="Download supporting document"
-              variant="inline-icon"
-              loading={downloadingSupportingDocId === item.supportingDocumentId}
-              onClick={(e: any) => handleSupportingDocDownload(item, e)}
-            />
-          )
-        }] : []),
+        // Chat history
         {
           type: 'link' as const,
           text: 'Chat history:',
@@ -334,33 +324,7 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
             </SpaceBetween>
           )
         },
-        {
-          type: 'link' as const,
-          text: 'Load results:',
-          href: `/load/${item.fileId}`,
-          key: `load-${item.fileId}`,
-          info: (
-            <Button
-              iconName="refresh"
-              onClick={async (e: any) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setLoadingFileId(item.fileId);
-                try {
-                  await onItemSelect(item, true);
-                } finally {
-                  setLoadingFileId(null);
-                }
-              }}
-              ariaLabel="Load results"
-              variant="inline-icon"
-              loading={loadingFileId === item.fileId}
-              disabled={!canLoad(item)}
-            >
-              Load
-            </Button>
-          )
-        },
+        // Delete work item
         {
           type: 'link' as const,
           text: 'Delete work item:',
@@ -382,17 +346,39 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
             </Button>
           )
         }
-      ] as const
-    })),
-    { type: "divider" },
+      ];
+      
+      return {
+        type: 'section' as const,
+        text: `[${formatDateTime(item.lastModified)}] ${item.fileName}`,
+        defaultExpanded: activeFileId === item.fileId,
+        key: `section-${item.fileId}`,
+        items: fileItems
+      };
+    }),
+    { type: "divider" as const },
   ];
 
   const handleFollow = (event: CustomEvent<SideNavigationProps.FollowDetail>) => {
     event.preventDefault();
-    const fileId = event.detail.href.split('/').pop();
+    
+    // Parse fileId from the href
+    const parts = event.detail.href.split('/');
+    const action = parts[1];
+    const fileId = parts.length > 2 ? parts[2] : null;
+    
     const selectedItem = items.find(item => item.fileId === fileId);
+    
     if (selectedItem) {
-      onItemSelect(selectedItem);
+      if (action === 'lenses') {
+        // Just expand the section without loading results
+        onItemSelect(selectedItem, false);
+      } else if (action === 'load') {
+        // Handled by the button click
+      } else {
+        // For other actions, just expand the section
+        onItemSelect(selectedItem, false);
+      }
     }
   };
 
@@ -458,14 +444,14 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
           </Box>
           {itemToDelete && (
             <SpaceBetween key="status-indicators" size="xs">
-              <StatusIndicator key="analysis-status" type={itemToDelete.analysisPartialResults ? "warning" : "info"}>
-                Analysis Status: {itemToDelete.analysisStatus}
-                {itemToDelete.analysisPartialResults ? " (Partial Results)" : ""}
-              </StatusIndicator>
-              <StatusIndicator key="iac-status" type={itemToDelete.iacPartialResults ? "warning" : "info"}>
-                IaC Generation Status: {itemToDelete.iacGenerationStatus}
-                {itemToDelete.iacPartialResults ? " (Partial Results)" : ""}
-              </StatusIndicator>
+              {itemToDelete.usedLenses && itemToDelete.usedLenses.map(lens => (
+                <StatusIndicator 
+                  key={`analysis-status-${lens.lensAlias}`} 
+                  type={itemToDelete.analysisPartialResults?.[lens.lensAlias] ? "warning" : "info"}>
+                  {lens.lensName} Analysis Status: {itemToDelete.analysisStatus?.[lens.lensAlias] || 'NOT_STARTED'}
+                  {itemToDelete.analysisPartialResults?.[lens.lensAlias] ? " (Partial Results)" : ""}
+                </StatusIndicator>
+              ))}
             </SpaceBetween>
           )}
         </SpaceBetween>

@@ -12,6 +12,7 @@ import {
     UploadedFile,
     UploadedFiles,
     Body,
+    Query,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { StorageService } from './storage.service';
@@ -71,15 +72,25 @@ export class StorageController {
         @UploadedFile() file: Express.Multer.File,
         @Body('description') description: string,
         @Body('mainFileId') mainFileId: string,
+        @Body('lensAliasArn') lensAliasArn: string,
         @Headers('x-amzn-oidc-data') userDataHeader: string,
     ) {
         try {
             const email = this.getUserEmail(userDataHeader);
+            const lensAlias = lensAliasArn?.split('/')?.pop();
             if (!email) {
                 throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
             }
 
             const userId = this.storageService.createUserIdHash(email);
+
+            // Validate required parameters
+            if (!lensAlias) {
+                throw new HttpException(
+                    'Lens alias is required for supporting documents',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
 
             // Validate file size (4.5MB max)
             const MAX_SIZE = 4.5 * 1024 * 1024; // 4.5MB in bytes
@@ -140,7 +151,9 @@ export class StorageController {
                 file.originalname,
                 file.mimetype,
                 file.buffer,
-                description
+                description,
+                lensAlias,
+                lensAliasArn
             );
 
             return { fileId: supportingDocId };
@@ -153,25 +166,28 @@ export class StorageController {
     }
 
     // Endpoint to get supporting document content
-    @Get('work-items/:fileId/supporting-document/:supportingDocId')
+    @Get('work-items/:fileId/supporting-document/:supportingDocId/:lensAlias')
     async getSupportingDocument(
         @Param('fileId') fileId: string,
         @Param('supportingDocId') supportingDocId: string,
+        @Param('lensAlias') lensAliasArn: string,
         @Headers('x-amzn-oidc-data') userDataHeader: string,
         @Res() response: Response,
     ) {
         try {
             const email = this.getUserEmail(userDataHeader);
+            const lensAlias = lensAliasArn?.split('/')?.pop() || lensAliasArn;
             if (!email) {
                 throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
             }
             const userId = this.getUserId(email);
 
-            // Get the supporting document
+            // Get the supporting document with lens alias
             const { data, contentType, fileName } = await this.storageService.getSupportingDocument(
                 userId,
                 fileId,
-                supportingDocId
+                supportingDocId,
+                lensAlias
             );
 
             // Set response headers
@@ -342,6 +358,7 @@ export class StorageController {
     @Get('work-items/:fileId')
     async getWorkItem(
         @Param('fileId') fileId: string,
+        @Query('lensAliasArn') lensAliasArn: string,
         @Headers('x-amzn-oidc-data') userDataHeader: string,
     ): Promise<{
         workItem: WorkItem;
@@ -358,6 +375,7 @@ export class StorageController {
     }> {
         try {
             const email = this.getUserEmail(userDataHeader);
+            const lensAlias = lensAliasArn?.split('/')?.pop();
 
             if (!email) {
                 throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
@@ -377,36 +395,76 @@ export class StorageController {
             // Get hasChatHistory flag
             response.hasChatHistory = workItem.hasChatHistory;
 
-            // Get analysis results if completed
-            if (workItem.analysisStatus === 'COMPLETED' || workItem.analysisStatus === 'PARTIAL') {
-                response.analysisResults = await this.storageService.getAnalysisResults(
-                    userId,
-                    fileId,
-                );
+            // If lensAlias is provided and the lens exists in the workItem, get lens-specific data
+            if (lensAlias && workItem.usedLenses?.some(lens => lens.lensAlias === lensAlias)) {
+                // Get analysis results if completed for this lens
+                if (workItem.analysisStatus?.[lensAlias] === 'COMPLETED' || workItem.analysisStatus?.[lensAlias] === 'PARTIAL') {
+                    response.analysisResults = await this.storageService.getAnalysisResults(
+                        userId,
+                        fileId,
+                        lensAlias
+                    );
+                }
+
+                // Get IaC document if completed for this lens
+                if (workItem.iacGenerationStatus?.[lensAlias] === 'COMPLETED' || workItem.iacGenerationStatus?.[lensAlias] === 'PARTIAL') {
+                    // Determine extension based on file type or template type
+                    const extension = workItem.fileType.includes('yaml') ? 'yaml' :
+                        workItem.fileType.includes('json') ? 'json' : 'tf';
+
+                    response.iacDocument = await this.storageService.getIaCDocument(
+                        userId,
+                        fileId,
+                        extension,
+                        lensAlias,
+                        workItem,
+                    );
+                }
+
+                // Include supporting document info if available for this lens
+                if (workItem.supportingDocumentAdded?.[lensAlias] && workItem.supportingDocumentId?.[lensAlias]) {
+                    response.supportingDocument = {
+                        id: workItem.supportingDocumentId[lensAlias],
+                        name: workItem.supportingDocumentName?.[lensAlias],
+                        description: workItem.supportingDocumentDescription?.[lensAlias],
+                        type: workItem.supportingDocumentType?.[lensAlias]
+                    };
+                }
             }
+            // Otherwise, get data for any available lens
+            else if (workItem.usedLenses?.length > 0) {
+                // Get the first available lens
+                const defaultLens = workItem.usedLenses[0].lensAlias;
 
-            // Get IaC document if completed
-            if (workItem.iacGenerationStatus === 'COMPLETED' || workItem.iacGenerationStatus === 'PARTIAL') {
-                // Determine extension based on file type or template type
-                const extension = workItem.fileType.includes('yaml') ? 'yaml' :
-                    workItem.fileType.includes('json') ? 'json' : 'tf';
+                if (workItem.analysisStatus?.[defaultLens] === 'COMPLETED' || workItem.analysisStatus?.[defaultLens] === 'PARTIAL') {
+                    response.analysisResults = await this.storageService.getAnalysisResults(
+                        userId,
+                        fileId,
+                        defaultLens
+                    );
+                }
 
-                response.iacDocument = await this.storageService.getIaCDocument(
-                    userId,
-                    fileId,
-                    extension,
-                    workItem,
-                );
-            }
+                if (workItem.iacGenerationStatus?.[defaultLens] === 'COMPLETED' || workItem.iacGenerationStatus?.[defaultLens] === 'PARTIAL') {
+                    const extension = workItem.fileType.includes('yaml') ? 'yaml' :
+                        workItem.fileType.includes('json') ? 'json' : 'tf';
 
-            // Include supporting document info if available
-            if (workItem.supportingDocumentAdded && workItem.supportingDocumentId) {
-                response.supportingDocument = {
-                    id: workItem.supportingDocumentId,
-                    name: workItem.supportingDocumentName,
-                    description: workItem.supportingDocumentDescription,
-                    type: workItem.supportingDocumentType
-                };
+                    response.iacDocument = await this.storageService.getIaCDocument(
+                        userId,
+                        fileId,
+                        extension,
+                        defaultLens,
+                        workItem,
+                    );
+                }
+
+                if (workItem.supportingDocumentAdded?.[defaultLens] && workItem.supportingDocumentId?.[defaultLens]) {
+                    response.supportingDocument = {
+                        id: workItem.supportingDocumentId[defaultLens],
+                        name: workItem.supportingDocumentName?.[defaultLens],
+                        description: workItem.supportingDocumentDescription?.[defaultLens],
+                        type: workItem.supportingDocumentType?.[defaultLens]
+                    };
+                }
             }
 
             return response;
@@ -458,19 +516,21 @@ export class StorageController {
         }
     }
 
-    @Get('work-items/:fileId/analysis')
+    @Get('work-items/:fileId/analysis/:lensAlias')
     async getWorkItemAnalysis(
         @Param('fileId') fileId: string,
+        @Param('lensAlias') lensAliasArn: string,
         @Headers('x-amzn-oidc-data') userDataHeader: string,
     ) {
         try {
             const email = this.getUserEmail(userDataHeader);
+            const lensAlias = lensAliasArn?.split('/')?.pop() || lensAliasArn;
             if (!email) {
                 throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
             }
             const userId = this.getUserId(email);
 
-            return await this.storageService.getAnalysisResults(userId, fileId);
+            return await this.storageService.getAnalysisResults(userId, fileId, lensAlias);
         } catch (error) {
             throw new HttpException(
                 error.message || 'Failed to get analysis results',
@@ -479,20 +539,22 @@ export class StorageController {
         }
     }
 
-    @Get('work-items/:fileId/iac-document/:extension')
+    @Get('work-items/:fileId/iac-document/:extension/:lensAlias')
     async getWorkItemIaCDocument(
         @Param('fileId') fileId: string,
         @Param('extension') extension: string,
+        @Param('lensAlias') lensAliasArn: string,
         @Headers('x-amzn-oidc-data') userDataHeader: string,
     ) {
         try {
             const email = this.getUserEmail(userDataHeader);
+            const lensAlias = lensAliasArn?.split('/')?.pop() || lensAliasArn;
             if (!email) {
                 throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
             }
             const userId = this.getUserId(email);
 
-            return await this.storageService.getIaCDocument(userId, fileId, extension);
+            return await this.storageService.getIaCDocument(userId, fileId, extension, lensAlias);
         } catch (error) {
             throw new HttpException(
                 error.message || 'Failed to get IaC document',
@@ -522,6 +584,29 @@ export class StorageController {
                 error.message || 'Failed to get chat history',
                 HttpStatus.INTERNAL_SERVER_ERROR,
             );
+        }
+    }
+
+    @Post('work-items/:fileId/update')
+    async updateWorkItemData(
+        @Param('fileId') fileId: string,
+        @Body() updates: any,
+        @Headers('x-amzn-oidc-data') userDataHeader: string,
+    ) {
+        try {
+        const email = this.getUserEmail(userDataHeader);
+        if (!email) {
+            throw new HttpException('User not authenticated', HttpStatus.UNAUTHORIZED);
+        }
+        const userId = this.getUserId(email);
+
+        const updatedWorkItem = await this.storageService.updateWorkItem(userId, fileId, updates);
+        return { success: true, workItem: updatedWorkItem };
+        } catch (error) {
+        throw new HttpException(
+            error.message || 'Failed to update work item',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+        );
         }
     }
 
@@ -608,12 +693,12 @@ export class StorageController {
             }
 
             const userId = this.storageService.createUserIdHash(email);
-            
+
             // Validate that there are messages to store
             if (!body.messages || !Array.isArray(body.messages)) {
                 throw new HttpException('Messages array is required', HttpStatus.BAD_REQUEST);
             }
-            
+
             await this.storageService.storeChatHistory(userId, fileId, body.messages);
             return { success: true, message: 'Chat history stored successfully' };
         } catch (error) {

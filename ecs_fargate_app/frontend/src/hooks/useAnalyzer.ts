@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { analyzerApi } from '../services/api';
 import { socketService } from '../services/socket';
-import { AnalysisResult, RiskSummary, FileUploadMode } from '../types';
+import { AnalysisResult, RiskSummary, FileUploadMode, WorkloadIdInfo } from '../types';
 
 export const useAnalyzer = () => {
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult[] | null>(null);
@@ -18,16 +18,25 @@ export const useAnalyzer = () => {
     currentPillar: string;
     currentQuestion: string;
   } | null>(null);
+  const [progressTracking, setProgressTracking] = useState<{
+    processedQuestions: number;
+    totalQuestions: number;
+    currentPillar: string;
+    currentQuestion: string;
+  } | null>(null);
   const [createdWorkloadId, setCreatedWorkloadId] = useState<string | null>(null);
   const [canDeleteWorkload, setCanDeleteWorkload] = useState(false);
   const [showAnalysisCancellationAlert, setShowAnalysisCancellationAlert] = useState(false);
   const [isCancellingAnalysis, setIsCancellingAnalysis] = useState(false);
   const [showPartialResultsWarning, setShowPartialResultsWarning] = useState(false);
   const [partialResultsError, setPartialResultsError] = useState<string | null>(null);
+  const [currentLensWorkloadId, setCurrentLensWorkloadId] = useState<string | undefined>(undefined);
+  const [awsRegion, setAwsRegion] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const cleanup = socketService.onAnalysisProgress((progressData) => {
       setProgress(progressData);
+      setProgressTracking(progressData);
     });
 
     return () => {
@@ -38,11 +47,14 @@ export const useAnalyzer = () => {
 
   const analyze = async (
     fileId: string,
-    workloadId: string | null,
+    workloadId: string | undefined,
     selectedPillars: string[],
     uploadMode?: FileUploadMode,
     supportingDocumentId?: string | null,
-    supportingDocumentDescription?: string | null
+    supportingDocumentDescription?: string | null,
+    lensAliasArn?: string | null,
+    lensName?: string | null,
+    lensPillars?: Record<string, string> | null
   ): Promise<{ results: AnalysisResult[]; isCancelled: boolean; error?: string; fileId?: string }> => {
     setIsAnalyzing(true);
     setError(null);
@@ -50,25 +62,35 @@ export const useAnalyzer = () => {
     setShowPartialResultsWarning(false);
     setPartialResultsError(null);
     let tempWorkloadId: string | null = null;
+    let isTempWorkload: boolean = true;
   
     try {
       // Create temp workload if no workloadId provided
       if (!workloadId) {
-        tempWorkloadId = await analyzerApi.createWorkload(true);
+        tempWorkloadId = await analyzerApi.createWorkload(true, lensAliasArn ?? undefined);
         workloadId = tempWorkloadId;
-      }
+        isTempWorkload = true;
+      } else if (lensAliasArn) {
+        // If workloadId is provided, associate the selected lensAliasArn
+        await analyzerApi.associateLenses(workloadId, lensAliasArn);
 
-      // Convert null values to undefined for the API call
-      const supportingDocId = supportingDocumentId || undefined;
-      const supportingDocDesc = supportingDocumentDescription || undefined;
+        // This is a user-provided workload, update current lens workload ID but mark as protected
+        setCurrentLensWorkloadId(workloadId);
+        setCanDeleteWorkload(false);
+        isTempWorkload = false;
+      }
   
       const { results, isCancelled, error: analysisError, fileId: resultFileId } = await analyzerApi.analyze(
         fileId,
         workloadId,
         selectedPillars,
         uploadMode,
-        supportingDocId,
-        supportingDocDesc
+        supportingDocumentId || undefined,
+        supportingDocumentDescription || undefined,
+        lensAliasArn || undefined,
+        lensName || undefined,
+        lensPillars || undefined,
+        isTempWorkload
       );
   
       setAnalysisResults(results);
@@ -120,25 +142,41 @@ export const useAnalyzer = () => {
     }
   };
 
-  const updateWorkload = async (providedWorkloadId: string | null) => {
+  const updateWorkload = async (providedWorkloadId: string | undefined, lensAliasArn?: string, activeWorkItem?: any) => {
     if (!analysisResults) return;
   
     setIsUpdating(true);
     setError(null);
     try {
       let workloadId = providedWorkloadId;
+      const lensAlias = lensAliasArn?.split('/')?.pop();
+      let isProtected = false;
   
       // Create new workload if no workloadId provided
       if (!workloadId) {
-        workloadId = await analyzerApi.createWorkload(false);
+        workloadId = await analyzerApi.createWorkload(false, lensAliasArn);
         setCreatedWorkloadId(workloadId);
         setCanDeleteWorkload(true);
+        isProtected = false; // Created by the tool, not protected
+      } else if (lensAliasArn) {
+        // If workloadId is provided, associate the selected lensAliasArn
+        await analyzerApi.associateLenses(workloadId, lensAliasArn);
+        isProtected = true; // User-provided, so protected
+        setCanDeleteWorkload(false);
       }
+
+      // Update the current lens workload ID
+      setCurrentLensWorkloadId(workloadId);
   
       for (const result of analysisResults) {
         // Find the best practices that are applicable (relevant === true) and selected (applied === true)
         const appliedBestPractices = result.bestPractices
           .filter(bp => bp.relevant && bp.applied)
+          .map(bp => bp.id);
+
+        // Find the best practices that are applicable (relevant === true) and NOT selected (applied === false)
+        const notAppliedBestPractices = result.bestPractices
+          .filter(bp => bp.relevant && !bp.applied)
           .map(bp => bp.id);
   
         // Find the best practices that are not applicable (relevant === false)
@@ -147,12 +185,14 @@ export const useAnalyzer = () => {
           .map(bp => bp.id);
   
         // Only update the answer if there are applicable or non-applicable best practices
-        if (appliedBestPractices.length > 0 || notApplicableBestPractices.length > 0) {
+        if (appliedBestPractices.length > 0 || notApplicableBestPractices.length > 0 || notAppliedBestPractices.length > 0) {
           await analyzerApi.updateWorkload(
             workloadId,
             result.questionId,
             appliedBestPractices,
-            notApplicableBestPractices
+            notApplicableBestPractices,
+            notAppliedBestPractices,
+            lensAliasArn
           );
         }
       }
@@ -160,8 +200,34 @@ export const useAnalyzer = () => {
       const milestoneName = `Review completed on ${new Date().toISOString()}`;
       await analyzerApi.createMilestone(workloadId, milestoneName);
   
-      const summary = await analyzerApi.getRiskSummary(workloadId);
-      setRiskSummary(summary);
+      const response = await analyzerApi.getRiskSummary(workloadId, lensAliasArn);
+      setRiskSummary(response.summaries);
+
+      // If we have a workItem and a lens alias, update the workloadIds map in storage
+      if (activeWorkItem?.fileId && lensAlias) {
+        // Update the workloadIds map in the work item
+        const workloadIdInfo: WorkloadIdInfo = {
+          id: workloadId,
+          protected: isProtected
+        };
+        
+        const workloadIds = {
+          ...(activeWorkItem.workloadIds || {}),
+          [lensAlias]: workloadIdInfo
+        };
+        
+        try {
+          await analyzerApi.updateWorkItem(
+            activeWorkItem.fileId, 
+            { 
+              workloadIds,
+              lastModified: new Date().toISOString()
+            }
+          );
+        } catch (err) {
+          console.warn('Failed to update work item with workload ID:', err);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed');
     } finally {
@@ -169,13 +235,40 @@ export const useAnalyzer = () => {
     }
   };
 
-  const deleteWorkload = async () => {
-    if (!createdWorkloadId || !canDeleteWorkload) return;
-
+  const deleteWorkload = async (activeWorkItem?: any, lensAlias?: string) => {
+    // Skip if no current lens workload ID or if we don't have permission to delete
+    if (!currentLensWorkloadId || !canDeleteWorkload) return;
+  
     setIsDeleting(true);
     try {
-      await analyzerApi.deleteWorkload(createdWorkloadId);
+      // Delete the workload in the Well-Architected tool
+      await analyzerApi.deleteWorkload(currentLensWorkloadId);
+      
+      // If we have an active work item and current lens alias, update the DynamoDB record
+      if (activeWorkItem?.fileId && lensAlias) {
+        try {
+          // Create a new workloadIds object without the current lens
+          const updatedWorkloadIds = { ...(activeWorkItem.workloadIds || {}) };
+          
+          // Delete the entry for the current lens
+          delete updatedWorkloadIds[lensAlias];
+          
+          // Update the work item in DynamoDB
+          await analyzerApi.updateWorkItem(
+            activeWorkItem.fileId,
+            {
+              workloadIds: updatedWorkloadIds,
+              lastModified: new Date().toISOString()
+            }
+          );
+        } catch (updateErr) {
+          console.warn('Failed to update work item after deleting workload:', updateErr);
+        }
+      }
+      
+      // Reset state after successful deletion
       setCreatedWorkloadId(null);
+      setCurrentLensWorkloadId(undefined);
       setCanDeleteWorkload(false);
       setRiskSummary(null);
     } catch (err) {
@@ -185,10 +278,10 @@ export const useAnalyzer = () => {
     }
   };
 
-  const generateReport = async (workloadId: string, originalFileName: string = 'unknown_file') => {
+  const generateReport = async (workloadId: string, originalFileName: string = 'unknown_file', lensAliasArn?: string) => {
     setIsGeneratingReport(true);
     try {
-      const base64String = await analyzerApi.generateReport(workloadId);
+      const base64String = await analyzerApi.generateReport(workloadId, lensAliasArn);
       if (!base64String) {
         throw new Error('No report data received');
       }
@@ -206,7 +299,12 @@ export const useAnalyzer = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `IaCAnalyzer_Review_Report_${safeFileName}.pdf`;
+
+      const lensAlias = lensAliasArn?.split('/')?.pop();
+
+      // Add lens alias to the file name
+      a.download = `IaCAnalyzer_Review_Report_${lensAlias}_${safeFileName}.pdf`;
+
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -218,7 +316,7 @@ export const useAnalyzer = () => {
     }
   };
 
-  const downloadRecommendations = async (originalFileName: string = 'unknown_file') => {
+  const downloadRecommendations = async (originalFileName: string = 'unknown_file', lensAlias?: string) => {
     if (!analysisResults) return;
 
     try {
@@ -229,7 +327,7 @@ export const useAnalyzer = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `IaCAnalyzer_Analysis_Results_${safeFileName}.csv`;
+      a.download = `IaCAnalyzer_${lensAlias}_Analysis_Results_${safeFileName}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -239,11 +337,21 @@ export const useAnalyzer = () => {
     }
   };
 
-  const refreshSummary = async (workloadId: string) => {
+  const refreshSummary = async (workloadId: string, lensAliasArn?: string) => {
     setIsRefreshing(true);
     try {
-      const summary = await analyzerApi.getRiskSummary(workloadId);
-      setRiskSummary(summary);
+      // Ensure workloadId is a string and not an object
+      const workloadIdToUse = typeof workloadId === 'string' ? 
+        workloadId : 
+        (workloadId as any)?.id || workloadId;
+        
+      if (!workloadIdToUse || typeof workloadIdToUse !== 'string') {
+        throw new Error('Invalid workload ID. Expected a string but received: ' + JSON.stringify(workloadId));
+      }
+      
+      const response = await analyzerApi.getRiskSummary(workloadIdToUse, lensAliasArn);
+      setRiskSummary(response.summaries);
+      setAwsRegion(response.region);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh summary');
     } finally {
@@ -261,6 +369,7 @@ export const useAnalyzer = () => {
     setError,
     analysisResults,
     riskSummary,
+    setRiskSummary,
     isAnalyzing,
     isUpdating,
     error,
@@ -269,6 +378,7 @@ export const useAnalyzer = () => {
     isGeneratingReport,
     createdWorkloadId,
     canDeleteWorkload,
+    setCanDeleteWorkload,
     isDeleting,
     cancelAnalysis,
     isCancellingAnalysis,
@@ -279,5 +389,10 @@ export const useAnalyzer = () => {
     partialResultsError,
     setAnalysisResults,
     setPartialResultsError,
+    currentLensWorkloadId,
+    setCurrentLensWorkloadId,
+    setProgressTracking,
+    progressTracking,
+    awsRegion,
   };
 };

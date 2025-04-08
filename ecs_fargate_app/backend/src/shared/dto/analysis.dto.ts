@@ -1,4 +1,4 @@
-import { IsString, IsArray, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsArray, IsNotEmpty, IsEnum, IsOptional, IsObject, IsBoolean } from 'class-validator';
 
 export enum FileUploadMode {
   SINGLE_FILE = 'single_file',
@@ -32,6 +32,26 @@ export class AnalyzeRequestDto {
   @IsString()
   @IsOptional()
   supportingDocumentDescription?: string;
+
+  @IsString()
+  @IsOptional()
+  lensAlias?: string;
+
+  @IsString()
+  @IsOptional()
+  lensAliasArn?: string;
+
+  @IsString()
+  @IsOptional()
+  lensName?: string;
+
+  @IsObject()
+  @IsOptional()
+  lensPillars?: Record<string, string>;
+
+  @IsBoolean()
+  @IsOptional()
+  isTempWorkload?: boolean;
 }
 
 export class UpdateWorkloadDto {
@@ -47,6 +67,14 @@ export class GenerateReportDto {
   @IsString()
   @IsNotEmpty()
   workloadId: string;
+
+  @IsString()
+  @IsOptional()
+  lensAlias?: string;
+
+  @IsString()
+  @IsOptional()
+  lensAliasArn?: string;
 }
 
 export class CreateMilestoneDto {

@@ -17,6 +17,7 @@ interface SupportingDocumentUploadProps {
     onUploadStatusChange?: (isUploading: boolean) => void;
     disabled?: boolean;
     activeWorkItemId?: string;
+    lensAliasArn?: string;
 }
 
 // Maximum file size: 4.5 MB in bytes
@@ -26,7 +27,8 @@ export const SupportingDocumentUpload: React.FC<SupportingDocumentUploadProps> =
     onDocumentUploaded,
     onUploadStatusChange,
     disabled = false,
-    activeWorkItemId
+    activeWorkItemId,
+    lensAliasArn = 'arn:aws:wellarchitected::aws:lens/wellarchitected'
 }) => {
     const [value, setValue] = useState<File[]>([]);
     const [description, setDescription] = useState<string>('');
@@ -87,6 +89,7 @@ export const SupportingDocumentUpload: React.FC<SupportingDocumentUploadProps> =
             formData.append('file', value[0]);
             formData.append('description', description);
             formData.append('mainFileId', activeWorkItemId); // Pass the main file ID
+            formData.append('lensAliasArn', lensAliasArn);
 
             // Upload the file
             const response = await storageApi.uploadSupportingDocument(formData);

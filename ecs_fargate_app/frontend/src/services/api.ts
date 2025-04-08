@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { AnalysisResult, RiskSummary, IaCTemplateType, FileUploadMode } from '../types';
+import { AnalysisResult, RiskSummaryResponse, IaCTemplateType, FileUploadMode, LensMetadata } from '../types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -23,13 +23,41 @@ const handleError = (error: unknown) => {
 };
 
 export const analyzerApi = {
+  // Fetch lens metadata
+  async getLensMetadata(): Promise<LensMetadata[]> {
+    try {
+      const response = await api.get('/well-architected/lens-metadata');
+      return response.data;
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  async associateLenses(workloadId: string, lensAliasArn?: string): Promise<void> {
+    try {
+      if (!lensAliasArn) {
+        return; // Skip if no lens alias provided
+      }
+      
+      await api.post(`/well-architected/associate-lens/${workloadId}`, {
+        lensAliasArn
+      });
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
   async analyze(
     fileId: string,
     workloadId: string,
     selectedPillars: string[],
     uploadMode?: FileUploadMode,
     supportingDocumentId?: string,
-    supportingDocumentDescription?: string
+    supportingDocumentDescription?: string,
+    lensAliasArn?: string,
+    lensName?: string,
+    lensPillars?: Record<string, string> | null,
+    isTempWorkload?: boolean
   ): Promise<{ results: AnalysisResult[]; isCancelled: boolean; error?: string; fileId?: string }> {
     try {
       const response = await api.post('/analyzer/analyze', {
@@ -39,6 +67,10 @@ export const analyzerApi = {
         uploadMode,
         supportingDocumentId,
         supportingDocumentDescription,
+        lensAliasArn,
+        lensName,
+        lensPillars,
+        isTempWorkload,
       });
       return response.data;
     } catch (error) {
@@ -54,12 +86,14 @@ export const analyzerApi = {
     }
   },
 
-  async updateWorkload(workloadId: string, questionId: string, selectedChoices: string[], notApplicableChoiceIds: string[] = []) {
+  async updateWorkload(workloadId: string, questionId: string, selectedChoices: string[], notApplicableChoiceIds: string[] = [], notSelectedChoices: string[], lensAliasArn?: string) {
     try {
       const response = await api.post(`/well-architected/answer/${workloadId}`, {
         questionId,
         selectedChoices,
         notApplicableChoices: notApplicableChoiceIds,
+        notSelectedChoices,
+        lensAliasArn,
       });
       return response.data;
     } catch (error) {
@@ -67,9 +101,19 @@ export const analyzerApi = {
     }
   },
 
-  async getRiskSummary(workloadId: string): Promise<RiskSummary[]> {
+  async updateWorkItem(fileId: string, updates: any): Promise<void> {
     try {
-      const response = await api.get(`/well-architected/risk-summary/${workloadId}`);
+      await api.post(`/storage/work-items/${fileId}/update`, updates);
+    } catch (error) {
+      throw handleError(error);
+    }
+  },
+
+  async getRiskSummary(workloadId: string, lensAliasArn?: string): Promise<RiskSummaryResponse> {
+    try {
+      const response = await api.get(`/well-architected/risk-summary/${workloadId}`, {
+        params: { lensAliasArn }
+      });
       return response.data;
     } catch (error) {
       throw handleError(error);
@@ -88,9 +132,12 @@ export const analyzerApi = {
     }
   },
 
-  async generateReport(workloadId: string): Promise<string> {
+  async generateReport(workloadId: string, lensAliasArn?: string): Promise<string> {
     try {
-      const response = await api.post('/report/generate', { workloadId });
+      const response = await api.post('/report/generate', { 
+        workloadId,
+        lensAliasArn
+      });
       return response.data;
     } catch (error) {
       throw handleError(error);
@@ -106,10 +153,11 @@ export const analyzerApi = {
     }
   },
 
-  async createWorkload(isTemp: boolean = false): Promise<string> {
+  async createWorkload(isTemp: boolean = false, lensAliasArn?: string): Promise<string> {
     try {
       const response = await api.post('/well-architected/workload/create', {
-        isTemp
+        isTemp,
+        lensAliasArn
       });
       return response.data;
     } catch (error) {
@@ -129,12 +177,16 @@ export const analyzerApi = {
     fileId: string,
     recommendations: AnalysisResult[],
     templateType: IaCTemplateType,
+    lensAliasArn?: string,
+    lensName?: string,
   ): Promise<{ content: string; isCancelled: boolean; error?: string }> {
     try {
       const response = await api.post('/analyzer/generate-iac', {
         fileId,
         recommendations,
         templateType,
+        lensAliasArn,
+        lensName,
       });
       return response.data;
     } catch (error) {
@@ -150,13 +202,17 @@ export const analyzerApi = {
   async getMoreDetails(
     selectedItems: AnalysisResult[],
     fileId: string,
-    templateType: IaCTemplateType
+    templateType: IaCTemplateType,
+    lensAliasArn?: string,
+    lensName?: string,
   ): Promise<{ content: string; error?: string }> {
     try {
       const response = await api.post('/analyzer/get-more-details', {
         selectedItems,
         fileId,
-        templateType
+        templateType,
+        lensAliasArn,
+        lensName
       });
       return response.data;
     } catch (error) {
@@ -185,11 +241,13 @@ export const analyzerApi = {
     }
   },
 
-  async sendChatMessage(fileId: string, message: string): Promise<{ content: string }> {
+  async sendChatMessage(fileId: string, message: string, lensName: string, lensAliasArn: string): Promise<{ content: string }> {
     try {
       const response = await api.post('/analyzer/chat', {
         fileId,
-        message
+        message,
+        lensName,
+        lensAliasArn
       });
       return response.data;
     } catch (error) {
