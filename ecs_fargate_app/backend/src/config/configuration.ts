@@ -24,4 +24,8 @@ export default () => ({
       lensMetadataTable: process.env.LENS_METADATA_TABLE,
     }    
   },
+  // Language configuration for output
+  language: {
+    output: process.env.OUTPUT_LANGUAGE || 'en', // Default is English
+  },
 });

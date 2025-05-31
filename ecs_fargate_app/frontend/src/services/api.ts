@@ -70,7 +70,8 @@ export const analyzerApi = {
     lensAliasArn?: string,
     lensName?: string,
     lensPillars?: Record<string, string> | null,
-    isTempWorkload?: boolean
+    isTempWorkload?: boolean,
+    outputLanguage?: string
   ): Promise<{ results: AnalysisResult[]; isCancelled: boolean; error?: string; fileId?: string }> {
     try {
       const response = await api.post('/analyzer/analyze', {
@@ -84,6 +85,7 @@ export const analyzerApi = {
         lensName,
         lensPillars,
         isTempWorkload,
+        outputLanguage,
       });
       return response.data;
     } catch (error) {

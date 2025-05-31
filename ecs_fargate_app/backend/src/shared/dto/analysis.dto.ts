@@ -53,6 +53,10 @@ export class AnalyzeRequestDto {
   @IsBoolean()
   @IsOptional()
   isTempWorkload?: boolean;
+
+  @IsString()
+  @IsOptional()
+  outputLanguage?: string;
 }
 
 export class UpdateWorkloadDto {

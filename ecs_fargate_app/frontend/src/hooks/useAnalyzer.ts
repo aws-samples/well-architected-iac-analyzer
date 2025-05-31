@@ -54,7 +54,9 @@ export const useAnalyzer = () => {
     supportingDocumentDescription?: string | null,
     lensAliasArn?: string | null,
     lensName?: string | null,
-    lensPillars?: Record<string, string> | null
+    lensPillars?: Record<string, string> | null,
+    _isTempWorkloadParam?: boolean, // Renamed with underscore to indicate it's not used
+    outputLanguage?: string
   ): Promise<{ results: AnalysisResult[]; isCancelled: boolean; error?: string; fileId?: string; isNetworkInterruption?: boolean }> => {
     setIsAnalyzing(true);
     setError(null);
@@ -90,7 +92,8 @@ export const useAnalyzer = () => {
         lensAliasArn || undefined,
         lensName || undefined,
         lensPillars || undefined,
-        isTempWorkload
+        isTempWorkload,
+        outputLanguage
       );
   
       setAnalysisResults(results);

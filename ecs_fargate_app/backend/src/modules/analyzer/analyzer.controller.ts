@@ -109,7 +109,8 @@ export class AnalyzerController {
         lensAlias,
         analyzeRequest.lensAliasArn,
         analyzeRequest.lensName,
-        analyzeRequest.lensPillars
+        analyzeRequest.lensPillars,
+        analyzeRequest.outputLanguage // Pass the output language parameter
       );
     } catch (error) {
       this.logger.error('Analysis failed:', error);

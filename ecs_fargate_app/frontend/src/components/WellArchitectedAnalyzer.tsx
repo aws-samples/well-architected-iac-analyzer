@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DocumentView } from './DocumentView';
-import { SpaceBetween, Container, Button, StatusIndicator, ProgressBar, Tabs, Alert, ExpandableSection, KeyValuePairs, Badge, Select, Popover } from '@cloudscape-design/components';
+import { SpaceBetween, Container, Button, StatusIndicator, ProgressBar, Tabs, Alert, ExpandableSection, KeyValuePairs, Badge, Select, Popover, SelectProps } from '@cloudscape-design/components';
 import { FileUpload } from './FileUpload';
 import { SupportingDocumentUpload } from './SupportingDocumentUpload';
 import { WorkloadIdInput } from './WorkloadIdInput';
@@ -48,6 +48,11 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
   const [supportingDocument, setSupportingDocument] = useState<UploadedFile | null>(null);
   const [supportingDocumentId, setSupportingDocumentId] = useState<string | null>(null);
   const [supportingDocumentDescription, setSupportingDocumentDescription] = useState<string>('');
+  const [selectedLanguage, setSelectedLanguage] = useState<SelectProps.Option>(() => {
+    // Load language preference from localStorage or default to English
+    const savedLanguage = localStorage.getItem('preferredLanguage') || 'en';
+    return { value: savedLanguage, label: savedLanguage === 'en' ? 'English' : '日本語' };
+  });
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [isImplementing, setIsImplementing] = useState(false);
@@ -227,7 +232,9 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
         supportingDocumentDescription,
         currentLensAliasArn,
         currentLensName,
-        selectedLens?.lensPillars
+        selectedLens?.lensPillars,
+        undefined, // isTempWorkload
+        selectedLanguage.value || 'en' // Add language parameter with default
       );
 
       // Check if the result indicates a network interruption
@@ -929,6 +936,33 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                         disabled={isAnalyzing || isUpdating}
                       />
                     </SpaceBetween>
+                  )
+                },
+                {
+                  id: 'language-selector',
+                  label: 'Output Language',
+                  content: (
+                    <Container>
+                      <SpaceBetween size="l">
+                        <Select
+                          selectedOption={selectedLanguage}
+                          onChange={({ detail }) => {
+                            setSelectedLanguage(detail.selectedOption);
+                            localStorage.setItem('preferredLanguage', detail.selectedOption.value || 'en');
+                          }}
+                          options={[
+                            { value: 'en', label: 'English' },
+                            { value: 'ja', label: '日本語' }
+                          ]}
+                          ariaLabel="Output language"
+                        />
+                        {selectedLanguage.value !== 'en' && (
+                          <Alert type="info">
+                            Analysis results will be generated in {selectedLanguage.label}. Best practice names will remain in English for consistency with AWS documentation.
+                          </Alert>
+                        )}
+                      </SpaceBetween>
+                    </Container>
                   )
                 },
                 {
