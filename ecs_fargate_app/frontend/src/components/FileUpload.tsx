@@ -12,6 +12,7 @@ import {
 } from '@cloudscape-design/components';
 import { FileUploadMode, UploadedFiles } from '../types';
 import { HelpButton } from './utils/HelpButton';
+import { useLanguage } from '../contexts/LanguageContext';
 import { storageApi } from '../services/storage';
 
 interface FileUploadProps {
@@ -28,6 +29,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'initial' | 'success' | 'error'>('initial');
   const [uploadMode, setUploadMode] = useState<FileUploadMode>(FileUploadMode.SINGLE_FILE);
+  const { strings } = useLanguage();
 
   // Helper function to check if a file is an image based on its extension
   const isImageFile = (file: File): boolean => {
@@ -217,7 +219,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       setUploadStatus('success');
       onFileUploaded(uploadedFiles, response.fileId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload file');
+      setError(err instanceof Error ? err.message : strings.fileUpload.errorUploadingFile);
       setUploadStatus('error');
     } finally {
       setIsUploading(false);
@@ -241,7 +243,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         label={
           <>
             <Header variant="h3">
-              1. Upload your IaC documents, architecture diagram image, or PDF documents <HelpButton contentId="fileUpload" />
+              1. {strings.fileUpload.title} <HelpButton contentId="fileUpload" />
             </Header>
           </>
         }
@@ -256,33 +258,33 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               setError(null);
               setUploadStatus('initial');
             }}
-            label="Upload mode"
+            label={strings.fileUpload.uploadMode}
             options={[
               {
                 id: FileUploadMode.SINGLE_FILE,
-                text: "Single or Multiple Files"
+                text: strings.fileUpload.singleOrMultipleFiles
               },
               {
                 id: FileUploadMode.ZIP_FILE,
-                text: "Complete IaC Project"
+                text: strings.fileUpload.completeIacProject
               },
               {
                 id: FileUploadMode.PDF_FILE,
-                text: "PDF Documents"
+                text: strings.fileUpload.pdfDocuments
               }
             ]}
           />
           
           {uploadMode === FileUploadMode.SINGLE_FILE && (
-            <Box>Upload single or multiple related IaC documents. Or, upload a single architecture diagram image.</Box>
+            <Box>{strings.fileUpload.singleOrMultipleFilesDescription}</Box>
           )}
           
           {uploadMode === FileUploadMode.ZIP_FILE && (
-            <Box>Upload a .zip file containing your IaC project or repository files. Binary and media files in the zip will be excluded.</Box>
+            <Box>{strings.fileUpload.completeIacProjectDescription}</Box>
           )}
           
           {uploadMode === FileUploadMode.PDF_FILE && (
-            <Box>Upload up to 5 PDF documents (max 4.5MB each) with text related to architectural documentation and technical specifications relevant to your workload.</Box>
+            <Box>{strings.fileUpload.pdfDocumentsDescription}</Box>
           )}
 
           <CloudscapeFileUpload
@@ -290,22 +292,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             value={value}
             accept={getAcceptedTypesForMode().join(',')}
             i18nStrings={{
-              uploadButtonText: () => isUploading ? 'Uploading...' : 'Choose files',
+              uploadButtonText: () => isUploading ? strings.fileUpload.uploading : strings.fileUpload.chooseFiles,
               dropzoneText: () => {
-                if (isUploading) return 'Uploading...';
+                if (isUploading) return strings.fileUpload.uploading;
                 
                 switch(uploadMode) {
                   case FileUploadMode.SINGLE_FILE:
-                    return 'Drop file(s) to upload';
+                    return strings.fileUpload.dropFilesToUpload;
                   case FileUploadMode.ZIP_FILE:
-                    return 'Drop ZIP file to upload';
+                    return strings.fileUpload.dropZipFileToUpload;
                   case FileUploadMode.PDF_FILE:
-                    return 'Drop PDF file(s) to upload (max 5)';
+                    return strings.fileUpload.dropPdfFilesToUpload;
                   default:
-                    return 'Drop file(s) to upload';
+                    return strings.fileUpload.dropFilesToUpload;
                 }
               },
-              removeFileAriaLabel: i => `Remove ${i + 1}`,
+              removeFileAriaLabel: i => `${strings.fileUpload.removeFile} ${i + 1}`,
             }}
             showFileLastModified
             showFileSize
@@ -317,14 +319,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           )}
           {uploadStatus === 'success' && !isUploading && (
             <StatusIndicator type="success">
-              File{value.length > 1 ? 's' : ''} uploaded successfully
+              {value.length > 1 ? strings.fileUpload.filesUploadedSuccessfully : strings.fileUpload.fileUploadedSuccessfully}
             </StatusIndicator>
           )}
         </SpaceBetween>
       </FormField>
 
       {error && (
-        <Alert type="error" header="Error uploading file">
+        <Alert type="error" header={strings.fileUpload.errorUploadingFile}>
           {error}
         </Alert>
       )}

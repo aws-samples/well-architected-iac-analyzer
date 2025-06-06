@@ -13,7 +13,8 @@ export function buildImageSystemPrompt(
   question: QuestionGroup, 
   lensName?: string,
   pillarNames?: string,
-  lensPillars?: Record<string, string>
+  lensPillars?: Record<string, string>,
+  outputLanguage: string = 'en' // Add language parameter with English default
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
   
@@ -29,10 +30,15 @@ export function buildImageSystemPrompt(
     ? `AWS Well-Architected ${lensName}`
     : 'AWS Well-Architected Framework';
 
+  // Add language instruction if not English
+  const languageInstruction = outputLanguage !== 'en' 
+    ? `\n\nIMPORTANT: Please provide the review results in ${outputLanguage}. Keep the best practice names in English, but all explanations, reasons, and recommendations should be in ${outputLanguage}.`
+    : '';
+
   return `
   You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).
   The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
-  An architecture diagram has been provided. Follow the instructions listed under "<instructions>" section below.
+  An architecture diagram has been provided. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
 
   <instructions>
 1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given architecture diagram image (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given architecture diagram image.
@@ -127,7 +133,8 @@ export function buildSystemPrompt(
   question: QuestionGroup,
   lensName?: string,
   pillarNames?: string,
-  lensPillars?: Record<string, string>
+  lensPillars?: Record<string, string>,
+  outputLanguage: string = 'en' // Add language parameter with English default
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
 
@@ -143,10 +150,15 @@ export function buildSystemPrompt(
     ? `AWS Well-Architected ${lensName}`
     : 'AWS Well-Architected Framework';
 
+  // Add language instruction if not English
+  const languageInstruction = outputLanguage !== 'en' 
+    ? `\n\nIMPORTANT: Please provide the review results in ${outputLanguage}. Keep the best practice names in English, but all explanations, reasons, and recommendations should be in ${outputLanguage}.`
+    : '';
+
   return `
   You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).
   The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
-  The content of a CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) template document is provided below in the "uploaded_template_document" section. Follow the instructions listed under "<instructions>" section below.
+  The content of a CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) template document is provided below in the "uploaded_template_document" section. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
   
   <instructions>
   1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given CloudFormation, Terraform or AWS CDK template document (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given CloudFormation, Terraform or AWS CDK template document.
@@ -242,7 +254,8 @@ export function buildProjectSystemPrompt(
   question: QuestionGroup,
   lensName?: string,
   pillarNames?: string,
-  lensPillars?: Record<string, string>
+  lensPillars?: Record<string, string>,
+  outputLanguage: string = 'en' // Add language parameter with English default
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
 
@@ -258,10 +271,15 @@ export function buildProjectSystemPrompt(
     ? `AWS Well-Architected ${lensName}`
     : 'AWS Well-Architected Framework';
 
+  // Add language instruction if not English
+  const languageInstruction = outputLanguage !== 'en' 
+    ? `\n\nIMPORTANT: Please provide the review results in ${outputLanguage}. Keep the best practice names in English, but all explanations, reasons, and recommendations should be in ${outputLanguage}.`
+    : '';
+
   return `
   You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).
   The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
-  A complete project containing multiple Infrastructure as Code (IaC) files is provided below in the "uploaded_project" section. The project could contain multiple CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) files that together define the complete infrastructure or application. Follow the instructions listed under "<instructions>" section below.
+  A complete project containing multiple Infrastructure as Code (IaC) files is provided below in the "uploaded_project" section. The project could contain multiple CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) files that together define the complete infrastructure or application. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
   
   <instructions>
   1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given project (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given project.
@@ -344,7 +362,7 @@ For best practices marked as "relevant: false", do not include the "applied" fie
  * @param lensName Optional lens name
  * @returns A system prompt for detailed analysis
  */
-export function buildDetailsSystemPrompt(modelId?: string, lensName?: string): string {
+export function buildDetailsSystemPrompt(modelId?: string, lensName?: string, outputLanguage: string = 'en'): string {
   const useSonnet37 = modelId && (
     modelId.includes('anthropic.claude-3-7-sonnet') ||
     modelId.includes('us.anthropic.claude-3-7-sonnet')
@@ -358,6 +376,11 @@ export function buildDetailsSystemPrompt(modelId?: string, lensName?: string): s
   const lensContext = lensName && lensName !== 'Well-Architected Framework'
   ? `AWS Well-Architected ${lensName}`
   : 'AWS Well-Architected Framework';
+
+  // Add language instruction if not English
+  const languageInstruction = outputLanguage !== 'en' 
+    ? `\n8. Please provide your detailed analysis in ${outputLanguage}. Keep technical terms and AWS service names in English, but all explanations, guidance, and recommendations should be in ${outputLanguage}.`
+    : '';
 
   return `You are an AWS Cloud Solutions Architect who specializes in reviewing solution architectures and Infrastructure As Code (IaC) documents against the ${lensContext}. Your answer should be formatted in Markdown.
 
@@ -388,7 +411,7 @@ Structure your response as:
  * @param lensName Optional lens name
  * @returns A system prompt for IaC template generation
  */
-export function buildIacGenerationSystemPrompt(templateType: IaCTemplateType, modelId?: string, lensName?: string): string {
+export function buildIacGenerationSystemPrompt(templateType: IaCTemplateType, modelId?: string, lensName?: string, outputLanguage: string = 'en'): string {
   const useSonnet37 = modelId && (
     modelId.includes('anthropic.claude-3-7-sonnet') ||
     modelId.includes('us.anthropic.claude-3-7-sonnet')
@@ -422,12 +445,17 @@ export function buildIacGenerationSystemPrompt(templateType: IaCTemplateType, mo
     `      4. Each of your answers have at least 1500 words, unless you are providing a response with the last part of a template.` :
     `      4. Each of your answers have at least 800 words, unless you are providing a response with the last part of a template.`;
 
+  // Language instruction if not English
+  const languageInstruction = outputLanguage !== 'en' 
+    ? `      5. Please provide all comments and explanations in ${outputLanguage}, but keep code, variable names, and technical terms in English.` 
+    : '';
+
   // Additional instructions
   const additionalInstructions = `
-      5. Do not repeat any section or part already provided.
-      ${isCdkTemplate ? `6. Make sure to follow best practices for AWS CDK development in ${language}.
-      7. Include necessary imports and dependencies in the code.
-      8. Structure the code according to standard ${language} conventions for AWS CDK projects.` : ''}
+      ${languageInstruction ? '6' : '5'}. Do not repeat any section or part already provided.
+      ${isCdkTemplate ? `${languageInstruction ? '7' : '6'}. Make sure to follow best practices for AWS CDK development in ${language}.
+      ${languageInstruction ? '8' : '7'}. Include necessary imports and dependencies in the code.
+      ${languageInstruction ? '9' : '8'}. Structure the code according to standard ${language} conventions for AWS CDK projects.` : ''}
       </instructions>
       
       For your reference, after you complete providing all parts of the template, all template parts/sections you provided will be concatenated into a single ${templateType} file.`;
@@ -442,7 +470,7 @@ export function buildIacGenerationSystemPrompt(templateType: IaCTemplateType, mo
  * @param lensName Optional lens name
  * @returns A system prompt for architecture diagram detailed analysis
  */
-export function buildImageDetailsSystemPrompt(templateType: IaCTemplateType, modelId?: string, lensName?: string): string {
+export function buildImageDetailsSystemPrompt(templateType: IaCTemplateType, modelId?: string, lensName?: string, outputLanguage: string = 'en'): string {
   const useSonnet37 = modelId && (
     modelId.includes('anthropic.claude-3-7-sonnet') ||
     modelId.includes('us.anthropic.claude-3-7-sonnet')
@@ -465,6 +493,11 @@ export function buildImageDetailsSystemPrompt(templateType: IaCTemplateType, mod
   const lensContext = lensName && lensName !== 'Well-Architected Framework'
     ? `AWS Well-Architected ${lensName}`
     : 'AWS Well-Architected Framework';
+
+  // Add language instruction if not English
+  const languageInstruction = outputLanguage !== 'en' 
+    ? `\n8. Please provide your detailed analysis in ${outputLanguage}. Keep technical terms and AWS service names in English, but all explanations, guidance, and recommendations should be in ${outputLanguage}.`
+    : '';
 
   return `You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the ${lensContext}. Your answer should be formatted in Markdown.
 
@@ -506,7 +539,8 @@ export function buildPdfSystemPrompt(
   question: QuestionGroup,
   lensName?: string,
   numberOfPdfs: number = 1,
-  lensPillars?: Record<string, string>
+  lensPillars?: Record<string, string>,
+  outputLanguage: string = 'en' // Add language parameter with English default
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
   
@@ -523,11 +557,16 @@ export function buildPdfSystemPrompt(
     ? `AWS Well-Architected ${lensName}`
     : 'AWS Well-Architected Framework';
 
+  // Add language instruction if not English
+  const languageInstruction = outputLanguage !== 'en' 
+    ? `\n\nIMPORTANT: Please provide the review results in ${outputLanguage}. Keep the best practice names in English, but all explanations, reasons, and recommendations should be in ${outputLanguage}.`
+    : '';
+
   return `
   You are an AWS Cloud Solutions Architect who specializes in reviewing architecture documentation against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).
   The WAFR process consists of evaluating the provided architecture documentation against the ${pillarCount} pillars of the ${lensContext} - ${formattedPillarNames} - by asking fixed questions for each pillar.
   
-  ${numberOfPdfs} PDF document${numberOfPdfs > 1 ? 's have' : ' has'} been provided containing architecture documentation. Follow the instructions listed under "<instructions>" section below.
+  ${numberOfPdfs} PDF document${numberOfPdfs > 1 ? 's have' : ' has'} been provided containing architecture documentation. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
   
   <instructions>
   1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the provided PDF architecture documentation file(s) (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given documentation.
@@ -580,11 +619,16 @@ For best practices marked as "relevant: false", do not include the "applied" fie
  * @param lensName Optional lens name
  * @returns A system prompt for detailed PDF analysis
  */
-export function buildPdfDetailsSystemPrompt(lensName?: string): string {
+export function buildPdfDetailsSystemPrompt(lensName?: string, outputLanguage: string = 'en'): string {
   // Determine lens context
   const lensContext = lensName && lensName !== 'Well-Architected Framework'
     ? `AWS Well-Architected ${lensName}`
     : 'AWS Well-Architected Framework';
+
+  // Add language instruction if not English
+  const languageInstruction = outputLanguage !== 'en' 
+    ? `\n8. Please provide your detailed analysis in ${outputLanguage}. Keep technical terms and AWS service names in English, but all explanations, guidance, and recommendations should be in ${outputLanguage}.`
+    : '';
 
   return `You are an AWS Cloud Solutions Architect who specializes in reviewing solution architectures and documentation against the ${lensContext}. Your answer should be formatted in Markdown.
 

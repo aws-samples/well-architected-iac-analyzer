@@ -16,6 +16,12 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
 ## Features
 
 ---
+- **NEW** ** Language Localization Support:
+  - Select your preferred language from the Output Language in Optional Settings menu 
+  - Currently supports English and Japanese
+  - Language selection affects analysis results, recommendations, and detailed explanations
+  - Consistent localization across all file types (CloudFormation, Terraform, CDK, PDF documents, and architecture diagrams)
+---
 - **NEW** ** Interactive Analyzer Assistant chatbot:
   - Ask questions about analysis results
   - Get detailed explanations of Well-Architected best practices

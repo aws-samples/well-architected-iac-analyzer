@@ -10,6 +10,7 @@ import {
 } from '@cloudscape-design/components';
 import { UploadedFile } from '../types';
 import { HelpButton } from './utils/HelpButton';
+import { useLanguage } from '../contexts/LanguageContext';
 import { storageApi } from '../services/storage';
 
 interface SupportingDocumentUploadProps {
@@ -35,6 +36,7 @@ export const SupportingDocumentUpload: React.FC<SupportingDocumentUploadProps> =
     const [error, setError] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState<'initial' | 'success' | 'error'>('initial');
+    const { strings } = useLanguage();
 
     const acceptedFileTypes = ['.pdf', '.txt', '.png', '.jpg', '.jpeg'];
 
@@ -113,7 +115,7 @@ export const SupportingDocumentUpload: React.FC<SupportingDocumentUploadProps> =
             setUploadStatus('success');
             onDocumentUploaded(uploadedFile, description, response.fileId);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to upload file');
+            setError(err instanceof Error ? err.message : strings.fileUpload.errorUploadingFile);
             setUploadStatus('error');
         } finally {
             setIsUploading(false);
@@ -136,10 +138,10 @@ export const SupportingDocumentUpload: React.FC<SupportingDocumentUploadProps> =
             <FormField
                 label={
                     <>
-                        Supporting Document <HelpButton contentId="supportingDocument" />
+                        {strings.supportingDocumentUpload.title} <HelpButton contentId="supportingDocument" />
                     </>
                 }
-                description={`Upload a single supporting document to provide additional context for your analysis. Supported types: ${acceptedFileTypes.join(' ')}`}
+                description={`${strings.supportingDocumentUpload.description}. Supported types: ${acceptedFileTypes.join(' ')}`}
                 errorText={error}
             >
                 <SpaceBetween size="s">
@@ -148,9 +150,9 @@ export const SupportingDocumentUpload: React.FC<SupportingDocumentUploadProps> =
                         value={value}
                         accept={acceptedFileTypes.join(',')}
                         i18nStrings={{
-                            uploadButtonText: () => isUploading ? 'Uploading...' : 'Choose Supporting Document',
-                            dropzoneText: () => isUploading ? 'Uploading...' : 'Drop file to upload',
-                            removeFileAriaLabel: i => `Remove ${i + 1}`,
+                            uploadButtonText: () => isUploading ? strings.fileUpload.uploading : strings.fileUpload.chooseFiles,
+                            dropzoneText: () => isUploading ? strings.fileUpload.uploading : strings.fileUpload.dropFilesToUpload,
+                            removeFileAriaLabel: i => `${strings.fileUpload.removeFile} ${i + 1}`,
                         }}
                         showFileLastModified
                         showFileSize
@@ -174,12 +176,12 @@ export const SupportingDocumentUpload: React.FC<SupportingDocumentUploadProps> =
                         variant="primary"
                         loading={isUploading}
                     >
-                        Upload Supporting Document
+                        {strings.common.upload} {strings.supportingDocumentUpload.title}
                     </Button>
 
                     {uploadStatus === 'success' && !isUploading && (
                         <StatusIndicator type="success">
-                            Document uploaded successfully
+                            {strings.fileUpload.fileUploadedSuccessfully}
                         </StatusIndicator>
                     )}
                 </SpaceBetween>
@@ -190,7 +192,7 @@ export const SupportingDocumentUpload: React.FC<SupportingDocumentUploadProps> =
                     type="error"
                     dismissible
                     onDismiss={() => setError(null)}
-                    header="Error uploading document"
+                    header={strings.fileUpload.errorUploadingFile}
                 >
                     {error}
                 </Alert>

@@ -19,11 +19,12 @@ import { AnalysisResult, BestPractice, IaCTemplateType } from '../types';
 import { DetailsModal } from './DetailsModal';
 import { analyzerApi } from '../services/api';
 import { useChat } from '../components/chat/ChatContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import {
-  tableFilteringProperties,
-  paginationLabels,
-  getMatchesCountText,
-  propertyFilterI18nStrings,
+  getTableFilteringProperties,
+  getPaginationLabels,
+  getMatchesCountTextI18n,
+  getPropertyFilterI18nStrings,
 } from './utils/table-configs/analysis-table-config';
 
 interface AnalysisResultsProps {
@@ -65,6 +66,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
   const [detailsContent, setDetailsContent] = useState('');
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const { openChatWithSupportPrompt } = useChat();
+  const { strings, language } = useLanguage();
 
   const handleGenerateIacClick = () => {
     onGenerateIacDocument();
@@ -128,6 +130,11 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
 
   const { applied, notApplied, notRelevant, totalReviewed } = getBestPracticeCounts(flattenedBestPractices);
 
+  // Get localized configurations
+  const tableFilteringProperties = getTableFilteringProperties(language);
+  const paginationLabels = getPaginationLabels(language);
+  const propertyFilterI18nStrings = getPropertyFilterI18nStrings(language);
+
   const { items, actions, filteredItemsCount, collectionProps, propertyFilterProps, paginationProps } = useCollection(
     flattenedBestPractices,
     {
@@ -135,15 +142,15 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
         filteringProperties: tableFilteringProperties,
         empty: (
           <Box textAlign="center" color="inherit">
-            <b>No best practices found</b>
+            <b>{strings.analysisResults.noBestPracticesFound}</b>
           </Box>
         ),
         noMatch: (
           <Box textAlign="center" color="inherit">
-            <b>No matches</b>
+            <b>{strings.analysisResults.noMatches}</b>
             <Box color="inherit" padding={{ top: 's' }}>
               <Button onClick={() => actions.setPropertyFiltering({ tokens: [], operation: 'and' })}>
-                Clear filter
+                {strings.analysisResults.clearFilter}
               </Button>
             </Box>
           </Box>
@@ -182,27 +189,27 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
           columns={4}
           items={[
             {
-              label: "Best Practices Reviewed",
+              label: strings.analysisResults.bestPracticesReviewed,
               value: isAnalyzing ?
-                <StatusIndicator type="loading">Loading</StatusIndicator> :
+                <StatusIndicator type="loading">{strings.common.loading}</StatusIndicator> :
                 <StatusIndicator type="info">{totalReviewed}</StatusIndicator>
             },
             {
-              label: "Best Practices Applied",
+              label: strings.analysisResults.bestPracticesApplied,
               value: isAnalyzing ?
-                <StatusIndicator type="loading">Loading</StatusIndicator> :
+                <StatusIndicator type="loading">{strings.common.loading}</StatusIndicator> :
                 <StatusIndicator>{applied}</StatusIndicator>
             },
             {
-              label: "Best Practices Not Applied",
+              label: strings.analysisResults.bestPracticesNotApplied,
               value: isAnalyzing ?
-                <StatusIndicator type="loading">Loading</StatusIndicator> :
+                <StatusIndicator type="loading">{strings.common.loading}</StatusIndicator> :
                 <StatusIndicator type="error">{notApplied}</StatusIndicator>
             },
             {
-              label: "Best Practices Not Relevant",
+              label: strings.analysisResults.bestPracticesNotRelevant,
               value: isAnalyzing ?
-                <StatusIndicator type="loading">Loading</StatusIndicator> :
+                <StatusIndicator type="loading">{strings.common.loading}</StatusIndicator> :
                 <StatusIndicator type="stopped">{notRelevant}</StatusIndicator>
             }
           ]}
@@ -222,7 +229,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
                   disabled={selectedItems.length === 0 || isLoadingDetails}
                   iconName="gen-ai"
                 >
-                  Get More Details
+                  {strings.analysisResults.getMoreDetails}
                 </Button>
                 <Button
                   onClick={handleGenerateIacClick}
@@ -230,14 +237,14 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
                   disabled={isDownloading || isImplementing || !uploadedFileType.startsWith('image/')}
                   iconName="gen-ai"
                 >
-                  Generate IaC Document
+                  {strings.analysisResults.generateIacDocument}
                 </Button>
                 {isImplementing && (
                   <Button
                     onClick={handleCancelGeneration}
                     iconName="close"
                   >
-                    Cancel IaC Generation
+                    {strings.analysisResults.cancelIacGeneration}
                   </Button>
                 )}
                 <Button
@@ -246,31 +253,31 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
                   disabled={isDownloading || isImplementing}
                   iconName="download"
                 >
-                  Download Analysis
+                  {strings.analysisResults.downloadAnalysis}
                 </Button>
               </SpaceBetween>
             }
             info={<HelpButton contentId="analysisResults" />}
           >
-            Analysis Results
+            {strings.analysisResults.title}
           </Header>
         }
         columnDefinitions={[
           {
             id: 'pillar',
-            header: 'Pillar',
+            header: strings.analysisResults.pillar,
             cell: item => item.pillar,
             sortingField: 'pillar',
           },
           {
             id: 'question',
-            header: 'Question',
+            header: strings.analysisResults.question,
             cell: item => item.question,
             sortingField: 'question',
           },
           {
             id: 'name',
-            header: 'Best Practice',
+            header: strings.analysisResults.bestPractice,
             cell: item => (
               <Link external href={
                 lensAlias === 'wellarchitected' 
@@ -285,14 +292,14 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
           },
           {
             id: 'status',
-            header: 'Status',
+            header: strings.analysisResults.status,
             cell: item => {
               if (!item.relevant) {
-                return <StatusIndicator type="stopped">Not Relevant</StatusIndicator>;
+                return <StatusIndicator type="stopped">{strings.analysisResults.notRelevant}</StatusIndicator>;
               }
               return (
                 <StatusIndicator type={item.applied ? 'success' : 'error'}>
-                  {item.applied ? 'Applied' : 'Not Applied'}
+                  {item.applied ? strings.analysisResults.applied : strings.analysisResults.notApplied}
                 </StatusIndicator>
               );
             },
@@ -301,7 +308,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
           },
           {
             id: 'reason',
-            header: 'Reason',
+            header: strings.analysisResults.reason,
             cell: item => {
               if (!item.relevant) {
                 return 'N/A';
@@ -312,7 +319,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
           },
           {
             id: 'recommendations',
-            header: 'Recommendations',
+            header: strings.analysisResults.recommendations,
             cell: item => {
               if (!item.relevant) {
                 return 'N/A';
@@ -326,7 +333,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
                       iconName="gen-ai"
                       variant="inline-icon"
                       onClick={() => handleAiChatClick(item)}
-                      ariaLabel="Ask AI for more recommendations"
+                      ariaLabel={strings.analysisResults.askAiForMoreRecommendations}
                     />
                   </SpaceBetween>
                 );
@@ -337,7 +344,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
           },
         ]}
         items={items}
-        loadingText="Analyzing uploaded file..."
+        loadingText={`${strings.common.analyze}...`}
         loading={isAnalyzing}
         columnDisplay={preferences.visibleContent.map(id => ({ id, visible: true }))}
         wrapLines
@@ -349,11 +356,10 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
         }
         ariaLabels={{
           allItemsSelectionLabel: ({ selectedItems }) =>
-            `${selectedItems.length} ${selectedItems.length === 1 ? "item" : "items"
-            } selected`,
+            `${selectedItems.length} ${selectedItems.length === 1 ? strings.common.item : strings.common.items} ${strings.common.selected}`,
           itemSelectionLabel: ({ selectedItems }, item) => {
             const isItemSelected = selectedItems.filter(i => i.id === item.id).length > 0;
-            return `"${item.name}" is ${isItemSelected ? "" : "not "}selected`;
+            return `"${item.name}" is ${isItemSelected ? "" : strings.common.notSelected}`;
           }
         }}
         trackBy='name'
@@ -361,28 +367,28 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
           <PropertyFilter
             {...propertyFilterProps}
             i18nStrings={propertyFilterI18nStrings}
-            countText={getMatchesCountText(filteredItemsCount || 0)}
+            countText={getMatchesCountTextI18n(filteredItemsCount || 0, language)}
             expandToViewport
           />
         }
         pagination={<Pagination {...paginationProps} ariaLabels={paginationLabels} />}
         preferences={
           <CollectionPreferences
-            title="Preferences"
-            confirmLabel="Confirm"
-            cancelLabel="Cancel"
+            title={strings.analysisResults.preferences}
+            confirmLabel={strings.common.confirm}
+            cancelLabel={strings.common.cancel}
             preferences={preferences}
             onConfirm={({ detail }) => setPreferences({
               pageSize: detail.pageSize || 10,
               visibleContent: detail.visibleContent || [],
             })}
             pageSizePreference={{
-              title: 'Page size',
+              title: strings.analysisResults.pageSize,
               options: [
-                { value: 10, label: '10 best practices' },
-                { value: 25, label: '25 best practices' },
-                { value: 50, label: '50 best practices' },
-                { value: 100, label: '100 best practices' },
+                { value: 10, label: `10 ${strings.analysisResults.bestPractice.toLowerCase()}` },
+                { value: 25, label: `25 ${strings.analysisResults.bestPractice.toLowerCase()}` },
+                { value: 50, label: `50 ${strings.analysisResults.bestPractice.toLowerCase()}` },
+                { value: 100, label: `100 ${strings.analysisResults.bestPractice.toLowerCase()}` },
               ],
             }}
           />

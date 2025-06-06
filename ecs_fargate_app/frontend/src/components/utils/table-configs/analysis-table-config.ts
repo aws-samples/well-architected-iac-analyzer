@@ -1,57 +1,80 @@
-export const tableFilteringProperties = [
+import { Language, i18nStrings } from '../../../i18n/strings';
+
+export const getTableFilteringProperties = (language: Language) => {
+  const strings = i18nStrings[language];
+  return [
     {
-      propertyLabel: 'Pillar',
+      propertyLabel: strings.analysisResults.pillar,
       key: 'pillar',
-      groupValuesLabel: 'Pillar values',
+      groupValuesLabel: strings.propertyFilter.groupValuesLabel.pillar,
       operators: [':', '!:', '=', '!=', '^'],
     },
     {
-      propertyLabel: 'Question',
+      propertyLabel: strings.analysisResults.question,
       key: 'question',
-      groupValuesLabel: 'Question values',
+      groupValuesLabel: strings.propertyFilter.groupValuesLabel.question,
       operators: [':', '!:', '=', '!=', '^'],
     },
     {
-      propertyLabel: 'Best Practice',
+      propertyLabel: strings.analysisResults.bestPractice,
       key: 'name',
-      groupValuesLabel: 'Best Practice values',
+      groupValuesLabel: strings.propertyFilter.groupValuesLabel.bestPractice,
       operators: [':', '!:', '=', '!=', '^'],
     },
     {
-      propertyLabel: 'Is Best Practice Relevant?',
+      propertyLabel: `Is ${strings.analysisResults.bestPractice} Relevant?`,
       key: 'relevant',
-      groupValuesLabel: 'Relevance values',
+      groupValuesLabel: strings.propertyFilter.groupValuesLabel.relevance,
       operators: ['=', '!='],
     },
     {
-      propertyLabel: 'Is Best Practice Applied?',
+      propertyLabel: `Is ${strings.analysisResults.bestPractice} Applied?`,
       key: 'applied',
-      groupValuesLabel: 'Status values',
+      groupValuesLabel: strings.propertyFilter.groupValuesLabel.status,
       operators: ['=', '!='],
     },
   ];
-  
-  export const paginationLabels = {
-    nextPageLabel: 'Next page',
-    previousPageLabel: 'Previous page',
-    pageLabel: (pageNumber: number) => `Page ${pageNumber} of all pages`,
+};
+
+export const getPaginationLabels = (language: Language) => {
+  const strings = i18nStrings[language];
+  return {
+    nextPageLabel: strings.pagination.nextPageLabel,
+    previousPageLabel: strings.pagination.previousPageLabel,
+    pageLabel: strings.pagination.pageLabel,
   };
-  
-  export const getMatchesCountText = (count: number) => {
-    return count === 1 ? '1 match' : `${count} matches`;
+};
+
+export const getMatchesCountTextI18n = (count: number, language: Language) => {
+  const strings = i18nStrings[language];
+  return count === 1 ? `1 ${strings.common.match}` : `${count} ${strings.common.matches}`;
+};
+
+export const getPropertyFilterI18nStrings = (language: Language) => {
+  const strings = i18nStrings[language];
+  return {
+    filteringAriaLabel: strings.propertyFilter.filteringAriaLabel,
+    filteringPlaceholder: strings.propertyFilter.filteringPlaceholder,
+    clearFiltersText: strings.propertyFilter.clearFiltersText,
+    cancelActionText: strings.propertyFilter.cancelActionText,
+    applyActionText: strings.propertyFilter.applyActionText,
+    operationAndText: strings.propertyFilter.operationAndText,
+    operationOrText: strings.propertyFilter.operationOrText,
+    operatorContainsText: strings.propertyFilter.operatorContainsText,
+    operatorDoesNotContainText: strings.propertyFilter.operatorDoesNotContainText,
+    operatorEqualsText: strings.propertyFilter.operatorEqualsText,
+    operatorDoesNotEqualText: strings.propertyFilter.operatorDoesNotEqualText,
+    operatorStartsWithText: strings.propertyFilter.operatorStartsWithText,
   };
-  
-  export const propertyFilterI18nStrings = {
-    filteringAriaLabel: "Filter best practices",
-    filteringPlaceholder: "Filter best practices",
-    clearFiltersText: "Clear filters",
-    cancelActionText: "Cancel",
-    applyActionText: "Apply",
-    operationAndText: "and",
-    operationOrText: "or",
-    operatorContainsText: "Contains",
-    operatorDoesNotContainText: "Does not contain",
-    operatorEqualsText: "Equals",
-    operatorDoesNotEqualText: "Does not equal",
-    operatorStartsWithText: "Starts with",
-  };
+};
+
+// Legacy exports for backward compatibility
+export const tableFilteringProperties = getTableFilteringProperties('en');
+
+export const paginationLabels = getPaginationLabels('en');
+
+export const getMatchesCountText = (count: number) => {
+  return getMatchesCountTextI18n(count, 'en');
+};
+
+export const propertyFilterI18nStrings = getPropertyFilterI18nStrings('en');

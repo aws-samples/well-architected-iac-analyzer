@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Select, FormField, Spinner, SelectProps } from '@cloudscape-design/components';
 import { HelpButton } from './utils/HelpButton';
+import { useLanguage } from '../contexts/LanguageContext';
 import { LensMetadata } from '../types';
 import { analyzerApi } from '../services/api';
 
@@ -18,6 +19,7 @@ export const LensSelector: React.FC<LensSelectorProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [lensOptions, setLensOptions] = useState<{ label: string; value: string; description?: string }[]>([]);
   const [lensMetadataMap, setLensMetadataMap] = useState<Record<string, LensMetadata>>({});
+  const { strings } = useLanguage();
   const [error, setError] = useState<string | null>(null);
 
   // Get lens metadata on component mount
@@ -80,10 +82,10 @@ export const LensSelector: React.FC<LensSelectorProps> = ({
     <FormField
       label={
         <>
-          Well-Architected Lens <HelpButton contentId="lensSelection" />
+          {strings.lensSelector.selectLens} <HelpButton contentId="lensSelection" />
         </>
       }
-      description="Select which Well-Architected lens to use for reviewing your infrastructure"
+      description={strings.descriptions.lensSelector}
       errorText={error}
     >
       {isLoading ? (

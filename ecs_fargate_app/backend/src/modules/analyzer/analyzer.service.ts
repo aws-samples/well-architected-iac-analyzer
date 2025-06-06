@@ -75,6 +75,7 @@ export class AnalyzerService {
     private cancelGeneration$ = new Subject<void>();
     private cancelAnalysis$ = new Subject<void>();
     private readonly storageEnabled: boolean;
+    private readonly outputLanguage: string; // Add language setting
 
     constructor(
         private readonly awsConfig: AwsConfigService,
@@ -83,6 +84,7 @@ export class AnalyzerService {
         private readonly storageService: StorageService,
     ) {
         this.storageEnabled = this.configService.get<boolean>('storage.enabled', false);
+        this.outputLanguage = this.configService.get<string>('language.output', 'en'); // Get language from config
     }
 
 
@@ -554,6 +556,7 @@ export class AnalyzerService {
         lensAliasArn?: string,
         lensName?: string,
         lensPillars?: Record<string, string>,
+        outputLanguage?: string
     ): Promise<{ results: AnalysisResult[]; isCancelled: boolean; error?: string; fileId?: string }> {
         const results: AnalysisResult[] = [];
         let workItem;
@@ -572,6 +575,9 @@ export class AnalyzerService {
             // Use the provided lens or default to wellarchitected
             const currentLensAlias = lensAlias || 'wellarchitected';
             const currentLensName = lensName || 'Well-Architected Framework';
+            
+            // Use provided output language or default from service
+            const currentOutputLanguage = outputLanguage || this.outputLanguage;
 
             // Get supporting document content if provided
             let supportingDocContent = null;
@@ -790,7 +796,8 @@ export class AnalyzerService {
                                 supportingDocName,
                                 supportingDocumentDescription,
                                 lensName,
-                                lensPillars
+                                lensPillars,
+                                currentOutputLanguage // Pass the output language
                             );
                             results.push(analysis);
 
@@ -1029,7 +1036,8 @@ export class AnalyzerService {
                         null,
                         null,
                         null,
-                        currentLensName
+                        currentLensName,
+                        this.outputLanguage
                     );
 
                     // Handle cancellation and storage updates
@@ -1598,7 +1606,7 @@ export class AnalyzerService {
                                 messages,
                                 system: [
                                     {
-                                        text: Prompts.buildImageDetailsSystemPrompt(templateType, modelId, lensName)
+                                        text: Prompts.buildImageDetailsSystemPrompt(templateType, modelId, lensName, this.outputLanguage)
                                     }
                                 ]
                             });
@@ -1674,7 +1682,7 @@ export class AnalyzerService {
                                 messages,
                                 system: [
                                     {
-                                        text: Prompts.buildDetailsSystemPrompt(modelId, lensName)
+                                        text: Prompts.buildDetailsSystemPrompt(modelId, lensName, this.outputLanguage)
                                     }
                                 ]
                             });
@@ -1867,7 +1875,8 @@ export class AnalyzerService {
         supportingDocName?: string,
         supportingDocDescription?: string,
         lensName?: string,
-        lensPillars?: Record<string, string>
+        lensPillars?: Record<string, string>,
+        outputLanguage: string = 'en' // Add language parameter with English default
     ): Promise<any> {
         try {
             // Handle PDF files
@@ -1884,7 +1893,8 @@ export class AnalyzerService {
                     supportingDocName,
                     supportingDocDescription,
                     lensName,
-                    lensPillars
+                    lensPillars,
+                    outputLanguage
                 );
             }
 
@@ -1902,12 +1912,12 @@ export class AnalyzerService {
             const pillarNames = lensPillars ? Object.values(lensPillars).join(', ') :
                 'Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability';
 
-            // Choose the appropriate system prompt based on uploadMode
+            // Choose the appropriate system prompt based on uploadMode and pass the language parameter
             const systemPrompt = isImage
-                ? Prompts.buildImageSystemPrompt(question, lensName, pillarNames, lensPillars)
+                ? Prompts.buildImageSystemPrompt(question, lensName, pillarNames, lensPillars, outputLanguage)
                 : uploadMode === FileUploadMode.SINGLE_FILE
-                    ? Prompts.buildSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars)
-                    : Prompts.buildProjectSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars);
+                    ? Prompts.buildSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars, outputLanguage)
+                    : Prompts.buildProjectSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars, outputLanguage);
 
             // Ensure fileContent is properly formatted for images
             if (isImage && !fileContent.startsWith('data:')) {
@@ -2189,7 +2199,8 @@ export class AnalyzerService {
         supportingDocType?: string,
         supportingDocName?: string,
         supportingDocDescription?: string,
-        lensName?: string
+        lensName?: string,
+        outputLanguage: string = 'en' // Add language parameter with English default
     ): Promise<{ content: string; isCancelled: boolean }> {
         const bedrockClient = this.awsConfig.createBedrockClient();
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
@@ -2197,7 +2208,7 @@ export class AnalyzerService {
         // Get model parameters based on the model type
         const modelParams = this.getModelParameters();
 
-        const systemPrompt = Prompts.buildIacGenerationSystemPrompt(templateType, modelId, lensName);
+        const systemPrompt = Prompts.buildIacGenerationSystemPrompt(templateType, modelId, lensName, outputLanguage);
         const prompt = Prompts.buildIacGenerationPrompt(
             previousSections,
             allPreviousSections,
@@ -2328,14 +2339,15 @@ export class AnalyzerService {
         supportingDocName?: string,
         supportingDocDescription?: string,
         lensName?: string,
-        lensPillars?: Record<string, string>
+        lensPillars?: Record<string, string>,
+        outputLanguage: string = 'en' // Add language parameter with English default
     ): Promise<any> {
         try {
             // Get the prompt
             const prompt = Prompts.buildPrompt(question, kbContexts, supportingDocName, supportingDocDescription);
 
-            // Get system prompt for PDFs
-            const systemPrompt = Prompts.buildPdfSystemPrompt(question, lensName, pdfFiles.length, lensPillars);
+            // Get system prompt for PDFs with language parameter
+            const systemPrompt = Prompts.buildPdfSystemPrompt(question, lensName, pdfFiles.length, lensPillars, outputLanguage);
 
             // Invoke model with PDF files
             const response = await this.invokeBedrockModelWithPdfs(

@@ -2,9 +2,11 @@ import { AppLayout, ContentLayout, Header, TopNavigation, HelpPanel } from '@clo
 import { WellArchitectedAnalyzer } from './components/WellArchitectedAnalyzer';
 import { HelpPanelProvider, useHelpPanel } from './contexts/HelpPanelContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { useUserMenuUtilities } from './components/UserMenu';
 import { helpContent } from './components/utils/help-content';
 import { HelpButton } from './components/utils/HelpButton';
+
 import { WorkSideNavigation, WorkSideNavigationRef } from './components/WorkSideNavigation';
 import '@cloudscape-design/global-styles/index.css';
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -14,6 +16,7 @@ import { ChatProvider } from './components/chat/ChatContext';
 function AppContent() {
   const { isToolsOpen, content, setIsToolsOpen } = useHelpPanel();
   const { authState } = useAuth();
+  const { strings, language, setLanguage } = useLanguage();
   const defaultContent = helpContent.default;
   const userMenuUtilities = useUserMenuUtilities();
   const [activeFileId, setActiveFileId] = useState<string>();
@@ -95,13 +98,43 @@ function AppContent() {
       <TopNavigation
         identity={{
           href: '#',
-          title: "Infrastructure as Code (IaC) Analyzer",
+          title: strings.app.title,
           logo: {
             src: "/aws-wa-logo.png",
             alt: "Well-Architected"
           }
         }}
-        utilities={userMenuUtilities}
+        utilities={[
+          ...userMenuUtilities,
+          {
+            type: 'menu-dropdown',
+            iconName: 'settings',
+            ariaLabel: strings.settings.title,
+            items: [
+              {
+                id: 'language-section',
+                text: strings.settings.language,
+                items: [
+                  {
+                    id: 'en',
+                    text: strings.language.english,
+                    checked: language === 'en'
+                  },
+                  {
+                    id: 'ja',
+                    text: strings.language.japanese,
+                    checked: language === 'ja'
+                  }
+                ]
+              }
+            ],
+            onItemClick: ({ detail }) => {
+              if (detail.id === 'en' || detail.id === 'ja') {
+                setLanguage(detail.id);
+              }
+            }
+          }
+        ]}
       />
       <ChatProvider fileId={activeFileId} lensName={activeLensName} lensAliasArn={activeLensAliasArn}>
         <AppLayout
@@ -112,7 +145,7 @@ function AppContent() {
                   variant="h3"
                   info={<HelpButton contentId="default" />}
                 >
-                  Review your infrastructure as code against AWS Well-Architected Framework Best Practices
+                  {strings.app.subtitle}
                 </Header>
               }
             >
@@ -147,13 +180,13 @@ function AppContent() {
           }
           maxContentWidth={Number.MAX_VALUE}
           ariaLabels={{
-            navigation: "Side navigation",
-            navigationClose: "Close side navigation",
-            navigationToggle: "Open side navigation",
-            notifications: "Notifications",
-            tools: "Help panel",
-            toolsClose: "Close help panel",
-            toolsToggle: "Open help panel"
+            navigation: strings.app.navigation.sideNavigation,
+            navigationClose: strings.app.navigation.closeSideNavigation,
+            navigationToggle: strings.app.navigation.openSideNavigation,
+            notifications: strings.app.navigation.notifications,
+            tools: strings.app.navigation.helpPanel,
+            toolsClose: strings.app.navigation.closeHelpPanel,
+            toolsToggle: strings.app.navigation.openHelpPanel
           }}
         />
       </ChatProvider>
@@ -164,9 +197,11 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <HelpPanelProvider>
-        <AppContent />
-      </HelpPanelProvider>
+      <LanguageProvider>
+        <HelpPanelProvider>
+          <AppContent />
+        </HelpPanelProvider>
+      </LanguageProvider>
     </AuthProvider>
   );
 }
