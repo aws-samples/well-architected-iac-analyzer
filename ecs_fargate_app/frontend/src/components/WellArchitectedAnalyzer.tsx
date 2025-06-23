@@ -650,10 +650,13 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
       const lensAlias = lensAliasArn?.split('/')?.pop();
       let lensName = '';
 
-      // Reset risk summary when switching work items
+      // Reset states when switching work items
       setRiskSummary(null);
       setCreatedWorkloadId(undefined);
       setWorkloadId(undefined);
+      setShowPartialResultsWarning(false);
+      setPartialResultsError('');
+      setError('');
 
       // If lensAlias is provided, set it as active
       if (lensAlias) {
@@ -863,6 +866,10 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
             .filter(Boolean)
             .join(', ')}`
         );
+      } else {
+        // Clear warning if no errors for this lens
+        setShowPartialResultsWarning(false);
+        setPartialResultsError('');
       }
 
       setActiveWorkItem(loadedWorkItem);
