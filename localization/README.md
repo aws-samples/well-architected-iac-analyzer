@@ -30,6 +30,7 @@ Currently, the application supports:
 - Japanese (ja)
 - Spanish (es)
 - Brazilian Portuguese (pt-BR)
+- French (fr)
 
 ## File Structure
 
