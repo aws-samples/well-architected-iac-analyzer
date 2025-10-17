@@ -638,34 +638,7 @@ Resources:
                 # Update the configuration
                 /home/ec2-user/update-config.sh
                 
-                # Create fixed bootstrap script
-                cat > fix-bootstrap.sh << 'EOF'
-                #!/bin/bash
-                set -e
-                
-                # Clean up orphaned CDK S3 bucket FIRST
-                BUCKET_NAME="cdk-hnb659fds-assets-$AWS_ACCOUNT-$REGION"
-                if aws s3api head-bucket --bucket $BUCKET_NAME 2>/dev/null; then
-                    echo "Cleaning up orphaned CDK S3 bucket: $BUCKET_NAME"
-                    aws s3 rm s3://$BUCKET_NAME --recursive 2>/dev/null || true
-                    aws s3api delete-bucket --bucket $BUCKET_NAME 2>/dev/null || true
-                fi
-                
-                # Check if CDKToolkit stack exists and delete it
-                if aws cloudformation describe-stacks --stack-name CDKToolkit --region $REGION 2>/dev/null; then
-                    echo "Deleting existing CDKToolkit stack..."
-                    aws cloudformation delete-stack --stack-name CDKToolkit --region $REGION
-                    aws cloudformation wait stack-delete-complete --stack-name CDKToolkit --region $REGION
-                fi
-                
-                # Bootstrap with minimal configuration - no trust policies
-                cdk bootstrap --no-previous-parameters aws://$AWS_ACCOUNT/$REGION
-                EOF
-                
-                # Replace the bootstrap line in deploy script
-                sed -i 's|cdk bootstrap aws://$AWS_ACCOUNT/$REGION|bash fix-bootstrap.sh|' deploy-wa-analyzer.sh
-                
-                chmod +x deploy-wa-analyzer.sh fix-bootstrap.sh
+                chmod +x deploy-wa-analyzer.sh
                 export AWS_REGION=${AWS::Region}
                 ./deploy-wa-analyzer.sh -r ${AWS::Region} -c docker -a ${AWS::StackName}
                 exit $?

@@ -358,12 +358,7 @@ deploy_stack() {
     
     # Bootstrap CDK if needed
     echo "Bootstrapping CDK (if needed) in AWS account $AWS_ACCOUNT and region $REGION..."
-    
-    # Bootstrap with proper format and execution policies
-    if ! cdk bootstrap aws://${AWS_ACCOUNT}/${REGION}; then
-        echo "Standard bootstrap failed, trying with additional flags..."
-        cdk bootstrap aws://${AWS_ACCOUNT}/${REGION} --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
-    fi
+    cdk bootstrap aws://$AWS_ACCOUNT/$REGION
     
     # Deploy stack
     echo "Deploying stack..."
