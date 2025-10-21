@@ -222,11 +222,18 @@ export class StorageController {
             }
 
             const userId = this.storageService.createUserIdHash(email);
-            const uploadMode = mode as FileUploadMode;
 
             if (!files || files.length === 0) {
                 throw new HttpException('No files provided', HttpStatus.BAD_REQUEST);
             }
+
+            // Mode validation
+            if (typeof mode !== 'string' || !Object.values(FileUploadMode).includes(mode as FileUploadMode)) {
+                throw new HttpException('Invalid upload mode', HttpStatus.BAD_REQUEST);
+            }
+            
+            // Convert mode to FileUploadMode enum after validation
+            const uploadMode = mode as FileUploadMode;
 
             // For SINGLE_FILE and ZIP_FILE modes, we expect only one file
             if ((uploadMode === FileUploadMode.SINGLE_FILE || uploadMode === FileUploadMode.ZIP_FILE) && files.length > 1) {
