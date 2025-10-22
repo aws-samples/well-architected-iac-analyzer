@@ -422,7 +422,7 @@ Resources:
                 # Wait for network to be available
                 for i in {1..30}; do
                   echo "Network check attempt $i..." >> /var/log/user-data.log
-                  if ping -c 1 amazon.com > /dev/null 2>&1; then
+                  if ping -c 1 www.amazon.com > /dev/null 2>&1; then
                     echo "Network is up!" >> /var/log/user-data.log
                     exit 0
                   fi
@@ -815,7 +815,7 @@ Resources:
           echo "Waiting for networking to stabilize..."
           for i in {1..30}; do
             echo "Network check attempt $i..."
-            if ping -c 1 amazon.com > /dev/null 2>&1; then
+            if ping -c 1 www.amazon.com > /dev/null 2>&1; then
               echo "Network is up!"
               break
             fi
