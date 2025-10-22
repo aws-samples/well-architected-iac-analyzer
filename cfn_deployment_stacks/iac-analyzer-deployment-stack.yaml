@@ -353,11 +353,47 @@ Resources:
               Service: ec2.amazonaws.com
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/AdministratorAccess'
         - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-EC2-Role'
+
+  # Custom policy for assuming CDK roles
+  EC2CDKRolesPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: 'CDKRolesAssumptionPolicy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'CDKDescribeStacks'
+            Effect: 'Allow'
+            Action: 
+              - 'cloudformation:DescribeStacks'
+              - 'cloudformation:GetTemplate'
+            Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/CDKToolkit/*'
+          - Sid: 'AssumeCDKRoles'
+            Effect: 'Allow'
+            Action: 'sts:AssumeRole'
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'iam:ResourceTag/aws-cdk:bootstrap-role':
+                  - 'image-publishing'
+                  - 'file-publishing'
+                  - 'deploy'
+                  - 'lookup'
+          - Sid: "AllowPutEvent"
+            Effect: "Allow"
+            Action: "events:PutEvents"
+            Resource: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default"
+            Condition:
+              StringEquals:
+                "events:detail-type": "Stack Cleanup Request"
+              ForAllValues:StringEquals:
+                "events:source": "iac.analyzer.deployment"
+      Roles:
+        - !Ref EC2Role
 
   EC2InstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
