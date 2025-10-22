@@ -632,7 +632,7 @@ Resources:
               content: !Sub |
                 #!/bin/bash -xe
                 cd /home/ec2-user
-                git clone https://github.com/aws-samples/well-architected-iac-analyzer.git
+                git clone -b cdk-public-access-block-configuration https://github.com/aws-samples/well-architected-iac-analyzer.git
                 cd well-architected-iac-analyzer
                 
                 # Update the configuration
