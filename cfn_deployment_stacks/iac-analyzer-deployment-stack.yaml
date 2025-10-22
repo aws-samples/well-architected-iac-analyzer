@@ -660,11 +660,11 @@ Resources:
                 fi
                 
                 # Bootstrap with minimal configuration - no trust policies
-                cdk bootstrap --no-previous-parameters aws://$AWS_ACCOUNT/$REGION
+                cdk bootstrap --public-access-block-configuration false --no-previous-parameters aws://$AWS_ACCOUNT/$REGION
                 EOF
                 
                 # Replace the bootstrap line in deploy script
-                sed -i 's|cdk bootstrap aws://$AWS_ACCOUNT/$REGION|bash fix-bootstrap.sh|' deploy-wa-analyzer.sh
+                sed -i 's|cdk bootstrap aws://$AWS_ACCOUNT/$REGION --public-access-block-configuration false |bash fix-bootstrap.sh|' deploy-wa-analyzer.sh
                 
                 chmod +x deploy-wa-analyzer.sh fix-bootstrap.sh
                 export AWS_REGION=${AWS::Region}
