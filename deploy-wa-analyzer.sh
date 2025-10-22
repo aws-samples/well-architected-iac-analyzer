@@ -364,6 +364,7 @@ deploy_stack() {
         echo "Standard bootstrap failed, trying with additional flags..."
         cdk bootstrap --public-access-block-configuration false aws://${AWS_ACCOUNT}/${REGION} --cloudformation-execution-policies arn:aws:iam::aws:policy/AdministratorAccess
     fi
+    cdk bootstrap aws://$AWS_ACCOUNT/$REGION
     
     # Deploy stack
     echo "Deploying stack..."

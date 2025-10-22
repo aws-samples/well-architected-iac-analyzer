@@ -5,7 +5,7 @@
 
 ## Description
 
-Well-Architected Infrastructure as Code (IaC) Analyzer is a project that demonstrates how generative AI can be used to evaluate infrastructure code for alignment with best practices.
+Well-Architected Infrastructure as Code (IaC) Analyzer is a sample project that demonstrates how generative AI can be used to evaluate infrastructure code for alignment with best practices.
 
 It features a modern web application built with React and AWS Cloudscape Design System, allowing users to upload IaC documents (e.g., AWS CloudFormation, Terraform, or AWS CDK templates), complete IaC projects (multiple files or zip archives), or architecture diagrams for assessment. The application leverages Amazon Bedrock to analyze the infrastructure against AWS Well-Architected best practices. These best practices are sourced from AWS Well-Architected whitepapers and synchronized with the Amazon Bedrock knowledge base.
 
@@ -15,22 +15,36 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
 
 ## Features
 
----
-- **NEW** ** Language Localization Support:
-  - Select your preferred language from the Output Language in Optional Settings menu 
-  - Currently supports English, Japanese, Brazilian Portuguese and Spanish
-  - Language selection affects analysis results, recommendations, and detailed explanations
-  - Consistent localization across all file types (CloudFormation, Terraform, CDK, PDF documents, and architecture diagrams)
-  - Interested in adding a new language? Check our [localization guide](/localization/README.md) for detailed instructions
----
-- **NEW** ** Interactive Analyzer Assistant chatbot:
+- **Upload and analyze Infrastructure as Code templates**:
+  - CloudFormation (YAML/JSON)
+  - Terraform (.tf)
+  - AWS CDK (in any [supported language](https://docs.aws.amazon.com/cdk/v2/guide/languages.html))
+- **Upload and analyze architecture diagrams**:
+  - PNG format
+  - JPEG/JPG format
+- **Analyze complete IaC projects**:
+  - Multiple files at once
+  - ZIP archives containing infrastructure code
+- **Upload and analyze architectural documentation in PDF format**:
+  - PDF documents (up to 5 files, max 4.5MB each)
+  - With the recent ["Citations API and PDF support for Claude models"](https://aws.amazon.com/about-aws/whats-new/2025/06/citations-api-pdf-claude-models-amazon-bedrock/), the analyzer is now able to analyze text, charts and visuals (e.g. embedded images and diagrams) from the PDF documents.
+- **Interactive Analyzer Assistant chatbot**:
   - Ask questions about analysis results
   - Get detailed explanations of Well-Architected best practices
   - Receive personalized guidance for implementation
   - View conversation history with markdown support
   - Download or delete chat histories for each analysis
----
-- **NEW** ** Multi-lens support:
+- **Add supporting documents** (PDF, TXT, PNG, JPEG) to provide additional context for analysis
+- **Generate IaC templates** from architecture diagrams
+- **Real-time analysis** against Well-Architected best practices
+- **Integration with AWS Well-Architected Tool**
+- **Export analysis results and recommendations**
+- **Language Localization Support**:
+  - Select your preferred language from the Output Language in Optional Settings menu 
+  - Support for English, Japanese, Brazilian Portuguese, Spanish and French
+  - Language selection affects analysis results, recommendations, and detailed explanations
+  - Consistent localization across all file types (CloudFormation, Terraform, CDK, PDF documents, and architecture diagrams)
+- **Multi-lens support**:
   - Analyze infrastructure against specialized Well-Architected lenses
   - Support for domain-specific lenses including Serverless, IoT, SaaS, Machine Learning, and more
   - Get tailored recommendations specific to your workload type
@@ -61,27 +75,6 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
 
 </details>
 
----
-
-- Upload and analyze Infrastructure as Code templates:
-  - CloudFormation (YAML/JSON)
-  - Terraform (.tf)
-  - AWS CDK (in any [supported language](https://docs.aws.amazon.com/cdk/v2/guide/languages.html))
-- Upload and analyze architecture diagrams:
-  - PNG format
-  - JPEG/JPG format
-- Analyze complete IaC projects:
-  - Multiple files at once
-  - ZIP archives containing infrastructure code
-- Upload and analyze architectural documentation in PDF format:
-  - PDF documents (up to 5 files, max 4.5MB each)
-  - With the recent ["Citations API and PDF support for Claude models"](https://aws.amazon.com/about-aws/whats-new/2025/06/citations-api-pdf-claude-models-amazon-bedrock/), the analyzer is now able to analyze text, charts and visuals (e.g. embedded images and diagrams) from the PDF documents.
-- Add supporting documents (PDF, TXT, PNG, JPEG) to provide additional context for analysis
-- Generate IaC templates from architecture diagrams
-- Real-time analysis against Well-Architected best practices
-- Integration with AWS Well-Architected Tool
-- Export analysis results and recommendations
-
 ![wa_aic_analyzer_screenshot_main](/assets/wa_aic_analyzer_screenshot_main.png)
 
 ![wa_aic_analyzer_screenshot_results](/assets/wa_aic_analyzer_screenshot_results.png)
@@ -107,7 +100,7 @@ This option uses AWS CloudFormation to create a temporary deployment environment
 
 You must enable **AWS Bedrock Model Access** to the following LLM models in your AWS region:
 * **Titan Text Embeddings V2**
-* **Claude 3.5 Sonnet v2** (default) or **\*NEW\* Claude 3.7 Sonnet with extended thinking**
+* **Claude 3.5 Sonnet v2** (default) or **Claude 3.7 Sonnet with extended thinking**
 * To enable these models, follow the instructions [here](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access-modify.html).
 
 #### Deployment Steps
@@ -227,7 +220,7 @@ After successful deployment, you can find the Application Load Balancer (ALB) DN
 
 You must enable **AWS Bedrock Model Access** to the following LLM models in your AWS region:
 * **Titan Text Embeddings V2**
-* **Claude 3.5 Sonnet v2** (default) or **\*NEW\* Claude 3.7 Sonnet with extended thinking**
+* **Claude 3.5 Sonnet v2** (default) or **Claude 3.7 Sonnet with extended thinking**
 * To enable these models, follow the instructions [here](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access-modify.html).
 
 Apart from enabling access to the model listed above, the following tools must be installed on your local machine:
