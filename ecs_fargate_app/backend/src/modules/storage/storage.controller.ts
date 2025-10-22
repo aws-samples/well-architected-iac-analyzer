@@ -223,7 +223,8 @@ export class StorageController {
 
             const userId = this.storageService.createUserIdHash(email);
 
-            if (!files || files.length === 0) {
+            // Files validation
+            if (!files || !Array.isArray(files) || files.length === 0) {
                 throw new HttpException('No files provided', HttpStatus.BAD_REQUEST);
             }
 
