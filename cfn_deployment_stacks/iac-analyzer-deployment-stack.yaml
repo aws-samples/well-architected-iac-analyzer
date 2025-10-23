@@ -413,10 +413,12 @@ Resources:
               - 's3:PutBucketPublicAccessBlock'
               - 's3:PutEncryptionConfiguration'
               - 's3:PutBucketNotification'
+              - 's3:PutLifecycleConfiguration'
               - 's3:GetBucketLocation'
               - 's3:GetBucketPolicy'
               - 's3:GetBucketVersioning'
               - 's3:GetEncryptionConfiguration'
+              - 's3:GetLifecycleConfiguration'
               - 's3:ListBucket'
               - 's3:PutObject'
               - 's3:GetObject'
@@ -742,7 +744,7 @@ Resources:
               content: !Sub |
                 #!/bin/bash -xe
                 cd /home/ec2-user
-                git clone https://github.com/aws-samples/well-architected-iac-analyzer.git
+                git clone -b permission-issues https://github.com/ibrahimcesar/well-architected-iac-analyzer.git
                 cd well-architected-iac-analyzer
                 
                 # Update the configuration
