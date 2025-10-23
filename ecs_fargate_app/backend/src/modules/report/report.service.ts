@@ -58,7 +58,13 @@ export class ReportService {
         }
       }
 
-      return rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+      return rows.map(row => {
+        return row.map(cell => {
+          const cellStr = String(cell);
+          const escapedCell = cellStr.replace(/"/g, '""');
+          return `"${escapedCell}"`;
+        }).join(',');
+      }).join('\n');
     } catch (error) {
       this.logger.error('Error generating recommendations CSV:', error);
       throw new Error(error);
