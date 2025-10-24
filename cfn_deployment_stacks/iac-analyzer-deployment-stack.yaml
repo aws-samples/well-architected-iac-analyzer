@@ -358,20 +358,99 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-EC2-Role'
 
-  # Custom policy for assuming CDK roles
+  # Custom policy for CDK deployment and bootstrap operations
   EC2CDKRolesPolicy:
     Type: 'AWS::IAM::Policy'
     Properties:
-      PolicyName: 'CDKRolesAssumptionPolicy'
+      PolicyName: 'CDKDeploymentPolicy'
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: 'CDKDescribeStacks'
+          # CDK Bootstrap CloudFormation permissions
+          - Sid: 'CDKBootstrapCloudFormation'
             Effect: 'Allow'
-            Action: 
+            Action:
+              - 'cloudformation:CreateChangeSet'
+              - 'cloudformation:DescribeChangeSet'
+              - 'cloudformation:ExecuteChangeSet'
+              - 'cloudformation:CreateStack'
+              - 'cloudformation:UpdateStack'
               - 'cloudformation:DescribeStacks'
+              - 'cloudformation:DescribeStackEvents'
+              - 'cloudformation:DescribeStackResources'
               - 'cloudformation:GetTemplate'
-            Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/CDKToolkit/*'
+              - 'cloudformation:ListStacks'
+              - 'cloudformation:ValidateTemplate'
+            Resource: 
+              - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/CDKToolkit/*'
+              - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/WA-IaC-Analyzer-*'
+          # CDK Bootstrap IAM permissions
+          - Sid: 'CDKBootstrapIAM'
+            Effect: 'Allow'
+            Action:
+              - 'iam:CreateRole'
+              - 'iam:UpdateRole'
+              - 'iam:AttachRolePolicy'
+              - 'iam:DetachRolePolicy'
+              - 'iam:PutRolePolicy'
+              - 'iam:DeleteRolePolicy'
+              - 'iam:GetRole'
+              - 'iam:GetRolePolicy'
+              - 'iam:ListRolePolicies'
+              - 'iam:ListAttachedRolePolicies'
+              - 'iam:TagRole'
+              - 'iam:UntagRole'
+              - 'iam:PassRole'
+            Resource: 
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-deploy-role-${AWS::AccountId}-${AWS::Region}'
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-file-publishing-role-${AWS::AccountId}-${AWS::Region}'
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-image-publishing-role-${AWS::AccountId}-${AWS::Region}'
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-lookup-role-${AWS::AccountId}-${AWS::Region}'
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-cfn-exec-role-${AWS::AccountId}-${AWS::Region}'
+          # CDK Bootstrap S3 permissions
+          - Sid: 'CDKBootstrapS3'
+            Effect: 'Allow'
+            Action:
+              - 's3:CreateBucket'
+              - 's3:PutBucketPolicy'
+              - 's3:PutBucketVersioning'
+              - 's3:PutBucketPublicAccessBlock'
+              - 's3:PutEncryptionConfiguration'
+              - 's3:PutBucketNotification'
+              - 's3:PutLifecycleConfiguration'
+              - 's3:GetBucketLocation'
+              - 's3:GetBucketPolicy'
+              - 's3:GetBucketVersioning'
+              - 's3:GetEncryptionConfiguration'
+              - 's3:GetLifecycleConfiguration'
+              - 's3:ListBucket'
+              - 's3:PutObject'
+              - 's3:GetObject'
+              - 's3:DeleteObject'
+            Resource:
+              - !Sub 'arn:aws:s3:::cdk-*-assets-${AWS::AccountId}-${AWS::Region}'
+              - !Sub 'arn:aws:s3:::cdk-*-assets-${AWS::AccountId}-${AWS::Region}/*'
+          # CDK Bootstrap ECR permissions
+          - Sid: 'CDKBootstrapECR'
+            Effect: 'Allow'
+            Action:
+              - 'ecr:CreateRepository'
+              - 'ecr:DescribeRepositories'
+              - 'ecr:SetRepositoryPolicy'
+              - 'ecr:GetRepositoryPolicy'
+              - 'ecr:PutLifecyclePolicy'
+              - 'ecr:GetLifecyclePolicy'
+            Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/cdk-*-container-assets-${AWS::AccountId}-${AWS::Region}'
+          # CDK Bootstrap SSM permissions
+          - Sid: 'CDKBootstrapSSM'
+            Effect: 'Allow'
+            Action:
+              - 'ssm:PutParameter'
+              - 'ssm:GetParameter'
+              - 'ssm:GetParameters'
+              - 'ssm:DeleteParameter'
+            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cdk-bootstrap/*'
+          # CDK Role assumption permissions
           - Sid: 'AssumeCDKRoles'
             Effect: 'Allow'
             Action: 'sts:AssumeRole'
@@ -383,6 +462,7 @@ Resources:
                   - 'file-publishing'
                   - 'deploy'
                   - 'lookup'
+          # EventBridge permissions for cleanup
           - Sid: "AllowPutEvent"
             Effect: "Allow"
             Action: "events:PutEvents"
