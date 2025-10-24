@@ -16,7 +16,7 @@ export class ProjectPacker {
     private readonly MAX_EXTRACTION_SIZE = 500 * 1024 * 1024; // 500MB max extraction size
     private readonly MAX_FILE_COUNT = 10000; // Maximum number of files to extract
     private readonly MAX_SINGLE_FILE_SIZE = 20 * 1024 * 1024; // 20MB per file  
-    private readonly MAX_PATH_LENGTH = 25; // Maximum file path length
+    private readonly MAX_PATH_LENGTH = 260; // Maximum file path length
 
     // Media and binary file extensions to exclude
     private readonly excludeExtensions = [
