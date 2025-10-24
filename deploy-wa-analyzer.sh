@@ -358,11 +358,14 @@ deploy_stack() {
     
     # Bootstrap CDK if needed
     echo "Bootstrapping CDK (if needed) in AWS account $AWS_ACCOUNT and region $REGION..."
-    cdk bootstrap aws://$AWS_ACCOUNT/$REGION
+    cdk bootstrap \
+        --template bootstrap-template.yaml \
+        aws://$AWS_ACCOUNT/$REGION
     
     # Deploy stack
     echo "Deploying stack..."
-    cdk deploy --require-approval never
+    cdk deploy \
+        --require-approval never
     
     # Print post-deployment information
     echo -e "\n📝 Post-Deployment Steps:"
