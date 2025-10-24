@@ -358,11 +358,16 @@ deploy_stack() {
     
     # Bootstrap CDK if needed
     echo "Bootstrapping CDK (if needed) in AWS account $AWS_ACCOUNT and region $REGION..."
-    cdk bootstrap aws://$AWS_ACCOUNT/$REGION
+    cdk bootstrap \
+        --bootstrap-bucket-name cdk-poc-assets-966676475767-us-east-1 \
+        --qualifier rdsaude-fork \
+        aws://$AWS_ACCOUNT/$REGION
     
     # Deploy stack
     echo "Deploying stack..."
-    cdk deploy --require-approval never
+    cdk deploy \
+        --require-approval never \
+        --context @aws-cdk/core:bootstrapQualifier=rdsaude-fork
     
     # Print post-deployment information
     echo -e "\n📝 Post-Deployment Steps:"
