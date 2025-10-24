@@ -359,7 +359,7 @@ deploy_stack() {
     # Bootstrap CDK if needed
     echo "Bootstrapping CDK (if needed) in AWS account $AWS_ACCOUNT and region $REGION..."
     cdk bootstrap \
-        --template custom-bootstrap.yaml
+        --template bootstrap-template.yaml \
         aws://$AWS_ACCOUNT/$REGION
     
     # Deploy stack
