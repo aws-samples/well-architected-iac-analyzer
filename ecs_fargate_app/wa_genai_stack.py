@@ -407,6 +407,8 @@ class WAGenAIStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             enforce_ssl=True,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
         )
 
         # Create DynamoDB table for metadata
@@ -447,6 +449,8 @@ class WAGenAIStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             enforce_ssl=True,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
         )
 
         # Uploading WAFR docs to the corresponding S3 bucket [wafrReferenceDocsBucket]
@@ -779,7 +783,12 @@ class WAGenAIStack(Stack):
         public_subnets = vpc.select_subnets(subnet_type=ec2.SubnetType.PUBLIC)
 
         # Create ECS Cluster
-        ecs_cluster = ecs.Cluster(self, "AppCluster", vpc=vpc, container_insights_v2=ecs.ContainerInsights.ENABLED)
+        ecs_cluster = ecs.Cluster(
+            self,
+            "AppCluster",
+            vpc=vpc,
+            container_insights_v2=ecs.ContainerInsights.ENABLED,
+        )
 
         # Add ECS Service Discovery namespace
         namespace = servicediscovery.PrivateDnsNamespace(

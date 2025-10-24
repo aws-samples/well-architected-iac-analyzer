@@ -14,9 +14,9 @@ export class ProjectPacker {
 
     // Limits
     private readonly MAX_EXTRACTION_SIZE = 500 * 1024 * 1024; // 500MB max extraction size
-    private readonly MAX_FILE_COUNT = 100000; // Maximum number of files to extract
-    private readonly MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024; // 100MB per file
-    private readonly MAX_PATH_LENGTH = 260; // Maximum file path length
+    private readonly MAX_FILE_COUNT = 10000; // Maximum number of files to extract
+    private readonly MAX_SINGLE_FILE_SIZE = 20 * 1024 * 1024; // 20MB per file  
+    private readonly MAX_PATH_LENGTH = 25; // Maximum file path length
 
     // Media and binary file extensions to exclude
     private readonly excludeExtensions = [
@@ -53,10 +53,10 @@ export class ProjectPacker {
             // Normalize the paths to resolve any '..' or '.' segments
             const normalizedPath = path.normalize(filePath);
             const normalizedBase = path.normalize(basePath);
-            
+
             // Check for directory traversal patterns
-            if (normalizedPath.includes('..') || 
-                normalizedPath.startsWith('/') || 
+            if (normalizedPath.includes('..') ||
+                normalizedPath.startsWith('/') ||
                 normalizedPath.match(/^[a-zA-Z]:/)) {
                 return false;
             }
@@ -64,7 +64,7 @@ export class ProjectPacker {
             // Resolve the full path and ensure it's within the base directory
             const fullPath = path.resolve(basePath, normalizedPath);
             const relativePath = path.relative(normalizedBase, fullPath);
-            
+
             // Path should not start with '..' and should not be empty
             return !relativePath.startsWith('..') && relativePath !== '' && !path.isAbsolute(relativePath);
         } catch (error) {
@@ -94,8 +94,34 @@ export class ProjectPacker {
 
         let totalExtractedSize = 0;
         let extractedFileCount = 0;
+        const zipSize = buffer.length;
 
         try {
+            // Validate compression ratio
+            const totalUncompressedSize = entries.reduce((sum, entry) => sum + entry.header.size, 0);
+            const compressionRatio = totalUncompressedSize / zipSize;
+
+            if (compressionRatio > 1000) { // Threshold: 1000:1 ratio
+                throw new Error(`Uploaded file exceeded the compression ratio threshold`);
+            }
+
+            // Check if there are too many files
+            if (entries.length > this.MAX_FILE_COUNT) {
+                throw new Error(`ZIP file contains too many files. Maximum allowed: ${this.MAX_FILE_COUNT}`);
+            }
+
+            // Check if entries contain other archives
+            const zipExtensions = ['.zip', '.jar', '.war', '.ear', '.7z', '.rar', '.tar', '.gz', '.tgz'];
+            const nestedArchives = entries.filter(entry =>
+                !entry.isDirectory &&
+                zipExtensions.some(ext => entry.entryName.toLowerCase().endsWith(ext))
+            );
+
+            // Limit nested archives
+            if (nestedArchives.length > 5) { // Threshold: 5 nested archives
+                throw new Error(`Too many nested archive files detected. Maximum allowed: 5`);
+            }
+
             // Validate all entries before extraction
             for (const entry of entries) {
                 // Check file count limit
@@ -157,7 +183,7 @@ export class ProjectPacker {
                 }
 
                 const entryPath = path.join(tempDir, sanitizedEntryName);
-                
+
                 // Final security check: ensure the resolved path is still within tempDir
                 const resolvedPath = path.resolve(entryPath);
                 const resolvedTempDir = path.resolve(tempDir);
@@ -174,7 +200,7 @@ export class ProjectPacker {
 
                 // Extract the file data
                 const fileData = entry.getData();
-                
+
                 // Verify the extracted size matches the expected size
                 if (fileData.length !== entry.header.size) {
                     throw new Error(`File size mismatch for: ${entry.entryName}`);
@@ -292,12 +318,12 @@ export class ProjectPacker {
         files.forEach(file => {
             const segments = file.split(path.sep).filter(s => s);
             let currentPath = '';
-            
+
             segments.forEach((segment, index) => {
                 const depth = index;
                 const isLast = index === segments.length - 1;
                 const prefix = '│   '.repeat(depth) + (isLast ? '└── ' : '├── ');
-                
+
                 if (index === 0 || !result.includes(currentPath + segment)) {
                     result += '\n' + prefix + segment;
                 }
@@ -463,6 +489,27 @@ Below is the content of each file in the project:
         };
     }
 
+    private async executeWithTimeout<T>(
+        operation: () => Promise<T>,
+        timeoutMs: number = 30000
+    ): Promise<T> {
+        return new Promise<T>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+            }, timeoutMs);
+
+            operation()
+                .then((result) => {
+                    clearTimeout(timeout);
+                    resolve(result);
+                })
+                .catch((error) => {
+                    clearTimeout(timeout);
+                    reject(error);
+                });
+        });
+    }
+
     /**
      * Process a zip file and create a packed project with security validations
      * @param buffer Zip file buffer
@@ -483,8 +530,8 @@ Below is the content of each file in the project:
                 throw new Error(`Invalid filename: ${originalFilename}`);
             }
 
-            // Unzip the file to a temporary directory with security checks
-            tempDir = await this.unzipBuffer(buffer);
+            // Unzip the file to a temporary directory with extraction with timeout and validation checks
+            tempDir = await this.executeWithTimeout(() => this.unzipBuffer(buffer), 60000); // 60 second timeout
 
             // Generate directory tree
             const directoryStructure = this.generateDirectoryTree(tempDir);
