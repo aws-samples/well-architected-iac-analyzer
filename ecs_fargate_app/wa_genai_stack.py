@@ -451,7 +451,7 @@ class WAGenAIStack(Stack):
             auto_delete_objects=True,
             enforce_ssl=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            # block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
         )
 
         # Uploading WAFR docs to the corresponding S3 bucket [wafrReferenceDocsBucket]
