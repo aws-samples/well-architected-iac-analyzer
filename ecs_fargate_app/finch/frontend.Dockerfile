@@ -19,7 +19,7 @@ COPY frontend/ .
 RUN npm run build
 
 # Production stage
-FROM --platform=linux/${PLATFORM} nginx:alpine
+FROM --platform=linux/${PLATFORM} nginx:stable-alpine-slim
 
 # Copy built files
 COPY --from=build /app/dist /usr/share/nginx/html
