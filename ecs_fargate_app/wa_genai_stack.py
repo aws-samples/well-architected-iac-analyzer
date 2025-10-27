@@ -408,7 +408,8 @@ class WAGenAIStack(Stack):
             auto_delete_objects=True,
             enforce_ssl=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            # commenting just for an SCP problem
+            # block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
         )
 
         # Create DynamoDB table for metadata
