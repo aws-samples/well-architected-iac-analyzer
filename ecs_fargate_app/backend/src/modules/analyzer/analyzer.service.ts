@@ -2022,32 +2022,50 @@ export class AnalyzerService {
         // Replace other </cite> instances with ". " (period followed by a space)
         jsonString = jsonString.replace(/<\/cite>/g, ". ");
 
-        // Remove newlines and extra spaces
+        // Remove newlines and normalize spaces
+        jsonString = jsonString.replace(/\r?\n/g, " ");
         jsonString = jsonString.replace(/\s+/g, " ");
 
-        // Remove spaces after colons that are not within quotes
-        jsonString = jsonString.replace(/(?<!"):\s+/g, ":");
-
-        // Remove spaces before colons
-        jsonString = jsonString.replace(/\s+:/g, ":");
-
-        // Remove spaces after commas that are not within quotes
-        jsonString = jsonString.replace(/(?<!"),\s+/g, ",");
-
-        // Remove spaces before commas
-        jsonString = jsonString.replace(/\s+,/g, ",");
-
-        // Remove spaces after opening brackets and before closing brackets
-        jsonString = jsonString.replace(/{\s+/g, "{");
-        jsonString = jsonString.replace(/\s+}/g, "}");
-        jsonString = jsonString.replace(/\[\s+/g, "[");
-        jsonString = jsonString.replace(/\s+\]/g, "]");
-
         // Convert Python boolean values to JSON boolean values
-        jsonString = jsonString.replace(/: True/g, ": true");
-        jsonString = jsonString.replace(/: False/g, ": false");
+        jsonString = jsonString.replace(/:\s*True\b/g, ": true");
+        jsonString = jsonString.replace(/:\s*False\b/g, ": false");
+        jsonString = jsonString.replace(/:\s*None\b/g, ": null");
 
-        return jsonString;
+        // Clean up basic formatting
+        jsonString = jsonString.replace(/{\s+/g, "{ ");
+        jsonString = jsonString.replace(/\s+}/g, " }");
+        jsonString = jsonString.replace(/\[\s+/g, "[ ");
+        jsonString = jsonString.replace(/\s+\]/g, " ]");
+
+        return jsonString.trim();
+    }
+
+    private parseJsonWithRetry(jsonString: string): any {
+        try {
+            return JSON.parse(jsonString);
+        } catch (error) {
+            this.logger.warn('Initial JSON parse failed, attempting to fix common issues:', error.message);
+            
+            // Try to fix common JSON issues
+            let fixedJson = jsonString;
+            
+            // Fix trailing commas
+            fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
+            
+            // Fix missing commas between objects/arrays
+            fixedJson = fixedJson.replace(/}(\s*){/g, '},\n{');
+            fixedJson = fixedJson.replace(/](\s*)\[/g, '],\n[');
+            
+            // Try parsing again
+            try {
+                return JSON.parse(fixedJson);
+            } catch (secondError) {
+                this.logger.error('JSON parsing failed after fixes. Original error:', error.message);
+                this.logger.error('Fixed JSON attempt error:', secondError.message);
+                this.logger.debug('Problematic JSON string (first 500 chars):', jsonString.substring(0, 500));
+                throw new Error(`SyntaxError: ${error.message}`);
+            }
+        }
     }
 
     private async invokeBedrockModelWithImage(
@@ -2149,7 +2167,7 @@ export class AnalyzerService {
             const responseText = response.output.message.content.find(c => c.text)?.text || '';
 
             const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
-            return JSON.parse(cleanedAnalysisJsonString);
+            return this.parseJsonWithRetry(cleanedAnalysisJsonString);
         } catch (error) {
             this.logger.error('Error invoking Bedrock model:', error);
             throw new Error(`Failed to analyze diagram with AI model. Error invoking Bedrock model: ${error}`);
@@ -2235,9 +2253,7 @@ export class AnalyzerService {
             const responseText = response.output.message.content.find(c => c.text)?.text || '';
 
             const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
-            const parsedAnalysis = JSON.parse(cleanedAnalysisJsonString);
-
-            return parsedAnalysis;
+            return this.parseJsonWithRetry(cleanedAnalysisJsonString);
         } catch (error) {
             this.logger.error('Error invoking Bedrock model:', error);
             throw new Error(`Failed to analyze template with AI model. Error invoking Bedrock model: ${error}`);
@@ -2535,7 +2551,7 @@ export class AnalyzerService {
             const responseText = response.output.message.content.find(c => c.text)?.text || '';
 
             const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
-            return JSON.parse(cleanedAnalysisJsonString);
+            return this.parseJsonWithRetry(cleanedAnalysisJsonString);
         } catch (error) {
             this.logger.error('Error invoking Bedrock model with PDFs:', error);
             throw new Error(`Failed to analyze PDF documents with AI model. Error invoking Bedrock model: ${error}`);
