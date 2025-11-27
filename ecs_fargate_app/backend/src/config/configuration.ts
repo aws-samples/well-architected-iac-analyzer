@@ -28,4 +28,8 @@ export default () => ({
   language: {
     output: process.env.OUTPUT_LANGUAGE || 'en', // Default is English
   },
+  // Batch size configuration for analysis processing
+  analysis: {
+    batchSize: parseInt(process.env.BATCH_SIZE, 10) || 5, // Default is 5
+  },
 });

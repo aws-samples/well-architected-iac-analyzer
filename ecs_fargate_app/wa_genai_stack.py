@@ -339,6 +339,7 @@ class WAGenAIStack(Stack):
         config = configparser.ConfigParser()
         config.read("config.ini")
         model_id = config["settings"]["model_id"]
+        batch_size = config.get("settings", "batch_size", fallback="5")
         public_lb = config["settings"].getboolean("public_load_balancer", False)
 
         # Check if auto-cleanup is enabled (from environment variable set by deploy script)
@@ -991,6 +992,7 @@ class WAGenAIStack(Stack):
                 "FRONTEND_URL": f"http://{alb_dns}",
                 "AUTH_ENABLED": str(auth_config["enabled"]).lower(),
                 "AUTH_SIGN_OUT_URL": sign_out_url,
+                "BATCH_SIZE": batch_size,
             },
             logging=ecs.LogDriver.aws_logs(stream_prefix="backend"),
         )

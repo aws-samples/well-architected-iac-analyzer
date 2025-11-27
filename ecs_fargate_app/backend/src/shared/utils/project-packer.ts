@@ -36,7 +36,7 @@ export class ProjectPacker {
     // Patterns to exclude (directories and files)
     private readonly excludePatterns = [
         'node_modules', 'dist', 'cdk.out', '.git', '.github',
-        'package-lock.json', 'yarn.lock'
+        'package-lock.json', 'yarn.lock', '__MACOSX'
     ];
 
     // Token limit warning threshold
