@@ -96,13 +96,6 @@ You have three options for deploying this solution:
 
 This option uses AWS CloudFormation to create a temporary deployment environment to deploy the Well-Architected IaC Analyzer solution. This approach doesn't require any tools to be installed on your local machine.
 
-#### Prerequisites
-
-You must enable **AWS Bedrock Model Access** to the following LLM models in your AWS region:
-* **Titan Text Embeddings V2**
-* **Claude 3.5 Sonnet v2** (default) or **Claude 3.7 Sonnet with extended thinking**
-* To enable these models, follow the instructions [here](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access-modify.html).
-
 #### Deployment Steps
 
 1. Download the CloudFormation template: [iac-analyzer-deployment-stack.yaml](https://github.com/aws-samples/well-architected-iac-analyzer/blob/main/cfn_deployment_stacks/iac-analyzer-deployment-stack.yaml)
@@ -119,7 +112,9 @@ You must enable **AWS Bedrock Model Access** to the following LLM models in your
 
      - **Security Note:** By default, the stack deploys with a Public Application Load Balancer (internet-facing) with authentication enabled. For maximum security, we strongly recommend keeping authentication enabled for internet-facing deployments. If you disable authentication, your application will be publicly accessible without any security controls.
 
-     - **Model Selection Note:** The tool currently defaults to Claude 3.5 Sonnet V2. If you want to use Claude 3.7 Sonnet, you'll need to explicitly add the model ID in the stack "Amazon Bedrock Model ID" configuration parameter (e.g., for US regions: `us.anthropic.claude-3-7-sonnet-20250219-v1:0`). Please note that Claude 3.7 Sonnet is not available in all AWS regions, so verify availability in your region before deployment.
+     - **Model Selection Note:** The tool currently defaults to **Claude Sonnet 4.5**. If you want to use a different model (E.g. Claude Opus 4.5), you'll need to explicitly add the model ID in the stack "Amazon Bedrock Model ID" configuration parameter. Please note that not all models are available in all AWS regions, so verify availability in your region before deployment.
+  
+     - **Geographic and Global Cross-Region Inference Note:** The default Claude Sonnet 4.5 model ID uses a GLOBAL cross-Region inference profile (`global.anthropic.claude-sonnet-4-5-20250929-v1:0`), which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix). For more information visit the documentation [Choosing between Geographic and Global cross-Region inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html#cross-region-inference-comparison)
 
    - Choose "Next" until reaching the "Review" page and choose "Submit".
 
@@ -160,12 +155,7 @@ You can also find a direct link to these logs in the Outputs tab of your CloudFo
 
 #### Prerequisites
 
-You must enable **AWS Bedrock Model Access** to the following LLM models in your AWS region:
-* **Titan Text Embeddings V2**
-* **Claude 3.5 Sonnet v2** (default) or **\*NEW\* Claude 3.7 Sonnet with extended thinking**
-* To enable these models, follow the instructions [here](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access-modify.html).
-
-Apart from enabling access to the model listed above, the following tools must be installed on your local machine:
+The following tools must be installed on your local machine:
 
 * [Node.js](https://nodejs.org/en/download) (v18 or later) and npm
 * [Python](https://www.python.org/downloads/) (v3.11 or later) and pip
@@ -218,12 +208,7 @@ After successful deployment, you can find the Application Load Balancer (ALB) DN
 
 #### Prerequisites
 
-You must enable **AWS Bedrock Model Access** to the following LLM models in your AWS region:
-* **Titan Text Embeddings V2**
-* **Claude 3.5 Sonnet v2** (default) or **Claude 3.7 Sonnet with extended thinking**
-* To enable these models, follow the instructions [here](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access-modify.html).
-
-Apart from enabling access to the model listed above, the following tools must be installed on your local machine:
+The following tools must be installed on your local machine:
 
 * [Node.js](https://nodejs.org/en/download) (v18 or later) and npm
 * [Python](https://www.python.org/downloads/) (v3.11 or later) and pip
@@ -334,9 +319,17 @@ After successful deployment, you can find the Application Load Balancer (ALB) DN
   - ⚠️ **Security Warning**: By default, authentication is enabled for secure access. If you disable authentication while using a public load balancer (`True`), your application will be publicly accessible without any security controls. We strongly recommend keeping authentication enabled for public-facing deployments.
 
 - **Amazon Bedrock Model ID** (`ModelId`)
-  - Default: `anthropic.claude-3-5-sonnet-20241022-v2:0` (Claude 3.5 Sonnet v2)
+  - Default: `global.anthropic.claude-sonnet-4-5-20250929-v1:0` (Claude Sonnet 4.5)
   - You can specify an alternative [Bedrock model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns) if needed
-  - **Note**: This application has been primarily tested with Claude 3.5 Sonnet v2 and Claude 3.7 Sonnet. While other Bedrock models may work, using different models might lead to unexpected results.
+  - **Note**: This application has been primarily tested with Anthropic models (Claude Sonnet 4.5 and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results.
+
+- **Analysis Batch Size** (`BatchSize`)
+  - Default: `5`
+  - Range: 1-10
+  - Controls how many Well-Architected questions are processed in parallel during analysis
+  - **Lower values (1-3)**: More conservative approach, reduces the risk of API throttling
+  - **Higher values (6-10)**: Faster processing, but may increase the risk of API throttling
+  - **Recommendation**: Start with the default value of 5 and adjust based on your experience with API throttling
 
 ### Authentication Settings
 
@@ -437,13 +430,29 @@ These parameters are required when `AuthType` is set to `oidc`:
 
 ### Model Selection
 
-If you want to use a different model than "Claude 3.5 Sonnet v2", update the config.ini with the correct [model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns):
+If you want to use a different model than "Claude Opus 4.5", update the config.ini with the correct [model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns):
 ```ini
 [settings]
-model_id = anthropic.claude-3-5-sonnet-20241022-v2:0
+model_id = global.anthropic.claude-sonnet-4-5-20250929-v1:0
 ```
 
-> **Note:** This application has been primarily tested with "Claude 3.5 Sonnet v2". While other Bedrock models may work, using different models might lead to unexpected results. The default model ID is set to `anthropic.claude-3-5-sonnet-20241022-v2:0`.
+> **Note:** This application has been primarily tested with Anthropic models (Claude Sonnet 4.5 and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results. The default model ID is set to `global.anthropic.claude-sonnet-4-5-20250929-v1:0`.
+
+### Batch Size Configuration
+
+The batch size controls how many Well-Architected questions are processed in parallel during analysis. You can adjust this value in the config.ini file:
+
+```ini
+[settings]
+batch_size = 5
+```
+
+**Guidelines:**
+- **Default value**: 5 (recommended for most use cases)
+- **Lower values (1-3)**: More conservative, reduces API throttling risk
+- **Higher values (6-10)**: Faster processing, but may increase throttling risk
+
+If you experience API throttling errors during analysis, consider reducing the batch_size value. 
 
 ### Load Balancer Scheme Selection
 
@@ -679,7 +688,10 @@ AWS_SESSION_TOKEN=your-session-token
 WA_DOCS_S3_BUCKET=your-knowledgebase-source-bucket-name
 LENS_METADATA_TABLE=your-lens-metadata-table-name
 KNOWLEDGE_BASE_ID=your-kb-id
-MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
+MODEL_ID=global.anthropic.claude-sonnet-4-5-20250929-v1:0
+
+# Analysis Configuration
+BATCH_SIZE=5
 
 # Storage Configuration
 STORAGE_ENABLED=true

@@ -28,7 +28,6 @@ export class AnalyzerGateway implements OnGatewayConnection, OnGatewayDisconnect
     processedQuestions: number;
     totalQuestions: number;
     currentPillar: string;
-    currentQuestion: string;
   }) {
     this.server.emit('analysisProgress', data);
   }

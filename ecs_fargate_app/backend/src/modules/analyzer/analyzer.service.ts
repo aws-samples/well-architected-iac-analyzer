@@ -3,9 +3,13 @@ import { AwsConfigService } from '../../config/aws.config';
 import {
     ConverseCommand,
     Message,
-    SystemContentBlock
+    SystemContentBlock,
+    ThrottlingException as BedrockThrottlingException
 } from '@aws-sdk/client-bedrock-runtime';
-import { RetrieveAndGenerateCommand } from '@aws-sdk/client-bedrock-agent-runtime';
+import {
+    RetrieveAndGenerateCommand,
+    ThrottlingException as BedrockAgentThrottlingException
+} from '@aws-sdk/client-bedrock-agent-runtime';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { paginateListAnswers, AnswerSummary } from '@aws-sdk/client-wellarchitected';
 import { ConfigService } from '@nestjs/config';
@@ -68,6 +72,12 @@ interface ModelSectionResponse {
     sections: DocumentSection[];
 }
 
+interface QuestionAnalysisTask {
+    question: QuestionGroup;
+    pillarIndex: number;
+    questionIndex: number;
+}
+
 @Injectable()
 export class AnalyzerService {
     private readonly logger = new Logger(AnalyzerService.name);
@@ -75,7 +85,8 @@ export class AnalyzerService {
     private cancelGeneration$ = new Subject<void>();
     private cancelAnalysis$ = new Subject<void>();
     private readonly storageEnabled: boolean;
-    private readonly outputLanguage: string; // Add language setting
+    private readonly outputLanguage: string;
+    private readonly BATCH_SIZE: number;
 
     constructor(
         private readonly awsConfig: AwsConfigService,
@@ -85,23 +96,145 @@ export class AnalyzerService {
     ) {
         this.storageEnabled = this.configService.get<boolean>('storage.enabled', false);
         this.outputLanguage = this.configService.get<string>('language.output', 'en'); // Get language from config
+        this.BATCH_SIZE = this.configService.get<number>('analysis.batchSize', 5);
     }
 
+    /**
+     * Retry helper with exponential backoff for throttling exceptions
+     */
+    private async retryWithExponentialBackoff<T>(
+        operation: () => Promise<T>,
+        maxRetries: number = 5,
+        initialDelayMs: number = 30000, // Start with 30 seconds
+        operationName: string = 'operation'
+    ): Promise<T> {
+        let lastError: Error;
 
-    // Check if the current model is Claude 3.7 Sonnet
-    private isClaudeSonnet37(): boolean {
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return await operation();
+            } catch (error) {
+                lastError = error;
+
+                // Check if it's a throttling exception
+                const isThrottlingException =
+                    error instanceof BedrockThrottlingException ||
+                    error instanceof BedrockAgentThrottlingException ||
+                    error?.name === 'ThrottlingException' ||
+                    error?.message?.includes('ThrottlingException') ||
+                    error?.message?.includes('Rate exceeded');
+
+                if (!isThrottlingException || attempt === maxRetries) {
+                    throw error;
+                }
+
+                // Calculate delay with exponential backoff: initialDelay * 2^attempt
+                const delayMs = initialDelayMs * Math.pow(2, attempt);
+
+                this.logger.warn(
+                    `${operationName} throttled (attempt ${attempt + 1}/${maxRetries + 1}). ` +
+                    `Retrying in ${delayMs / 1000} seconds...`
+                );
+
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+
+        throw lastError;
+    }
+
+    /**
+     * Process a batch of questions in parallel
+     */
+    private async processBatch(
+        tasks: QuestionAnalysisTask[],
+        fileContent: string | any,
+        fileType: string,
+        uploadMode: FileUploadMode,
+        supportingDocContent: string | null,
+        supportingDocType: string | null,
+        supportingDocName: string | null,
+        supportingDocumentDescription: string | null,
+        lensName: string | undefined,
+        lensPillars: Record<string, string> | undefined,
+        currentOutputLanguage: string,
+        lensAliasArn: string | undefined
+    ): Promise<AnalysisResult[]> {
+        const batchResults: AnalysisResult[] = [];
+
+        // Process all tasks in parallel
+        const batchPromises = tasks.map(async (task) => {
+            try {
+                // Retrieve from knowledge base with retry
+                const kbContexts = await this.retryWithExponentialBackoff(
+                    () => this.retrieveFromKnowledgeBase(
+                        task.question.pillar,
+                        task.question.title,
+                        task.question,
+                        lensName
+                    ),
+                    5,
+                    30000,
+                    `KB retrieval for ${task.question.pillar} - ${task.question.title}`
+                );
+
+                // Analyze question with retry
+                const analysis = await this.retryWithExponentialBackoff(
+                    () => this.analyzeQuestion(
+                        fileContent,
+                        task.question,
+                        kbContexts,
+                        fileType,
+                        uploadMode,
+                        supportingDocContent,
+                        supportingDocType,
+                        supportingDocName,
+                        supportingDocumentDescription,
+                        lensName,
+                        lensPillars,
+                        currentOutputLanguage
+                    ),
+                    5,
+                    30000,
+                    `Analysis for ${task.question.pillar} - ${task.question.title}`
+                );
+
+                return analysis;
+            } catch (error) {
+                this.logger.error(
+                    `Failed to process question "${task.question.pillar} - ${task.question.title}":`,
+                    error
+                );
+                throw error;
+            }
+        });
+
+        // Wait for all batch operations to complete
+        const results = await Promise.all(batchPromises);
+        batchResults.push(...results);
+
+        return batchResults;
+    }
+
+    // Check if the current model supports extended thinking
+    private supportsExtendedThinking(): boolean {
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
-        return modelId && (
-            modelId.includes('anthropic.claude-3-7-sonnet') ||
-            modelId.includes('us.anthropic.claude-3-7-sonnet')
-        );
+        if (!modelId) return false;
+
+        return [
+            'claude-3-7-sonnet',
+            'claude-haiku-4-5',
+            'claude-sonnet-4-5',
+            'claude-opus-4-5'
+        ].some(model => modelId.includes(model));
     }
 
     // Configure model parameters based on the model type
     private getModelParameters() {
-        const isClaudeSonnet37 = this.isClaudeSonnet37();
+        const useExtendedThinking = this.supportsExtendedThinking();
 
-        if (isClaudeSonnet37) {
+        if (useExtendedThinking) {
             return {
                 additionalModelRequestFields: {
                     thinking: {
@@ -682,225 +815,157 @@ export class AnalyzerService {
                 });
             });
 
-            // Process each pillar's questions
-            for (let i = 0; i < selectedPillars.length; i++) {
-                const pillar = selectedPillars[i];
-                const questionGroups = pillarQuestionGroups[i];
+            // Create all tasks upfront
+            const allTasks: QuestionAnalysisTask[] = [];
+            for (let pillarIndex = 0; pillarIndex < selectedPillars.length; pillarIndex++) {
+                const questionGroups = pillarQuestionGroups[pillarIndex];
+                questionGroups.forEach((question, questionIndex) => {
+                    allTasks.push({
+                        question,
+                        pillarIndex,
+                        questionIndex
+                    });
+                });
+            }
 
-                for (const question of questionGroups) {
-                    try {
-                        // Check for cancellation
-                        const isCancelled = await Promise.race([
-                            cancelPromise,
-                            Promise.resolve(false),
-                        ]);
+            // Process tasks in batches of 5
+            for (let batchStart = 0; batchStart < allTasks.length; batchStart += this.BATCH_SIZE) {
+                // Check for cancellation before processing each batch
+                const isCancelled = await Promise.race([
+                    cancelPromise,
+                    Promise.resolve(false),
+                ]);
 
-                        if (isCancelled) {
-                            // Update lens-specific status maps
-                            const updatedAnalysisStatusMap = { ...(workItem.analysisStatus || {}) };
-                            const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
-                            const analysisErrorMap = { ...(workItem.analysisError || {}) };
-                            const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
+                if (isCancelled) {
+                    // Update lens-specific status maps
+                    const updatedAnalysisStatusMap = { ...(workItem.analysisStatus || {}) };
+                    const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
+                    const analysisErrorMap = { ...(workItem.analysisError || {}) };
+                    const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
 
-                            // Update status for this lens
-                            updatedAnalysisStatusMap[currentLensAlias] = 'PARTIAL';
-                            analysisProgressMap[currentLensAlias] = Math.round((processedQuestions / totalQuestions) * 100);
-                            analysisErrorMap[currentLensAlias] = 'Analysis cancelled by user.';
-                            analysisPartialResultsMap[currentLensAlias] = true;
+                    // Update status for this lens
+                    updatedAnalysisStatusMap[currentLensAlias] = 'PARTIAL';
+                    analysisProgressMap[currentLensAlias] = Math.round((processedQuestions / totalQuestions) * 100);
+                    analysisErrorMap[currentLensAlias] = 'Analysis cancelled by user.';
+                    analysisPartialResultsMap[currentLensAlias] = true;
 
-                            if (workItem && results.length > 0) {
-                                // Store partial results with lensAlias
-                                await this.storageService.storeAnalysisResults(
-                                    userId,
-                                    workItem.fileId,
-                                    results,
-                                    currentLensAlias
-                                );
+                    if (workItem && results.length > 0) {
+                        // Store partial results with lensAlias
+                        await this.storageService.storeAnalysisResults(
+                            userId,
+                            workItem.fileId,
+                            results,
+                            currentLensAlias
+                        );
 
-                                await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                    analysisStatus: updatedAnalysisStatusMap,
-                                    analysisProgress: analysisProgressMap,
-                                    analysisError: analysisErrorMap,
-                                    analysisPartialResults: analysisPartialResultsMap,
-                                    lastModified: new Date().toISOString(),
-                                });
-                            }
-
-                            this.analyzerGateway.emitAnalysisProgress({
-                                processedQuestions,
-                                totalQuestions,
-                                currentPillar: pillar,
-                                currentQuestion: 'Analysis cancelled',
-                            });
-                            return { results, isCancelled: true, fileId: workItem?.fileId };
-                        }
-
-                        let kbContexts: string[];
-                        try {
-                            kbContexts = await this.retrieveFromKnowledgeBase(
-                                question.pillar,
-                                question.title,
-                                question,
-                                lensName
-                            );
-                        } catch (error) {
-                            if (workItem && results.length > 0) {
-                                // Store partial results before marking as failed
-                                await this.storageService.storeAnalysisResults(
-                                    userId,
-                                    workItem.fileId,
-                                    results,
-                                    currentLensAlias
-                                );
-
-                                const progress = Math.round((processedQuestions / totalQuestions) * 100);
-                                const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
-                                const analysisStatusMap = { ...(workItem.analysisStatus || {}) };
-                                const analysisErrorMap = { ...(workItem.analysisError || {}) };
-                                const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
-
-                                analysisProgressMap[currentLensAlias] = progress;
-                                analysisStatusMap[currentLensAlias] = 'PARTIAL';
-                                analysisErrorMap[currentLensAlias] = `Error retrieving from knowledge base: ${error}`;
-                                analysisPartialResultsMap[currentLensAlias] = true;
-
-                                await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                    analysisStatus: analysisStatusMap,
-                                    analysisProgress: analysisProgressMap,
-                                    analysisError: analysisErrorMap,
-                                    analysisPartialResults: analysisPartialResultsMap,
-                                    lastModified: new Date().toISOString(),
-                                });
-                            }
-                            return {
-                                results,
-                                isCancelled: false,
-                                error: `Error retrieving from knowledge base. Analysis stopped. ${error}`,
-                                fileId: workItem?.fileId
-                            };
-                        }
-
-                        // Emit progress before processing
-                        this.analyzerGateway.emitAnalysisProgress({
-                            processedQuestions,
-                            totalQuestions,
-                            currentPillar: pillar,
-                            currentQuestion: question.title,
+                        await this.storageService.updateWorkItem(userId, workItem.fileId, {
+                            analysisStatus: updatedAnalysisStatusMap,
+                            analysisProgress: analysisProgressMap,
+                            analysisError: analysisErrorMap,
+                            analysisPartialResults: analysisPartialResultsMap,
+                            lastModified: new Date().toISOString(),
                         });
+                    }
 
-                        try {
-                            const analysis = await this.analyzeQuestion(
-                                fileContent,
-                                question,
-                                kbContexts,
-                                fileType,
-                                uploadMode,
-                                supportingDocContent,
-                                supportingDocType,
-                                supportingDocName,
-                                supportingDocumentDescription,
-                                lensName,
-                                lensPillars,
-                                currentOutputLanguage // Pass the output language
-                            );
-                            results.push(analysis);
+                    const currentPillar = allTasks[batchStart]?.question.pillar || 'Unknown';
+                    this.analyzerGateway.emitAnalysisProgress({
+                        processedQuestions,
+                        totalQuestions,
+                        currentPillar,
+                    });
+                    return { results, isCancelled: true, fileId: workItem?.fileId };
+                }
 
-                            // Update work item progress if storage is enabled
-                            if (workItem) {
-                                const progress = Math.round((processedQuestions / totalQuestions) * 100);
-                                const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
-                                analysisProgressMap[currentLensAlias] = progress;
+                const batchEnd = Math.min(batchStart + this.BATCH_SIZE, allTasks.length);
+                const batchTasks = allTasks.slice(batchStart, batchEnd);
 
-                                await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                    analysisProgress: analysisProgressMap,
-                                    lastModified: new Date().toISOString(),
-                                });
-                            }
+                // Get the current pillar for progress reporting (use first task's pillar in batch)
+                const currentPillar = batchTasks[0].question.pillar;
 
-                        } catch (error) {
-                            if (workItem && results.length > 0) {
-                                // Store partial results before marking as failed
-                                await this.storageService.storeAnalysisResults(
-                                    userId,
-                                    workItem.fileId,
-                                    results,
-                                    currentLensAlias
-                                );
+                // Emit progress before processing batch
+                this.analyzerGateway.emitAnalysisProgress({
+                    processedQuestions,
+                    totalQuestions,
+                    currentPillar,
+                });
 
-                                const progress = Math.round((processedQuestions / totalQuestions) * 100);
-                                const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
-                                const analysisStatusMap = { ...(workItem.analysisStatus || {}) };
-                                const analysisErrorMap = { ...(workItem.analysisError || {}) };
-                                const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
+                try {
+                    // Process batch in parallel with retry logic
+                    const batchResults = await this.processBatch(
+                        batchTasks,
+                        fileContent,
+                        fileType,
+                        uploadMode,
+                        supportingDocContent,
+                        supportingDocType,
+                        supportingDocName,
+                        supportingDocumentDescription,
+                        lensName,
+                        lensPillars,
+                        currentOutputLanguage,
+                        lensAliasArn
+                    );
 
-                                analysisProgressMap[currentLensAlias] = progress;
-                                analysisStatusMap[currentLensAlias] = 'PARTIAL';
-                                analysisErrorMap[currentLensAlias] = `${error}. Error analyzing question "${question.pillar} - ${question.title}". Analysis stopped, ${processedQuestions} questions where analyzed out of ${totalQuestions}.`;
-                                analysisPartialResultsMap[currentLensAlias] = true;
+                    results.push(...batchResults);
+                    processedQuestions += batchTasks.length;
 
-                                await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                    analysisStatus: analysisStatusMap,
-                                    analysisProgress: analysisProgressMap,
-                                    analysisError: analysisErrorMap,
-                                    analysisPartialResults: analysisPartialResultsMap,
-                                    lastModified: new Date().toISOString(),
-                                });
-                            }
-                            return {
-                                results,
-                                isCancelled: false,
-                                error: `${error}. Error analyzing question "${question.pillar} - ${question.title}". Analysis stopped, ${processedQuestions} questions where analyzed out of ${totalQuestions}.`,
-                                fileId: workItem?.fileId
-                            };
-                        }
+                    // Update work item progress after batch completes
+                    if (workItem) {
+                        const progress = Math.round((processedQuestions / totalQuestions) * 100);
+                        const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
+                        analysisProgressMap[currentLensAlias] = progress;
 
-                        processedQuestions++;
-
-                        // Emit progress after processing
-                        this.analyzerGateway.emitAnalysisProgress({
-                            processedQuestions,
-                            totalQuestions,
-                            currentPillar: pillar,
-                            currentQuestion: question.title,
+                        await this.storageService.updateWorkItem(userId, workItem.fileId, {
+                            analysisProgress: analysisProgressMap,
+                            lastModified: new Date().toISOString(),
                         });
-                    } catch (error) {
-                        // Update lens-specific error status
+                    }
+
+                    // Emit progress after processing batch
+                    this.analyzerGateway.emitAnalysisProgress({
+                        processedQuestions,
+                        totalQuestions,
+                        currentPillar,
+                    });
+
+                } catch (error) {
+                    this.logger.error(`Error processing batch starting at question ${batchStart}:`, error);
+
+                    // Store partial results before marking as failed/partial
+                    if (workItem && results.length > 0) {
+                        await this.storageService.storeAnalysisResults(
+                            userId,
+                            workItem.fileId,
+                            results,
+                            currentLensAlias
+                        );
+
                         const progress = Math.round((processedQuestions / totalQuestions) * 100);
                         const analysisProgressMap = { ...(workItem.analysisProgress || {}) };
                         const analysisStatusMap = { ...(workItem.analysisStatus || {}) };
                         const analysisErrorMap = { ...(workItem.analysisError || {}) };
                         const analysisPartialResultsMap = { ...(workItem.analysisPartialResults || {}) };
 
-                        analysisStatusMap[currentLensAlias] = 'PARTIAL';
-                        analysisErrorMap[currentLensAlias] = error.message || 'Error during analysis';
-                        analysisPartialResultsMap[currentLensAlias] = true;
                         analysisProgressMap[currentLensAlias] = progress;
+                        analysisStatusMap[currentLensAlias] = 'PARTIAL';
+                        analysisErrorMap[currentLensAlias] = `Error processing batch: ${error.message}. Analysis stopped, ${processedQuestions} questions were analyzed out of ${totalQuestions}.`;
+                        analysisPartialResultsMap[currentLensAlias] = true;
 
-                        if (workItem && results.length > 0) {
-                            // Store partial results with lensAlias
-                            await this.storageService.storeAnalysisResults(
-                                userId,
-                                workItem.fileId,
-                                results,
-                                currentLensAlias
-                            );
-
-                            await this.storageService.updateWorkItem(userId, workItem.fileId, {
-                                analysisStatus: analysisStatusMap,
-                                analysisProgress: analysisProgressMap,
-                                analysisError: analysisErrorMap,
-                                analysisPartialResults: analysisPartialResultsMap,
-                                lastModified: new Date().toISOString(),
-                            });
-                        }
-
-                        return {
-                            results,
-                            isCancelled: false,
-                            error: `Error analyzing question "${question.pillar} - ${question.title}". Analysis stopped.`,
-                            fileId: workItem?.fileId
-                        };
+                        await this.storageService.updateWorkItem(userId, workItem.fileId, {
+                            analysisStatus: analysisStatusMap,
+                            analysisProgress: analysisProgressMap,
+                            analysisError: analysisErrorMap,
+                            analysisPartialResults: analysisPartialResultsMap,
+                            lastModified: new Date().toISOString(),
+                        });
                     }
+
+                    return {
+                        results,
+                        isCancelled: false,
+                        error: `Error processing batch: ${error.message}. Analysis stopped, ${processedQuestions} questions were analyzed out of ${totalQuestions}.`,
+                        fileId: workItem?.fileId
+                    };
                 }
             }
 
@@ -2015,10 +2080,10 @@ export class AnalyzerService {
         // Handle cite tags
         // Replace <cite index="..."> with a blank space
         jsonString = jsonString.replace(/<cite\s+index="[^"]*">/g, " ");
-        
+
         // Replace </cite>. with just . (strip out </cite> when followed by a period)
         jsonString = jsonString.replace(/<\/cite>\./g, ".");
-        
+
         // Replace other </cite> instances with ". " (period followed by a space)
         jsonString = jsonString.replace(/<\/cite>/g, ". ");
 

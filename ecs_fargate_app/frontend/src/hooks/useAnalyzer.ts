@@ -16,13 +16,11 @@ export const useAnalyzer = () => {
     processedQuestions: number;
     totalQuestions: number;
     currentPillar: string;
-    currentQuestion: string;
   } | null>(null);
   const [progressTracking, setProgressTracking] = useState<{
     processedQuestions: number;
     totalQuestions: number;
     currentPillar: string;
-    currentQuestion: string;
   } | null>(null);
   const [createdWorkloadId, setCreatedWorkloadId] = useState<string | undefined>(undefined);
   const [canDeleteWorkload, setCanDeleteWorkload] = useState(false);

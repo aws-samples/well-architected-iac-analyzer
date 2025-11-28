@@ -11,8 +11,15 @@ Parameters:
   
   ModelId:
     Type: String
-    Default: 'anthropic.claude-3-5-sonnet-20241022-v2:0'
-    Description: 'Amazon Bedrock Model ID to use for analysis. By default uses Claude 3.5 Sonnet v2.'
+    Default: 'global.anthropic.claude-sonnet-4-5-20250929-v1:0'
+    Description: 'Amazon Bedrock Model ID to use for analysis. By default uses Claude Sonnet 4.5. The default model uses a GLOBAL cross-Region inference profile, which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix).'
+  
+  BatchSize:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 10
+    Description: 'Batch size for analysis processing. Controls how many questions are processed in parallel. Default is 5. Lower values (1-3) reduce API throttling risk, higher values (6-10) enable faster processing.'
 
   # Authentication Settings
   Authentication:
@@ -112,6 +119,7 @@ Metadata:
         Parameters: 
           - PublicLoadBalancer
           - ModelId
+          - BatchSize
       - 
         Label: 
           default: "Authentication Settings (Optional)"
@@ -150,6 +158,8 @@ Metadata:
         default: "Deploy with internet-facing Application Load Balancer?"
       ModelId:
         default: "Amazon Bedrock Model ID"
+      BatchSize:
+        default: "Analysis Batch Size"
         
       # Authentication Settings
       Authentication:
@@ -662,6 +672,9 @@ Resources:
                 # Update basic settings
                 sed -i "s/^model_id = .*$/model_id = ${ModelId}/" $CONFIG_FILE
                 sed -i "s/^public_load_balancer = .*$/public_load_balancer = ${PublicLoadBalancer}/" $CONFIG_FILE
+
+                # Update analysis batch size
+                sed -i "s/^batch_size = .*$/batch_size = ${BatchSize}/" $CONFIG_FILE
                 
                 # Update authentication settings - handle "False (Not Recommended)" case
                 if [ "${Authentication}" == "False (Not Recommended)" ]; then

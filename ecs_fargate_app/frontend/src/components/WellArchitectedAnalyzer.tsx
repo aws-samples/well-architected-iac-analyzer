@@ -1128,8 +1128,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
         <Container key="main-analysis-progress">
           <SpaceBetween size="m">
             <StatusIndicator key="analysis-progress-status" type="in-progress">
-              [{progress.processedQuestions}/{progress.totalQuestions}] Analyzing uploaded file according to:
-              '{progress.currentPillar} - {progress.currentQuestion}'
+              [{progress.processedQuestions} out of {progress.totalQuestions} questions] Currently analyzing according "{progress.currentPillar}" pillar related best practices
             </StatusIndicator>
             <ProgressBar
               key="analysis-progress-bar"

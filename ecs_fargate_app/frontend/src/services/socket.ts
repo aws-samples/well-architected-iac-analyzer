@@ -40,7 +40,6 @@ class SocketService {
         processedQuestions: number;
         totalQuestions: number;
         currentPillar: string;
-        currentQuestion: string;
     }) => void) {
         const socket = this.connect();
         socket.on('analysisProgress', callback);
