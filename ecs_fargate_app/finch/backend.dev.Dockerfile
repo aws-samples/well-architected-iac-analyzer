@@ -1,6 +1,6 @@
 ARG PLATFORM="amd64"
 
-FROM --platform=linux/${PLATFORM} node:alpine3.22
+FROM --platform=linux/${PLATFORM} node:alpine3.23
 
 WORKDIR /app
 

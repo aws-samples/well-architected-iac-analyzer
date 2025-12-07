@@ -1,7 +1,7 @@
 ARG PLATFORM="amd64"
 
 # Build stage
-FROM --platform=linux/${PLATFORM} node:alpine3.22 as build
+FROM --platform=linux/${PLATFORM} node:alpine3.23 as build
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ COPY backend/ .
 RUN npm run build
 
 # Production stage
-FROM --platform=linux/${PLATFORM} node:alpine3.22
+FROM --platform=linux/${PLATFORM} node:alpine3.23
 
 WORKDIR /app
 
