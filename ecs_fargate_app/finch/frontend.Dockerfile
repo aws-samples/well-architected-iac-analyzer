@@ -21,6 +21,11 @@ RUN npm run build
 # Production stage
 FROM --platform=linux/${PLATFORM} nginx:stable-alpine-slim
 
+# Update all packages to get latest patches for nginx
+RUN apk update && \
+    apk upgrade --no-cache && \
+    rm -rf /var/cache/apk/*
+
 # Copy built files
 COPY --from=build /app/dist /usr/share/nginx/html
 
