@@ -391,6 +391,7 @@ Resources:
               - 'cloudformation:GetTemplate'
               - 'cloudformation:ListStacks'
               - 'cloudformation:ValidateTemplate'
+              - 'cloudformation:DeleteChangeSet'
             Resource: 
               - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/CDKToolkit/*'
               - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/WA-IaC-Analyzer-*'
