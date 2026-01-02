@@ -230,6 +230,22 @@ export class AnalyzerService {
         ].some(model => modelId.includes(model));
     }
 
+    /**
+     * Extracts and concatenates all text content from a Bedrock response content array.
+     * @param content The content array from Bedrock response
+     * @returns Concatenated text from all text blocks
+     */
+    private extractTextFromContent(content: any[]): string {
+        if (!content || !Array.isArray(content)) {
+            return '';
+        }
+        
+        return content
+            .filter(block => 'text' in block && block.text)
+            .map(block => block.text)
+            .join('');
+    }
+
     // Configure model parameters based on the model type
     private getModelParameters() {
         const useExtendedThinking = this.supportsExtendedThinking();
@@ -1509,7 +1525,7 @@ export class AnalyzerService {
                             });
 
                             const response = await bedrockClient.send(command);
-                            const responseText = response.output.message.content.find(c => c.text)?.text || '';
+                            const responseText = this.extractTextFromContent(response.output.message.content);
 
                             const { content, isComplete: sectionComplete } = this.parseDetailsModelResponse(responseText);
                             itemDetails += content;
@@ -1795,7 +1811,7 @@ export class AnalyzerService {
                         }
 
                         // Extract text from response output
-                        const responseText = response.output.message.content.find(c => c.text)?.text || '';
+                        const responseText = this.extractTextFromContent(response.output.message.content);
 
                         const { content, isComplete: sectionComplete } =
                             this.parseDetailsModelResponse(responseText);
@@ -2211,7 +2227,7 @@ export class AnalyzerService {
             const response = await bedrockClient.send(command);
 
             // Extract text from the response
-            const responseText = response.output.message.content.find(c => c.text)?.text || '';
+            const responseText = this.extractTextFromContent(response.output.message.content);
 
             const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
             return JSON.parse(cleanedAnalysisJsonString);
@@ -2297,7 +2313,7 @@ export class AnalyzerService {
             const response = await bedrockClient.send(command);
 
             // Extract text from response
-            const responseText = response.output.message.content.find(c => c.text)?.text || '';
+            const responseText = this.extractTextFromContent(response.output.message.content);
 
             const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
             const parsedAnalysis = JSON.parse(cleanedAnalysisJsonString);
@@ -2431,7 +2447,7 @@ export class AnalyzerService {
             }
 
             // Not cancelled, process normal response
-            const responseText = raceResult.output.message.content.find(c => c.text)?.text || '';
+            const responseText = this.extractTextFromContent(raceResult.output.message.content);
 
             return {
                 content: responseText,
@@ -2597,7 +2613,7 @@ export class AnalyzerService {
             const response = await bedrockClient.send(command);
 
             // Extract text from response
-            const responseText = response.output.message.content.find(c => c.text)?.text || '';
+            const responseText = this.extractTextFromContent(response.output.message.content);
 
             const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
             return JSON.parse(cleanedAnalysisJsonString);
