@@ -295,6 +295,18 @@ check_auth_config() {
         elif [ "$AUTH_ENABLED" = "False" ]; then
             echo "✅ Authentication is disabled. No verification needed."
         fi
+        
+        # Validate vector store type configuration
+        VECTOR_STORE_TYPE=$(awk -F "=" '/^vector_store_type/ {gsub(/ /,"",$2); print $2}' config.ini)
+        if [ -n "$VECTOR_STORE_TYPE" ]; then
+            if [ "$VECTOR_STORE_TYPE" != "opensearch_serverless" ] && [ "$VECTOR_STORE_TYPE" != "s3_vectors" ]; then
+                echo "❌ Error: Invalid vector_store_type. Must be one of: opensearch_serverless, s3_vectors"
+                exit 1
+            fi
+            echo "✅ Vector store type: $VECTOR_STORE_TYPE"
+        else
+            echo "✅ Vector store type: s3_vectors (default)"
+        fi
     fi
 }
 

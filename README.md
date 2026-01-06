@@ -15,6 +15,23 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
 
 ## Features
 
+---
+- **NEW** 🚀 **Accelerated Analysis with Parallel Processing:**
+  - Configurable batch size controls how many Well-Architected (or selected Lens) questions are processed in parallel
+  - Complete full framework review up to **80% faster** compared to previous sequential processing
+  - Default adjustable batch size configuration (between 1-12) balances speed and API throttling risk
+
+- **NEW** 🧠 **Enhanced AI Capabilities with Latest Anthropic Models:**
+  - Full support for **Claude Sonnet 4.5** and **Claude Opus 4.5** models
+  - Leverages **Extended Thinking** capabilities for deeper analysis and more comprehensive recommendations
+
+- **NEW** 💰 **Cost-Optimized Vector Storage with Amazon S3 Vectors:**
+  - **S3 Vectors** is now the default vector store for the Bedrock Knowledge Base
+  - Achieve up to **80% cost reduction** compared to OpenSearch Serverless while maintaining sub-second query performance
+  - OpenSearch Serverless remains available as an option for deployment
+
+---
+
 - **Upload and analyze Infrastructure as Code templates**:
   - CloudFormation (YAML/JSON)
   - Terraform (.tf)
@@ -325,10 +342,10 @@ After successful deployment, you can find the Application Load Balancer (ALB) DN
 
 - **Analysis Batch Size** (`BatchSize`)
   - Default: `5`
-  - Range: 1-10
+  - Range: 1-12
   - Controls how many Well-Architected questions are processed in parallel during analysis
   - **Lower values (1-3)**: More conservative approach, reduces the risk of API throttling
-  - **Higher values (6-10)**: Faster processing, but may increase the risk of API throttling
+  - **Higher values (6-12)**: Faster processing, but may increase the risk of API throttling
   - **Recommendation**: Start with the default value of 5 and adjust based on your experience with API throttling
 
 ### Authentication Settings
@@ -450,7 +467,7 @@ batch_size = 5
 **Guidelines:**
 - **Default value**: 5 (recommended for most use cases)
 - **Lower values (1-3)**: More conservative, reduces API throttling risk
-- **Higher values (6-10)**: Faster processing, but may increase throttling risk
+- **Higher values (6-12)**: Faster processing, but may increase throttling risk
 
 If you experience API throttling errors during analysis, consider reducing the batch_size value. 
 

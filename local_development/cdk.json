@@ -1,3 +1,6 @@
 {
-    "app": "python3 kb_storage_app.py"
+    "app": "python3 kb_storage_app.py",
+    "context": {
+        "vector_store_type": "s3_vectors"
+    }
 }
