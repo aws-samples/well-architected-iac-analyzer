@@ -18,8 +18,14 @@ Parameters:
     Type: Number
     Default: 5
     MinValue: 1
-    MaxValue: 10
-    Description: 'Batch size for analysis processing. Controls how many questions are processed in parallel. Default is 5. Lower values (1-3) reduce API throttling risk, higher values (6-10) enable faster processing.'
+    MaxValue: 12
+    Description: 'Batch size for analysis processing. Controls how many questions are processed in parallel. Default is 5. Lower values (1-3) reduce API throttling risk, higher values (6-12) enable faster processing.'
+    
+  VectorStoreType:
+    Type: String
+    Default: 's3_vectors'
+    AllowedValues: ['opensearch_serverless', 's3_vectors']
+    Description: 'Vector store type for the Bedrock Knowledge Base. s3_vectors (default) uses Amazon S3 Vectors (Cost-effective option with sub-second query performance). opensearch_serverless uses Amazon OpenSearch Serverless (High performance with millisecond latency).'
 
   # Authentication Settings
   Authentication:
@@ -120,6 +126,7 @@ Metadata:
           - PublicLoadBalancer
           - ModelId
           - BatchSize
+          - VectorStoreType
       - 
         Label: 
           default: "Authentication Settings (Optional)"
@@ -160,6 +167,8 @@ Metadata:
         default: "Amazon Bedrock Model ID"
       BatchSize:
         default: "Analysis Batch Size"
+      VectorStoreType:
+        default: "Knowledge Base Vector Store Type"
         
       # Authentication Settings
       Authentication:
@@ -599,12 +608,47 @@ Resources:
                   # Clean any cached data
                   dnf clean all >> /var/log/user-data.log 2>&1
                   
-                  # Try to install packages
-                  if dnf install -y git docker python3.11 python3.11-pip pip nodejs npm aws-cli aws-cfn-bootstrap amazon-cloudwatch-agent >> /var/log/user-data.log 2>&1; then
+                  # Try to install packages (nodejs/npm will be installed via nvm)
+                  if dnf install -y git docker python3.13 python3.13-pip pip aws-cli aws-cfn-bootstrap amazon-cloudwatch-agent >> /var/log/user-data.log 2>&1; then
                     echo "Package installation successful!" >> /var/log/user-data.log
-                    # Install Node.js 20 LTS using NodeSource repository
-                    curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - >> /var/log/user-data.log 2>&1
-                    dnf install -y nodejs >> /var/log/user-data.log 2>&1
+                    
+                    # Set NVM_DIR to a known absolute path
+                    export NVM_DIR="/root/.nvm"
+                    echo "Creating NVM directory: $NVM_DIR" >> /var/log/user-data.log
+                    mkdir -p "$NVM_DIR"
+                    
+                    # Download and install nvm (https://nodejs.org/en/download)
+                    echo "Installing nvm to $NVM_DIR..." >> /var/log/user-data.log
+                    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh 2>> /var/log/user-data.log | bash >> /var/log/user-data.log 2>&1
+                    
+                    # Source nvm
+                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                    
+                    # Download and install Node.js
+                    echo "Installing Node.js 24..." >> /var/log/user-data.log
+                    nvm install 24 >> /var/log/user-data.log 2>&1
+                    
+                    # Get the installed node version path
+                    NODE_VERSION=$(nvm current)
+                    NODE_PATH="$NVM_DIR/versions/node/$NODE_VERSION/bin"
+                    
+                    echo "Node installed at: $NODE_PATH" >> /var/log/user-data.log
+                    
+                    # Create symlinks to /usr/local/bin for global access
+                    echo "Creating symlinks for global access..." >> /var/log/user-data.log
+                    ln -sf "$NODE_PATH/node" /usr/local/bin/node
+                    ln -sf "$NODE_PATH/npm" /usr/local/bin/npm
+                    ln -sf "$NODE_PATH/npx" /usr/local/bin/npx
+                    
+                    # Verify the symlinks work
+                    echo "Node.js version: $(/usr/local/bin/node -v)" >> /var/log/user-data.log 2>&1
+                    echo "npm version: $(/usr/local/bin/npm -v)" >> /var/log/user-data.log 2>&1
+                    
+                    # Verify they're in PATH
+                    echo "Verifying PATH access..." >> /var/log/user-data.log
+                    which node >> /var/log/user-data.log 2>&1
+                    which npm >> /var/log/user-data.log 2>&1
+                    
                     exit 0
                   else
                     echo "Package installation failed. Retrying in $RETRY_DELAY seconds..." >> /var/log/user-data.log
@@ -660,7 +704,32 @@ Resources:
             02_add_docker_user:
               command: "usermod -aG docker ec2-user >> /var/log/user-data.log 2>&1"
             03_install_cdk:
-              command: "npm install -g aws-cdk >> /var/log/user-data.log 2>&1"
+              command: |
+                echo "Installing AWS CDK globally..." >> /var/log/user-data.log
+                npm install -g aws-cdk >> /var/log/user-data.log 2>&1
+                
+                # Get the directory where node is installed (follow the symlink)
+                NODE_BIN_DIR=$(dirname $(readlink -f /usr/local/bin/node))
+                echo "Node bin directory: $NODE_BIN_DIR" >> /var/log/user-data.log
+                
+                # CDK is installed in the same bin directory
+                CDK_PATH="$NODE_BIN_DIR/cdk"
+                echo "CDK path: $CDK_PATH" >> /var/log/user-data.log
+                
+                # Verify CDK exists
+                if [ -f "$CDK_PATH" ]; then
+                  echo "CDK found at $CDK_PATH" >> /var/log/user-data.log
+                  ln -sf "$CDK_PATH" /usr/local/bin/cdk
+                  echo "Symlink created: $(ls -la /usr/local/bin/cdk)" >> /var/log/user-data.log
+                else
+                  echo "ERROR: CDK not found at $CDK_PATH" >> /var/log/user-data.log
+                  echo "Contents of $NODE_BIN_DIR:" >> /var/log/user-data.log
+                  ls -la "$NODE_BIN_DIR" >> /var/log/user-data.log
+                  exit 1
+                fi
+                
+                # Verify CDK works
+                echo "CDK version: $(/usr/local/bin/cdk --version)" >> /var/log/user-data.log 2>&1
 
         # Deploy analyzer
         06_deploy_analyzer:
@@ -676,6 +745,9 @@ Resources:
 
                 # Update analysis batch size
                 sed -i "s/^batch_size = .*$/batch_size = ${BatchSize}/" $CONFIG_FILE
+
+                # Update vector store type
+                sed -i "s/^vector_store_type = .*$/vector_store_type = ${VectorStoreType}/" $CONFIG_FILE
                 
                 # Update authentication settings - handle "False (Not Recommended)" case
                 if [ "${Authentication}" == "False (Not Recommended)" ]; then
@@ -779,7 +851,7 @@ Resources:
             01_run_deployment:
               command: !Sub |
                 echo "Starting WA-IaC-Analyzer deployment at $(date)" >> /var/log/deploy-wa-analyzer.log
-                sudo -u ec2-user /home/ec2-user/run-deployment.sh >> /var/log/deploy-wa-analyzer.log 2>&1
+                /home/ec2-user/run-deployment.sh >> /var/log/deploy-wa-analyzer.log 2>&1
                 DEPLOYMENT_STATUS=$?
                 echo "Deployment completed with status $DEPLOYMENT_STATUS at $(date)" >> /var/log/deploy-wa-analyzer.log
                 # Create file marker to indicate deployment status for next steps
