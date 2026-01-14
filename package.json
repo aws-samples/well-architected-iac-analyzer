@@ -1,6 +1,7 @@
 {
   "name": "well-architected-iac-analyzer",
   "version": "1.0.0",
+  "license": "MIT",
   "scripts": {
     "dev:up": "./dev.sh -c docker -up",
     "dev:down": "./dev.sh -c docker -down",

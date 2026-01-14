@@ -1,14 +1,15 @@
 import React from 'react';
 import { Button } from '@cloudscape-design/components';
 import { useHelpPanel } from '../../contexts/HelpPanelContext';
-import { helpContent } from './help-content';
+import { useHelpContent } from './help-content';
 
 interface HelpButtonProps {
-  contentId: keyof typeof helpContent;
+  contentId: 'default' | 'fileUpload' | 'pillarSelection' | 'analysisResults' | 'wellArchitectedTool' | 'iacDocument' | 'workloadId' | 'iacTypeSelection' | 'supportingDocument' | 'lensSelection';
 }
 
 export const HelpButton: React.FC<HelpButtonProps> = ({ contentId }) => {
   const { setHelpContent } = useHelpPanel();
+  const helpContent = useHelpContent();
   const content = helpContent[contentId];
 
   return (

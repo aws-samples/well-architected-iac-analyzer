@@ -4,7 +4,7 @@ import { HelpPanelProvider, useHelpPanel } from './contexts/HelpPanelContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { useUserMenuUtilities } from './components/UserMenu';
-import { helpContent } from './components/utils/help-content';
+import { useHelpContent } from './components/utils/help-content';
 import { HelpButton } from './components/utils/HelpButton';
 
 import { WorkSideNavigation, WorkSideNavigationRef } from './components/WorkSideNavigation';
@@ -18,6 +18,7 @@ function AppContent() {
   const { isToolsOpen, content, setIsToolsOpen } = useHelpPanel();
   const { authState } = useAuth();
   const { strings, language: currentLanguage, setLanguage, supportedLanguages } = useLanguage();
+  const helpContent = useHelpContent();
   const defaultContent = helpContent.default;
   const userMenuUtilities = useUserMenuUtilities();
   const [activeFileId, setActiveFileId] = useState<string>();

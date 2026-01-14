@@ -8,6 +8,10 @@ interface CodeBlockProps {
   className?: string;
 }
 
+interface PropsWithChildren {
+  children?: ReactNode;
+}
+
 const CodeBlock: React.FC<CodeBlockProps> = ({ children, className }) => {
   // Convert ReactNode to string safely
   const getStringContent = (node: ReactNode): string => {
@@ -17,7 +21,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className }) => {
     if (typeof node === 'number') {
       return String(node);
     }
-    if (React.isValidElement(node)) {
+    if (React.isValidElement<PropsWithChildren>(node)) {
       // If it's a React element, try to extract text content
       if (typeof node.props.children === 'string') {
         return node.props.children;

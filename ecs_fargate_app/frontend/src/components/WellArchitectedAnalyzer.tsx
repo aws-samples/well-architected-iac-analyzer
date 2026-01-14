@@ -1026,7 +1026,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                       />
                       {!isImageFile && (
                         <Alert type="info">
-                          IaC template generation is only available when analyzing architecture diagram images.
+                          {strings.wellArchitectedAnalyzer.iacGenerationOnlyForImages}
                         </Alert>
                       )}
                     </SpaceBetween>
@@ -1046,7 +1046,7 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                 setIsNetworkInterruption(false);
                 setError(null);
               }}
-              header="Network Connection Interrupted"
+              header={strings.wellArchitectedAnalyzer.networkConnectionInterrupted}
               action={
                 <SpaceBetween direction="horizontal" size="xs">
                   {activeWorkItem && (
@@ -1056,19 +1056,18 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                       loading={isLoadingNetworkResultsButton}
                       disabled={isLoadingNetworkResultsButton}
                     >
-                      Load Results
+                      {strings.wellArchitectedAnalyzer.loadResults}
                     </Button>
                   )}
                 </SpaceBetween>
               }
             >
-              <p>Your network connection was interrupted while the analysis was running.
-                The analysis has likely completed in the background.</p>
+              <p>{strings.wellArchitectedAnalyzer.analysisLikelyCompleted}</p>
 
-              <p><strong>You can:</strong></p>
+              <p><strong>{strings.wellArchitectedAnalyzer.youCan}</strong></p>
               <ul>
-                <li>Click "Load Results" to try loading the most recent results</li>
-                <li>Or expand your work item in the side navigation panel and click "Load results"</li>
+                <li>{strings.wellArchitectedAnalyzer.clickLoadResults}</li>
+                <li>{strings.wellArchitectedAnalyzer.orExpandWorkItem}</li>
               </ul>
             </Alert>
           )}
@@ -1091,10 +1090,10 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
               type="warning"
               dismissible
               onDismiss={() => setShowTokenLimitWarning(false)}
-              header="Token Limit Warning"
+              header={strings.wellArchitectedAnalyzer.tokenLimitWarning}
             >
-              Your project contains approximately {tokenCount.toLocaleString()} tokens, which exceeds the recommended limit of 200,000 tokens.
-              The model invocation may fail or the analysis may lose context due to the large file size. Consider breaking your project into smaller pieces for better results.
+              {strings.wellArchitectedAnalyzer.tokenLimitExceeded.replace('{count}', tokenCount.toLocaleString())}
+              {' '}{strings.wellArchitectedAnalyzer.considerBreakingProject}
             </Alert>
           )}
 
@@ -1175,11 +1174,9 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
           onDismiss={() => setShowAnalysisCancellationAlert(false)}
           dismissible
           type="warning"
-          header="Analysis cancelled"
+          header={strings.wellArchitectedAnalyzer.generationCancelled}
         >
-          The analysis of the uploaded file was cancelled. Partial results are shown below.
-          You can either use these partial results or try analyzing the complete
-          file again.
+          {strings.wellArchitectedAnalyzer.analysisCancelledMessage}
         </Alert>
       )}
 
@@ -1189,11 +1186,9 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
           onDismiss={() => setShowCancellationAlert(false)}
           dismissible
           type="warning"
-          header="Generation cancelled"
+          header={strings.wellArchitectedAnalyzer.generationCancelled}
         >
-          The IaC document generation was cancelled. A partial version has been generated
-          and can be viewed in the 'IaC Document' tab. You can either use this partial
-          version or try generating the complete document again.
+          {strings.wellArchitectedAnalyzer.partialVersionGenerated}
         </Alert>
       )}
 
@@ -1312,19 +1307,19 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                           <Badge color="red">
                             {strings.wellArchitectedAnalyzer.failed}
                           </Badge>
-                        ) : <Badge color="grey">Not Started</Badge>}
+                        ) : <Badge color="grey">{strings.wellArchitectedAnalyzer.notStarted}</Badge>}
                       </>
                     ) : isAnalyzing && progressTracking ? (<ProgressBar
                       key="current-lens-analysis-progress-bar"
                       value={Math.round((progressTracking.processedQuestions / progressTracking.totalQuestions) * 100)}
-                      description="In progress"
+                      description={strings.wellArchitectedAnalyzer.inProgress}
                     />) : !isAnalyzing && progressTracking ? (
                       Math.round((progressTracking.processedQuestions / progressTracking.totalQuestions) * 100) === 100 ? (
-                        <Badge color="green">Completed</Badge>
+                        <Badge color="green">{strings.wellArchitectedAnalyzer.completed}</Badge>
                       ) : (
-                        <Badge color="blue">Partial results - Stopped at {Math.round((progressTracking.processedQuestions / progressTracking.totalQuestions) * 100)}%</Badge>
+                        <Badge color="blue">{strings.wellArchitectedAnalyzer.partial} {Math.round((progressTracking.processedQuestions / progressTracking.totalQuestions) * 100)}%</Badge>
                       )
-                    ) : <Badge color="grey">Not Started</Badge>
+                    ) : <Badge color="grey">{strings.wellArchitectedAnalyzer.notStarted}</Badge>
                     }
                   </SpaceBetween>
                 )

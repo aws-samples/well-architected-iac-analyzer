@@ -338,7 +338,9 @@ export class WellArchitectedService {
 
       const paginator = paginateListWorkloads(
         { client: waClient },
-        {}
+        {
+          WorkloadNamePrefix: 'IaCAnalyzer_'
+        }
       );
 
       for await (const page of paginator) {

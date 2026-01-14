@@ -87,7 +87,6 @@ export const WorkloadIdInput: React.FC<WorkloadIdInputProps> = ({
             external
             href="https://docs.aws.amazon.com/wellarchitected/latest/userguide/define-workload.html"
           >
-            Learn more
           </Link>
         </>
       }

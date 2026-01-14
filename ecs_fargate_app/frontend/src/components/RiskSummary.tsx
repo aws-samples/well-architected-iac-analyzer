@@ -14,6 +14,7 @@ import {
 } from '@cloudscape-design/components';
 import { HelpButton } from './utils/HelpButton';
 import { RiskSummary as RiskSummaryType, RiskSummaryProps } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export const RiskSummary: React.FC<RiskSummaryProps> = ({
   summary,
@@ -35,16 +36,17 @@ export const RiskSummary: React.FC<RiskSummaryProps> = ({
   const totalQuestions = summary?.reduce((acc, s) => acc + s.totalQuestions, 0) ?? 0;
   const totalAnswered = summary?.reduce((acc, s) => acc + s.answeredQuestions, 0) ?? 0;
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const { strings } = useLanguage();
 
   const dropdownItems = [
     {
       id: 'generate-report',
-      text: 'Generate Well-Architected Tool Report',
+      text: strings.riskSummary.generateReport,
       disabled: !summary || isUpdating || isGeneratingReport
     },
     {
       id: 'delete-workload',
-      text: 'Delete Well-Architected Tool Workload',
+      text: strings.riskSummary.deleteWorkload,
       disabled: !canDeleteWorkload || hasProvidedWorkloadId || isDeleting
     }
   ];
@@ -75,7 +77,7 @@ export const RiskSummary: React.FC<RiskSummaryProps> = ({
           columns={4}
           items={[
             {
-              label: "Workload ID",
+              label: strings.riskSummary.workloadId,
               value: currentWorkloadId ? (
                 <SpaceBetween direction="horizontal" size="xxxs" alignItems="center">
                   <Badge color="blue">{currentWorkloadId}</Badge>
@@ -87,24 +89,24 @@ export const RiskSummary: React.FC<RiskSummaryProps> = ({
                     />
                   )}
                 </SpaceBetween>
-              ) : <Badge color="grey">No Workload ID associated</Badge>
+              ) : <Badge color="grey">{strings.riskSummary.noWorkloadIdAssociated}</Badge>
             },
             {
-              label: "Questions Answered",
+              label: strings.riskSummary.questionsAnswered,
               value: isRefreshing || isUpdating || isDeleting ?
-                <StatusIndicator type="loading">Loading</StatusIndicator> :
+                <StatusIndicator type="loading">{strings.common.loading}</StatusIndicator> :
                 <StatusIndicator type="info">{totalAnswered}/{totalQuestions}</StatusIndicator>
             },
             {
-              label: "High Risks",
+              label: strings.riskSummary.highRisks,
               value: isRefreshing || isUpdating || isDeleting ?
-                <StatusIndicator type="loading">Loading</StatusIndicator> :
+                <StatusIndicator type="loading">{strings.common.loading}</StatusIndicator> :
                 <StatusIndicator type="error">{totalHighRisks}</StatusIndicator>
             },
             {
-              label: "Medium Risks",
+              label: strings.riskSummary.mediumRisks,
               value: isRefreshing || isUpdating || isDeleting ?
-                <StatusIndicator type="loading">Loading</StatusIndicator> :
+                <StatusIndicator type="loading">{strings.common.loading}</StatusIndicator> :
                 <StatusIndicator type="warning">{totalMediumRisks}</StatusIndicator>
             }
           ]}
@@ -113,20 +115,20 @@ export const RiskSummary: React.FC<RiskSummaryProps> = ({
       <Table
         variant="stacked"
         columnDefinitions={[
-          { id: 'pillar', header: 'Pillar', cell: item => item.pillarName },
+          { id: 'pillar', header: strings.riskSummary.pillar, cell: item => item.pillarName },
           {
             id: 'progress',
-            header: 'Progress',
+            header: strings.riskSummary.progress,
             cell: (item: RiskSummaryType) => {
               const { answeredQuestions, totalQuestions } = item;
               return `${answeredQuestions}/${totalQuestions}`;
             }
           },
-          { id: 'high', header: 'High Risks', cell: item => item.highRisks },
-          { id: 'medium', header: 'Medium Risks', cell: item => item.mediumRisks },
+          { id: 'high', header: strings.riskSummary.highRisks, cell: item => item.highRisks },
+          { id: 'medium', header: strings.riskSummary.mediumRisks, cell: item => item.mediumRisks },
         ]}
         loading={isRefreshing || isUpdating || isDeleting}
-        loadingText="Loading risk summary data..."
+        loadingText={strings.riskSummary.loadingRiskSummary}
         items={summary || []}
         header={
           <Header
@@ -136,11 +138,11 @@ export const RiskSummary: React.FC<RiskSummaryProps> = ({
                 <ButtonDropdown
                   items={dropdownItems}
                   loading={isUpdating || isGeneratingReport}
-                  loadingText="Updating workload..."
+                  loadingText={strings.common.loading}
                   onItemClick={handleDropdownAction}
                   expandToViewport={true}
                   mainAction={{
-                    text: 'Complete Well-Architected Tool Review',
+                    text: strings.riskSummary.completeReview,
                     onClick: onUpdate
                   }}
                 />
@@ -155,14 +157,14 @@ export const RiskSummary: React.FC<RiskSummaryProps> = ({
             }
             info={<HelpButton contentId="wellArchitectedTool" />}
           >
-            Risk Summary
+            {strings.riskSummary.title}
           </Header>
         }
       />
       <Modal
         visible={deleteModalVisible}
         onDismiss={() => setDeleteModalVisible(false)}
-        header="Delete Well-Architected Tool Workload"
+        header={strings.riskSummary.deleteWorkloadModal.title}
         footer={
           <SpaceBetween direction="horizontal" size="xs">
             <Button
@@ -170,26 +172,25 @@ export const RiskSummary: React.FC<RiskSummaryProps> = ({
               variant="link"
               disabled={isDeleting}
             >
-              Cancel
+              {strings.common.cancel}
             </Button>
             <Button
               onClick={confirmDelete}
               variant="primary"
               loading={isDeleting}
             >
-              Delete
+              {strings.common.delete}
             </Button>
           </SpaceBetween>
         }
       >
         <SpaceBetween size="m">
           <div>
-            Are you sure you want to delete the workload with ID "{currentWorkloadId}"?
-            This action cannot be undone.
+            {strings.riskSummary.deleteWorkloadModal.confirmMessage} "{currentWorkloadId}"?
+            {' '}{strings.riskSummary.deleteWorkloadModal.cannotUndo}
           </div>
           <div>
-            <strong>Note:</strong> This will only delete the workload in the AWS Well-Architected Tool. 
-            Your analysis results and recommendations in this application will remain available.
+            <strong>{strings.riskSummary.deleteWorkloadModal.note}</strong> {strings.riskSummary.deleteWorkloadModal.noteMessage}
           </div>
         </SpaceBetween>
       </Modal>

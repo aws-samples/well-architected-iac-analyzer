@@ -20,6 +20,7 @@
 
 import { FC, useState } from 'react';
 import { Button, Popover, StatusIndicator } from '@cloudscape-design/components';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface CopyButtonProps {
   content: string;
@@ -27,6 +28,7 @@ interface CopyButtonProps {
 
 const CopyButton: FC<CopyButtonProps> = ({ content }) => {
   const [copyStatus, setCopyStatus] = useState<'success' | 'error'>('success');
+  const { strings } = useLanguage();
 
   const handleCopy = async () => {
     try {
@@ -64,16 +66,16 @@ const CopyButton: FC<CopyButtonProps> = ({ content }) => {
       triggerType="custom"
       content={
         <StatusIndicator type={copyStatus}>
-          {copyStatus === 'success' ? 'Content copied' : 'Failed to copy'}
+          {copyStatus === 'success' ? strings.common.contentCopied : strings.common.failedToCopy}
         </StatusIndicator>
       }
     >
       <Button
         iconName="copy"
         onClick={handleCopy}
-        ariaLabel="Copy content"
+        ariaLabel={strings.common.copy}
       >
-        Copy
+        {strings.common.copy}
       </Button>
     </Popover>
   );

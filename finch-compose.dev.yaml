@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -24,7 +22,7 @@ services:
       - LENS_METADATA_TABLE=${LENS_METADATA_TABLE}
       - BATCH_SIZE=${BATCH_SIZE:-5}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./ecs_fargate_app/backend/src:/app/src
       - ./ecs_fargate_app/backend/package.json:/app/package.json
@@ -34,7 +32,7 @@ services:
       context: ./ecs_fargate_app
       dockerfile: finch/frontend.dev.Dockerfile
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./ecs_fargate_app/frontend/src:/app/src
       - ./ecs_fargate_app/frontend/public:/app/public

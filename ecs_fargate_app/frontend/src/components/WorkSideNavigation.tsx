@@ -275,7 +275,6 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
               variant="inline-icon"
               loading={loadingFileId === item.fileId}
             >
-              Load
             </Button>
           )
         },
@@ -311,7 +310,6 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
                 disabled={!hasChatHistory(item)}
                 onClick={(e: any) => handleDownloadChatHistory(item, e)}
               >
-                Download
               </Button>
               <Button
                 iconName="remove"
@@ -321,7 +319,6 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
                 disabled={!hasChatHistory(item)}
                 onClick={(e: any) => handleDeleteChatHistory(item, e)}
               >
-                Delete
               </Button>
             </SpaceBetween>
           )
@@ -344,7 +341,6 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
               variant="inline-icon"
               loading={deletingFileId === item.fileId}
             >
-              Delete
             </Button>
           )
         }
