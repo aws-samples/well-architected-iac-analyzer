@@ -1,7 +1,6 @@
 import csv
 import json
 import os
-import time
 from datetime import datetime
 from io import StringIO
 
@@ -11,7 +10,7 @@ from botocore.exceptions import ClientError
 
 
 def download_file(url):
-    response = requests.get(url)
+    response = requests.get(url, timeout=60)
     response.raise_for_status()
     return response.content
 
@@ -301,8 +300,10 @@ def process_lens(bucket_name, workload_id, lens_data, is_primary_lens=False):
         if not is_primary_lens:
             try:
                 disassociate_lens(workload_id, lens_alias)
-            except Exception:
-                pass
+            except Exception as disassociate_error:
+                print(
+                    f"Failed to disassociate lens {lens_alias} during cleanup: {disassociate_error}"
+                )
         return False
 
 
@@ -511,9 +512,6 @@ def handler(event, context):
     # Process additional lenses
     for lens in additional_lenses:
         print(f"Processing additional lens: {lens['lensName']}")
-
-        # Allow some time between processing each lens to avoid rate limiting
-        time.sleep(1)
 
         # Process this lens
         process_lens(bucket_name, workload_id, lens, is_primary_lens=False)

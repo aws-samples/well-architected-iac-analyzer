@@ -11,6 +11,7 @@ import jsonHighlight from "@cloudscape-design/code-view/highlight/json";
 import yamlHighlight from "@cloudscape-design/code-view/highlight/yaml";
 import { IaCTemplateType } from '../types';
 import CopyButton from './utils/CopyButton';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface DocumentViewProps {
     content: string;
@@ -25,6 +26,8 @@ export const DocumentView: React.FC<DocumentViewProps> = ({
     selectedIaCType,
     lensAlias = 'unknown_lens',
 }) => {
+    const { strings } = useLanguage();
+    
     const getTemplateType = (): string => {
         const match = selectedIaCType.match(/\(([^\)]+)\)/);
         return match ? match[1] : 'txt';
@@ -60,15 +63,15 @@ export const DocumentView: React.FC<DocumentViewProps> = ({
                             <Button
                                 iconName="download"
                                 onClick={handleDownload}
-                                ariaLabel="Download content"
+                                ariaLabel={strings.common.download}
                             >
-                                Download
+                                {strings.common.download}
                             </Button>
                         </SpaceBetween>
                     }
                     info={<HelpButton contentId="iacDocument" />}
                 >
-                    Generated IaC Document
+                    {strings.common.generatedIacDocument}
                 </Header>
             }
         >

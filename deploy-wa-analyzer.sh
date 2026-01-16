@@ -181,8 +181,8 @@ check_prerequisites() {
     local missing_commands=()
     
     for cmd in "${required_commands[@]}"; do
-        if ! command -v $cmd &> /dev/null; then
-            missing_commands+=($cmd)
+        if ! command -v "$cmd" &> /dev/null; then
+            missing_commands+=("$cmd")
             echo "❌ $cmd is required but not installed"
         else
             echo "✅ $cmd is installed"
@@ -370,7 +370,7 @@ deploy_stack() {
     
     # Bootstrap CDK if needed
     echo "Bootstrapping CDK (if needed) in AWS account $AWS_ACCOUNT and region $REGION..."
-    cdk bootstrap aws://$AWS_ACCOUNT/$REGION
+    cdk bootstrap "aws://$AWS_ACCOUNT/$REGION"
     
     # Deploy stack
     echo "Deploying stack..."

@@ -278,18 +278,71 @@ Rules:
   
 Resources:
   # CloudWatch Log Group with retention
+  # checkov:skip=CKV_AWS_158: This is a temporary deployment environment. Logs contain only package installation and CDK build/deployment process information with no sensitive data. CloudWatch Logs are encrypted by default using AWS-managed server-side encryption with 256-bit AES-GCM.
   DeploymentLogGroup:
     Type: AWS::Logs::LogGroup
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_158
+            comment: "This is a temporary deployment environment. Logs contain only package installation and CDK build/deployment process information with no sensitive or internal data. CloudWatch Logs are encrypted by default using AWS-managed server-side encryption with 256-bit AES-GCM, which provides adequate protection for this use case."
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: "This is a temporary deployment environment. Logs contain only package installation and CDK build/deployment process information with no sensitive or internal data. CloudWatch Logs are encrypted by default using AWS-managed server-side encryption with 256-bit AES-GCM, which provides adequate protection for this use case."
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      # Use a combination of region, account and stack name for uniqueness
       LogGroupName: !Join 
         - '-'
         - - 'iac-deployment-logs'
           - !Ref 'AWS::Region'
           - !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref 'AWS::StackId']]]]
       RetentionInDays: 90
+
+  # VPC Flow Logs Log Group
+  # checkov:skip=CKV_AWS_158: This is a temporary deployment environment for VPC flow logs. Logs contain only network flow metadata with no sensitive data. CloudWatch Logs are encrypted by default using AWS-managed server-side encryption with 256-bit AES-GCM.
+  VPCFlowLogsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_158
+            comment: "This is a temporary deployment environment. VPC Flow Logs contain only network flow metadata (source/destination IPs, ports, protocol) with no sensitive or internal data. CloudWatch Logs are encrypted by default using AWS-managed server-side encryption with 256-bit AES-GCM, which provides adequate protection for this use case."
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: "This is a temporary deployment environment. VPC Flow Logs contain only network flow metadata (source/destination IPs, ports, protocol) with no sensitive or internal data. CloudWatch Logs are encrypted by default using AWS-managed server-side encryption with 256-bit AES-GCM, which provides adequate protection for this use case."
+    Properties:
+      LogGroupName: !Sub '${AWS::StackName}-vpc-flow-logs'
+      RetentionInDays: 30
+
+  # IAM Role for VPC Flow Logs
+  VPCFlowLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: vpc-flow-logs.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: VPCFlowLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'logs:DescribeLogGroups'
+                  - 'logs:DescribeLogStreams'
+                Resource: !GetAtt VPCFlowLogsLogGroup.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-VPC-Flow-Logs-Role'
 
   # VPC and Networking Resources
   VPC:
@@ -302,25 +355,73 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-VPC'
 
+  # VPC Flow Log
+  VPCFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt VPCFlowLogsRole.Arn
+      LogGroupName: !Ref VPCFlowLogsLogGroup
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: ALL
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-VPC-Flow-Log'
+
   PublicSubnet:
     Type: 'AWS::EC2::Subnet'
     Properties:
       VpcId: !Ref VPC
       CidrBlock: '10.0.0.0/24'
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       AvailabilityZone: !Select [0, !GetAZs '']
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-Public-Subnet'
-  
+
   EC2SecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W5
+            reason: "This is a temporary deployment EC2 instance that requires outbound internet access to download packages from public repositories (npm, GitHub, Amazon Linux repositories), access AWS service endpoints (CloudFormation, S3, ECR, SSM, Bedrock), and perform CDK bootstrap and deployment operations. The instance has no inbound rules and is terminated automatically after deployment completes. Egress restrictions would prevent the deployment process from functioning."
+          - id: W40
+            reason: "This is a temporary deployment EC2 instance that requires outbound internet access to download packages from public repositories (npm, GitHub, Amazon Linux repositories), access AWS service endpoints (CloudFormation, S3, ECR, SSM, Bedrock), and perform CDK bootstrap and deployment operations. The instance has no inbound rules and is terminated automatically after deployment completes. Egress restrictions would prevent the deployment process from functioning."
     Properties:
-      GroupDescription: 'Security group for EC2 deployment instance'
+      GroupDescription: 'Security group for EC2 deployment instance - allows outbound access for package installation and AWS API calls'
       VpcId: !Ref VPC
       SecurityGroupEgress:
-        - IpProtocol: '-1'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
           CidrIp: 0.0.0.0/0
+          Description: 'HTTPS outbound for AWS APIs, GitHub, npm registry, and package downloads'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: 'HTTP outbound for package repository access and redirects'
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 0.0.0.0/0
+          Description: 'DNS UDP outbound for domain name resolution'
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 0.0.0.0/0
+          Description: 'DNS TCP outbound for large DNS responses'
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: 0.0.0.0/0
+          Description: 'NTP outbound for time synchronization'
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+          Description: 'ICMP outbound for network diagnostics and connectivity checks (ping)'
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-EC2-SG'
@@ -359,6 +460,34 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
+
+  # Network Interface for EC2 instance - created first so EIP can be pre-associated
+  EC2NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      GroupSet:
+        - !GetAtt EC2SecurityGroup.GroupId
+      Description: 'Primary network interface for deployment EC2 instance'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-EC2-ENI'
+
+  # Elastic IP for EC2 instance
+  EC2ElasticIP:
+    Type: AWS::EC2::EIP
+    DependsOn: IGWAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-EC2-EIP'
+
+  EC2EIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt EC2ElasticIP.AllocationId
+      NetworkInterfaceId: !Ref EC2NetworkInterface
 
   # IAM Role for EC2 Instance
   EC2Role:
@@ -474,14 +603,11 @@ Resources:
           - Sid: 'AssumeCDKRoles'
             Effect: 'Allow'
             Action: 'sts:AssumeRole'
-            Resource: '*'
-            Condition:
-              StringEquals:
-                'iam:ResourceTag/aws-cdk:bootstrap-role':
-                  - 'image-publishing'
-                  - 'file-publishing'
-                  - 'deploy'
-                  - 'lookup'
+            Resource:
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-deploy-role-${AWS::AccountId}-${AWS::Region}'
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-file-publishing-role-${AWS::AccountId}-${AWS::Region}'
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-image-publishing-role-${AWS::AccountId}-${AWS::Region}'
+              - !Sub 'arn:aws:iam::${AWS::AccountId}:role/cdk-*-lookup-role-${AWS::AccountId}-${AWS::Region}'
           # EventBridge permissions for cleanup
           - Sid: "AllowPutEvent"
             Effect: "Allow"
@@ -514,13 +640,16 @@ Resources:
               - 'logs:CreateLogStream'
               - 'logs:PutLogEvents'
               - 'logs:DescribeLogStreams'
-            Resource: !GetAtt DeploymentLogGroup.Arn
+            Resource: 
+              - !GetAtt DeploymentLogGroup.Arn
+              - !Sub '${DeploymentLogGroup.Arn}:*'
       Roles:
         - !Ref EC2Role
 
   # EC2 Instance with cfn-init metadata
   EC2Instance:
     Type: 'AWS::EC2::Instance'
+    DependsOn: EC2EIPAssociation
     CreationPolicy:
       ResourceSignal:
         Timeout: PT2H
@@ -919,15 +1048,16 @@ Resources:
       # Direct reference to the latest Amazon Linux 2023 AMI through SSM parameter
       ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
       IamInstanceProfile: !Ref EC2InstanceProfile
-      SubnetId: !Ref PublicSubnet
-      SecurityGroupIds:
-        - !GetAtt EC2SecurityGroup.GroupId
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref EC2NetworkInterface
+          DeviceIndex: '0'
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
             VolumeSize: 50
             VolumeType: gp3
             DeleteOnTermination: true
+            Encrypted: true
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-Deployer'

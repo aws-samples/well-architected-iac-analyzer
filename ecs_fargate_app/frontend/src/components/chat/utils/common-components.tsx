@@ -3,6 +3,7 @@ import Avatar from '@cloudscape-design/chat-components/avatar';
 import ButtonGroup from '@cloudscape-design/components/button-group';
 import StatusIndicator from '@cloudscape-design/components/status-indicator';
 import { AuthorAvatarProps } from './config';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 export function ChatBubbleAvatar({ type, name, initials, loading }: AuthorAvatarProps) {
     if (type === 'gen-ai') {
@@ -30,6 +31,8 @@ export const ScrollableContainer = forwardRef(function ScrollableContainer(
 });
 
 export function Actions({ content, authorId }: { content: string, authorId: string }) {
+    const { strings } = useLanguage();
+    
     // Only show copy actions for gen-ai messages
     if (authorId !== 'gen-ai') {
         return null;
@@ -52,8 +55,8 @@ export function Actions({ content, authorId }: { content: string, authorId: stri
                     type: 'icon-button',
                     id: 'copy',
                     iconName: 'copy',
-                    text: 'Copy',
-                    popoverFeedback: <StatusIndicator type="success">Message copied</StatusIndicator>,
+                    text: strings.common.copy,
+                    popoverFeedback: <StatusIndicator type="success">{strings.common.messageCopied}</StatusIndicator>,
                 },
             ]}
         />

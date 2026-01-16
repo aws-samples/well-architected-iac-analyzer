@@ -43,6 +43,12 @@ export interface I18nStrings {
     info: string;
     and: string;
     or: string;
+    copy: string;
+    contentCopied: string;
+    messageCopied: string;
+    failedToCopy: string;
+    detailedAnalysis: string;
+    generatedIacDocument: string;
   };
   app: {
     title: string;
@@ -145,6 +151,7 @@ export interface I18nStrings {
     generationCancelled: string;
     partialVersionGenerated: string;
     partialAnalysisResults: string;
+    analysisCancelledMessage: string;
     partialIacGeneration: string;
     tryGeneratingAgain: string;
     analysisLanguageNotice: string;
@@ -249,7 +256,157 @@ export interface I18nStrings {
       cancel: string;
       delete: string;
     }
-  }
+  };
+  helpContent: {
+    default: {
+      header: string;
+      description: string;
+      keyFeaturesTitle: string;
+      iacAnalysis: string;
+      architectureReview: string;
+      analyzerAssistant: string;
+      waIntegration: string;
+      aiPoweredAnalysis: string;
+      howToUseTitle: string;
+      step1: string;
+      step2: string;
+      step3: string;
+      step4: string;
+      step5: string;
+      step6: string;
+      needHelpTitle: string;
+      needHelpDescription: string;
+      additionalResourcesTitle: string;
+      waFrameworkDocLink: string;
+      waToolGettingStartedLink: string;
+    };
+    fileUpload: {
+      header: string;
+      description: string;
+      iacFormats: string;
+      imageFormats: string;
+      documentFormats: string;
+      maxSize: string;
+      uploadOptions: string;
+    };
+    pillarSelection: {
+      header: string;
+      description: string;
+      operationalExcellence: string;
+      security: string;
+      reliability: string;
+      performanceEfficiency: string;
+      costOptimization: string;
+      sustainability: string;
+      learnMoreLink: string;
+    };
+    analysisResults: {
+      header: string;
+      description: string;
+      viewBestPractices: string;
+      statusIndicatorsTitle: string;
+      appliedGreen: string;
+      notAppliedRed: string;
+      notRelevantGrey: string;
+      getMoreDetails: string;
+      generateIacDocument: string;
+      downloadAnalysis: string;
+    };
+    wellArchitectedTool: {
+      header: string;
+      description: string;
+      viewRiskSummary: string;
+      trackRisks: string;
+      generateReports: string;
+      workloadManagementTitle: string;
+      completeReviewTitle: string;
+      completeReviewWithId: string;
+      completeReviewWithoutId: string;
+      deleteWorkloadTitle: string;
+      deleteWorkloadOnlyCreated: string;
+      deleteWorkloadNotExisting: string;
+      deleteWorkloadCleanup: string;
+      securityNote: string;
+      learnMoreLink: string;
+    };
+    iacDocument: {
+      header: string;
+      description: string;
+      reviewTemplates: string;
+      copyToClipboard: string;
+      downloadAsFile: string;
+      templatesNote: string;
+    };
+    workloadId: {
+      header: string;
+      description: string;
+      optionalCreate: string;
+      selectExisting: string;
+      foundInConsole: string;
+      learnMoreLink: string;
+    };
+    iacTypeSelection: {
+      header: string;
+      description: string;
+      cloudFormation: string;
+      terraform: string;
+      awsCdkTitle: string;
+      typescript: string;
+      python: string;
+      go: string;
+      java: string;
+      csharp: string;
+      availabilityNote: string;
+    };
+    supportingDocument: {
+      header: string;
+      description: string;
+      supportedFormatsTitle: string;
+      supportedFormats: string;
+      maxSizeTitle: string;
+      maxSize: string;
+      descriptionTitle: string;
+      descriptionText: string;
+      usageNote: string;
+      singleDocNote: string;
+    };
+    lensSelection: {
+      header: string;
+      description: string;
+      waFrameworkTitle: string;
+      waFrameworkDescription: string;
+      specializedLensesTitle: string;
+      specializedLensesDescription: string;
+      serverlessLens: string;
+      iotLens: string;
+      saasLens: string;
+      otherLenses: string;
+      lensExplanation: string;
+      whySpecializedTitle: string;
+      whySpecializedDescription: string;
+    };
+  };
+  riskSummary: {
+    title: string;
+    workloadId: string;
+    noWorkloadIdAssociated: string;
+    questionsAnswered: string;
+    highRisks: string;
+    mediumRisks: string;
+    pillar: string;
+    progress: string;
+    completeReview: string;
+    generateReport: string;
+    deleteWorkload: string;
+    loadingRiskSummary: string;
+    deleteWorkloadModal: {
+      title: string;
+      confirmMessage: string;
+      cannotUndo: string;
+      note: string;
+      noteMessage: string;
+    };
+  };
 }
 
 export const i18nStrings: Record<Language, I18nStrings> = {
@@ -295,6 +452,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       info: "Info",
       and: "and",
       or: "or",
+      copy: "Copy",
+      contentCopied: "Content copied",
+      messageCopied: "Message copied",
+      failedToCopy: "Failed to copy",
+      detailedAnalysis: "Detailed Analysis",
+      generatedIacDocument: "Generated IaC Document",
     },
     app: {
       title: "Infrastructure as Code (IaC) Analyzer",
@@ -397,6 +560,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       generationCancelled: "Generation cancelled",
       partialVersionGenerated: "The IaC document generation was cancelled. A partial version has been generated and can be viewed in the 'IaC Document' tab. You can either use this partial version or try generating the complete document again.",
       partialAnalysisResults: "Partial Analysis Results",
+      analysisCancelledMessage: "The analysis of the uploaded file was cancelled. Partial results are shown below. You can either use these partial results or try analyzing the complete file again.",
       partialIacGeneration: "Partial IaC Document Generation",
       tryGeneratingAgain: "You can try generating the complete document again after waiting a few minutes.",
       analysisLanguageNotice: "Analysis results will be generated in {language}. Best practice names will remain in English for consistency with AWS documentation.",
@@ -473,7 +637,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
     },
     descriptions: {
       lensSelector: "Select which Well-Architected lens to use for reviewing your infrastructure",
-      workloadIdInput: "Optionally enter an existing Well-Architected Tool workload ID, or leave empty to create a new one.",
+      workloadIdInput: "Optionally enter an existing Well-Architected Tool workload ID, or leave empty to create a new one. (Note: Only those with name starting as \"IaCAnalyzer_\" will be retrieved)",
       workloadIdInputDefaultLabel: "Select a workload ID (optional)",
       workloadIdInputDefaultDescription: "Leave empty to create a new workload",
       workloadIdInputNoWorkloadFound: "No workloads found",
@@ -501,6 +665,156 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         cancel: "Cancel", 
         delete: "Delete"
       }
+    },
+    helpContent: {
+      default: {
+        header: 'About Well-Architected IaC Analyzer',
+        description: 'This tool helps you evaluate your infrastructure designs against AWS Well-Architected Framework best practices.',
+        keyFeaturesTitle: 'Key Features',
+        iacAnalysis: 'IaC Analysis: Upload CloudFormation (YAML/JSON), Terraform or AWS CDK templates for automated analysis',
+        architectureReview: 'Architecture Review: Upload architecture diagrams (PNG/JPG) and get IaC recommendations',
+        analyzerAssistant: 'Analyzer Assistant chatbot: Ask questions, seek clarification, and receive personalized guidance about analysis results',
+        waIntegration: 'AWS Well-Architected Integration: Directly update your AWS Well-Architected Tool workload',
+        aiPoweredAnalysis: 'AI-Powered Analysis: Get detailed recommendations using AWS Bedrock',
+        howToUseTitle: 'How to Use',
+        step1: 'Upload your IaC document(s) or architecture diagram',
+        step2: 'Select the Well-Architected pillars to review. You can also select different lenses to be used for the analysis',
+        step3: 'Optionally upload a supporting document to provide additional context for better analysis',
+        step4: 'Optionally provide a Well-Architected Tool workload ID',
+        step5: 'Review the analysis results and recommendations',
+        step6: 'Update your Well-Architected Tool workload or generate IaC templates',
+        needHelpTitle: 'Need Help?',
+        needHelpDescription: 'Look for the help icons throughout the application for detailed information about specific features.',
+        additionalResourcesTitle: 'Additional Resources',
+        waFrameworkDocLink: 'AWS Well-Architected Framework Documentation',
+        waToolGettingStartedLink: 'Getting Started with AWS Well-Architected Tool',
+      },
+      fileUpload: {
+        header: 'File Upload',
+        description: 'Upload your Infrastructure as Code (IaC) documents, architecture diagram, or PDF documents for analysis:',
+        iacFormats: 'Supported IaC formats: YAML, JSON (CloudFormation), Terraform (.tf), and AWS CDK (.ts, .py, .go, .java, .cs)',
+        imageFormats: 'Supported image formats: PNG, JPG, JPEG (max 3.75MB per image, dimensions not exceeding 8000×8000 pixels)',
+        documentFormats: 'Supported document formats: PDF (up to 5 documents, max 4.5MB each)',
+        maxSize: 'For IaC files and ZIP projects: maximum size 100MB',
+        uploadOptions: 'You can upload a single IaC file, multiple related files, a complete project (ZIP), or architectural documentation as PDFs. When uploading an architecture diagram, you can later generate IaC templates based on the analysis.',
+      },
+      pillarSelection: {
+        header: 'Well-Architected Pillars',
+        description: 'Select which Well-Architected Framework pillars to include in your analysis:',
+        operationalExcellence: 'Operational Excellence: Operations as code, observability, etc.',
+        security: 'Security: Identity management, data protection, incident response',
+        reliability: 'Reliability: Recovery planning, adapting to changes, etc.',
+        performanceEfficiency: 'Performance Efficiency: Resource optimization, monitoring',
+        costOptimization: 'Cost Optimization: Cost-effective resources, expenditure awareness',
+        sustainability: 'Sustainability: Environmental impact reduction strategies',
+        learnMoreLink: 'Learn more about Well-Architected pillars',
+      },
+      analysisResults: {
+        header: 'Analysis Results',
+        description: 'Review the analysis of your infrastructure against Well-Architected best practices:',
+        viewBestPractices: 'View applied, not applied, and not relevant best practices. Use the table filters and preferences to customize your view.',
+        statusIndicatorsTitle: 'Status Indicators:',
+        appliedGreen: 'Applied (Green): Best practice is implemented in your infrastructure',
+        notAppliedRed: 'Not Applied (Red): Best practice is relevant but not implemented',
+        notRelevantGrey: 'Not Relevant (Grey): Best practice is not applicable to your infrastructure',
+        getMoreDetails: 'Get More Details: Get in-depth analysis and recommendations for selected best practices',
+        generateIacDocument: 'Generate IaC Document: Convert architecture diagrams into infrastructure code (Available only for image uploads)',
+        downloadAnalysis: 'Download Analysis: Export all findings and recommendations as a CSV file',
+      },
+      wellArchitectedTool: {
+        header: 'Well-Architected Tool Integration',
+        description: 'Track and manage your workload\'s alignment with AWS Well-Architected Framework:',
+        viewRiskSummary: 'View risk summary across all pillars',
+        trackRisks: 'Track high and medium risks',
+        generateReports: 'Generate Well-Architected Tool reports',
+        workloadManagementTitle: 'Important: Workload Management',
+        completeReviewTitle: 'Complete Well-Architected Tool Review:',
+        completeReviewWithId: 'If you provided an existing Workload ID in Optional Settings: Updates will be made to that workload',
+        completeReviewWithoutId: 'If no Workload ID was provided: A new workload will be created automatically',
+        deleteWorkloadTitle: 'Delete Well-Architected Tool Workload:',
+        deleteWorkloadOnlyCreated: 'Only available for workloads created by this tool',
+        deleteWorkloadNotExisting: 'Not available for existing workloads (where you provided the Workload ID)',
+        deleteWorkloadCleanup: 'Use this to clean up temporary workloads created during your analysis',
+        securityNote: 'Note: For security reasons, this tool cannot delete Well-Architected workloads that were not created by it. If you provided your own Workload ID, you\'ll need to manage that workload directly in the AWS Console.',
+        learnMoreLink: 'Learn more about managing Well-Architected workloads',
+      },
+      iacDocument: {
+        header: 'IaC Document',
+        description: 'View and manage generated Infrastructure as Code documents:',
+        reviewTemplates: 'Review generated IaC templates',
+        copyToClipboard: 'Copy content to clipboard',
+        downloadAsFile: 'Download as file',
+        templatesNote: 'Templates are generated following AWS best practices and Well-Architected recommendations.',
+      },
+      workloadId: {
+        header: 'Well-Architected Workload ID',
+        description: 'The Workload ID connects your analysis with AWS Well-Architected Tool:',
+        optionalCreate: 'Optional: Don\'t select any specific workload to create a new one',
+        selectExisting: 'Select an existing ID to update an existing workload',
+        foundInConsole: 'Workloads are found in AWS Well-Architected Tool console',
+        learnMoreLink: 'Learn more about Well-Architected workloads',
+      },
+      iacTypeSelection: {
+        header: 'IaC Template Type Selection',
+        description: 'Choose the type of Infrastructure as Code template to generate:',
+        cloudFormation: 'CloudFormation YAML/JSON: Generate AWS CloudFormation templates',
+        terraform: 'Terraform: Generate HashiCorp Terraform configuration files',
+        awsCdkTitle: 'AWS CDK: Generate AWS Cloud Development Kit code in your preferred programming language:',
+        typescript: 'TypeScript (.ts)',
+        python: 'Python (.py)',
+        go: 'Go (.go)',
+        java: 'Java (.java)',
+        csharp: 'C# (.cs)',
+        availabilityNote: 'This option is only available when analyzing architecture diagrams.',
+      },
+      supportingDocument: {
+        header: 'Supporting Document Upload',
+        description: 'Enhance your analysis by uploading a supporting document that provides additional context:',
+        supportedFormatsTitle: 'Supported Formats:',
+        supportedFormats: 'PDF documents (.pdf), Plain text files (.txt), Images (.png, .jpg, .jpeg)',
+        maxSizeTitle: 'Maximum Size:',
+        maxSize: '4.5MB',
+        descriptionTitle: 'Description:',
+        descriptionText: 'A brief description of the document is required to help the analyzer understand its content',
+        usageNote: 'The supporting document will be used alongside your IaC template or architecture diagram to provide more context during analysis, potentially resulting in more accurate recommendations.',
+        singleDocNote: 'Note: Only one supporting document (the most recently uploaded) will be used for the analysis.',
+      },
+      lensSelection: {
+        header: 'Well-Architected Lens Selection',
+        description: 'Select which AWS Well-Architected lens to use for analyzing your infrastructure:',
+        waFrameworkTitle: 'Well-Architected Framework:',
+        waFrameworkDescription: 'The standard Well-Architected Framework with six pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability)',
+        specializedLensesTitle: 'Specialized Lenses:',
+        specializedLensesDescription: 'Additional lenses focusing on specific technologies or domains, such as:',
+        serverlessLens: 'Serverless Lens - For serverless application architectures',
+        iotLens: 'IoT Lens - For Internet of Things workloads',
+        saasLens: 'SaaS Lens - For Software-as-a-Service architectures',
+        otherLenses: 'And other specialized industry and technology lenses',
+        lensExplanation: 'Each lens provides tailored best practices and recommendations specific to that domain or technology. The pillars available for review will change based on your selected lens.',
+        whySpecializedTitle: 'Why use specialized lenses?',
+        whySpecializedDescription: 'Specialized lenses provide more targeted guidance for specific workload types. For example, the Serverless Lens includes best practices specifically relevant to serverless architecture that may not be covered in the standard Well-Architected Framework.',
+      },
+    },
+    riskSummary: {
+      title: 'Risk Summary',
+      workloadId: 'Workload ID',
+      noWorkloadIdAssociated: 'No Workload ID associated',
+      questionsAnswered: 'Questions Answered',
+      highRisks: 'High Risks',
+      mediumRisks: 'Medium Risks',
+      pillar: 'Pillar',
+      progress: 'Progress',
+      completeReview: 'Complete Well-Architected Tool Review',
+      generateReport: 'Generate Well-Architected Tool Report',
+      deleteWorkload: 'Delete Well-Architected Tool Workload',
+      loadingRiskSummary: 'Loading risk summary data...',
+      deleteWorkloadModal: {
+        title: 'Delete Well-Architected Tool Workload',
+        confirmMessage: 'Are you sure you want to delete the workload with ID',
+        cannotUndo: 'This action cannot be undone.',
+        note: 'Note:',
+        noteMessage: 'This will only delete the workload in the AWS Well-Architected Tool. Your analysis results and recommendations in this application will remain available.',
+      },
     },
   },
   ja: {
@@ -544,6 +858,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       info: "情報",
       and: "かつ",
       or: "または",
+      copy: "コピー",
+      contentCopied: "コンテンツをコピーしました",
+      messageCopied: "メッセージをコピーしました",
+      failedToCopy: "コピーに失敗しました",
+      detailedAnalysis: "詳細分析",
+      generatedIacDocument: "生成された IaC ドキュメント",
     },
     app: {
       title: "Infrastructure as Code (IaC) アナライザー",
@@ -646,6 +966,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       generationCancelled: "生成がキャンセルされました",
       partialVersionGenerated: "IaC ドキュメントの生成がキャンセルされました。部分的なバージョンが生成され、「IaC ドキュメント」タブで確認できます。この部分的なバージョンを使用するか、完全なドキュメントを再度生成することができます。",
       partialAnalysisResults: "部分的な分析結果",
+      analysisCancelledMessage: "アップロードされたファイルの分析がキャンセルされました。以下に部分的な結果が表示されています。これらの部分的な結果を使用するか、完全なファイルを再度分析してください。",
       partialIacGeneration: "部分的な IaC ドキュメント生成",
       tryGeneratingAgain: "数分待ってから完全なドキュメントの生成を再試行できます。",
       analysisLanguageNotice: "分析結果は日本語で生成されます。ベストプラクティス名はAWSドキュメントとの整合性のため英語のままとなります。",
@@ -722,7 +1043,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
     },
     descriptions: {
       lensSelector: "インフラストラクチャのレビューに使用するWell-Architectedレンズを選択してください",
-      workloadIdInput: "既存のWell-Architected Toolワークロード IDを入力するか、空のままにして新しいものを作成してください。",
+      workloadIdInput: "既存のWell-Architected Toolワークロード IDを入力するか、空のままにして新しいものを作成してください。（注：「IaCAnalyzer_」で始まる名前のものだけが取得されます）",
       workloadIdInputDefaultLabel: "ワークロードIDを選択（任意）",
       workloadIdInputDefaultDescription: "空白のままにして新しいワークロードを作成",
       workloadIdInputNoWorkloadFound: "ワークロードが見つかりません",
@@ -749,6 +1070,156 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         warning: "この操作は元に戻せません。",
         cancel: "キャンセル",
         delete: "削除"
+      },
+    },
+    helpContent: {
+      default: {
+        header: 'Well-Architected IaC アナライザーについて',
+        description: 'このツールは、AWS Well-Architected フレームワークのベストプラクティスに対してインフラストラクチャ設計を評価するのに役立ちます。',
+        keyFeaturesTitle: '主な機能',
+        iacAnalysis: 'IaC 分析: CloudFormation (YAML/JSON)、Terraform、または AWS CDK テンプレートをアップロードして自動分析',
+        architectureReview: 'アーキテクチャレビュー: アーキテクチャ図 (PNG/JPG) をアップロードして IaC の推奨事項を取得',
+        analyzerAssistant: 'アナライザーアシスタントチャットボット: 質問をしたり、説明を求めたり、分析結果に関するパーソナライズされたガイダンスを受け取る',
+        waIntegration: 'AWS Well-Architected 統合: AWS Well-Architected Tool のワークロードを直接更新',
+        aiPoweredAnalysis: 'AI を活用した分析: AWS Bedrock を使用して詳細な推奨事項を取得',
+        howToUseTitle: '使用方法',
+        step1: 'IaC ドキュメントまたはアーキテクチャ図をアップロード',
+        step2: 'レビューする Well-Architected の柱を選択。分析に使用する異なるレンズを選択することもできます',
+        step3: 'オプションで、より良い分析のために追加のコンテキストを提供するサポートドキュメントをアップロード',
+        step4: 'オプションで、Well-Architected Tool のワークロード ID を提供',
+        step5: '分析結果と推奨事項を確認',
+        step6: 'Well-Architected Tool のワークロードを更新するか、IaC テンプレートを生成',
+        needHelpTitle: 'ヘルプが必要ですか？',
+        needHelpDescription: '特定の機能に関する詳細情報については、アプリケーション全体のヘルプアイコンを探してください。',
+        additionalResourcesTitle: '追加リソース',
+        waFrameworkDocLink: 'AWS Well-Architected フレームワークドキュメント',
+        waToolGettingStartedLink: 'AWS Well-Architected Tool の開始方法',
+      },
+      fileUpload: {
+        header: 'ファイルアップロード',
+        description: '分析のために Infrastructure as Code (IaC) ドキュメント、アーキテクチャ図、または PDF ドキュメントをアップロードしてください：',
+        iacFormats: 'サポートされている IaC 形式: YAML、JSON (CloudFormation)、Terraform (.tf)、AWS CDK (.ts, .py, .go, .java, .cs)',
+        imageFormats: 'サポートされている画像形式: PNG、JPG、JPEG (画像あたり最大 3.75MB、8000×8000 ピクセルを超えない寸法)',
+        documentFormats: 'サポートされているドキュメント形式: PDF (最大 5 ドキュメント、各最大 4.5MB)',
+        maxSize: 'IaC ファイルと ZIP プロジェクトの場合: 最大サイズ 100MB',
+        uploadOptions: '単一の IaC ファイル、複数の関連ファイル、完全なプロジェクト (ZIP)、または PDF としてのアーキテクチャドキュメントをアップロードできます。アーキテクチャ図をアップロードすると、後で分析に基づいて IaC テンプレートを生成できます。',
+      },
+      pillarSelection: {
+        header: 'Well-Architected の柱',
+        description: '分析に含める Well-Architected フレームワークの柱を選択してください：',
+        operationalExcellence: '運用上の優秀性: コードとしての運用、可観測性など',
+        security: 'セキュリティ: ID 管理、データ保護、インシデント対応',
+        reliability: '信頼性: 復旧計画、変化への適応など',
+        performanceEfficiency: 'パフォーマンス効率: リソースの最適化、モニタリング',
+        costOptimization: 'コスト最適化: 費用対効果の高いリソース、支出の認識',
+        sustainability: '持続可能性: 環境への影響削減戦略',
+        learnMoreLink: 'Well-Architected の柱についての詳細',
+      },
+      analysisResults: {
+        header: '分析結果',
+        description: 'Well-Architected のベストプラクティスに対するインフラストラクチャの分析を確認してください：',
+        viewBestPractices: '適用済み、未適用、および関連性なしのベストプラクティスを表示します。テーブルのフィルターと設定を使用して表示をカスタマイズできます。',
+        statusIndicatorsTitle: 'ステータスインジケーター:',
+        appliedGreen: '適用済み (緑): ベストプラクティスがインフラストラクチャに実装されています',
+        notAppliedRed: '未適用 (赤): ベストプラクティスは関連性がありますが実装されていません',
+        notRelevantGrey: '関連性なし (グレー): ベストプラクティスはインフラストラクチャに適用されません',
+        getMoreDetails: '詳細を取得: 選択したベストプラクティスの詳細な分析と推奨事項を取得',
+        generateIacDocument: 'IaC ドキュメントを生成: アーキテクチャ図をインフラストラクチャコードに変換 (画像アップロードのみで利用可能)',
+        downloadAnalysis: '分析をダウンロード: すべての調査結果と推奨事項を CSV ファイルとしてエクスポート',
+      },
+      wellArchitectedTool: {
+        header: 'Well-Architected Tool との統合',
+        description: 'AWS Well-Architected フレームワークとのワークロードの整合性を追跡および管理します：',
+        viewRiskSummary: 'すべての柱にわたるリスク概要を表示',
+        trackRisks: '高リスクと中リスクを追跡',
+        generateReports: 'Well-Architected Tool レポートを生成',
+        workloadManagementTitle: '重要: ワークロード管理',
+        completeReviewTitle: 'Well-Architected Tool レビューを完了:',
+        completeReviewWithId: 'オプション設定で既存のワークロード ID を提供した場合: そのワークロードに更新が行われます',
+        completeReviewWithoutId: 'ワークロード ID が提供されていない場合: 新しいワークロードが自動的に作成されます',
+        deleteWorkloadTitle: 'Well-Architected Tool ワークロードを削除:',
+        deleteWorkloadOnlyCreated: 'このツールで作成されたワークロードのみ利用可能',
+        deleteWorkloadNotExisting: '既存のワークロード (ワークロード ID を提供した場合) では利用できません',
+        deleteWorkloadCleanup: '分析中に作成された一時的なワークロードをクリーンアップするために使用',
+        securityNote: '注意: セキュリティ上の理由から、このツールは作成していない Well-Architected ワークロードを削除できません。独自のワークロード ID を提供した場合は、AWS コンソールで直接そのワークロードを管理する必要があります。',
+        learnMoreLink: 'Well-Architected ワークロードの管理についての詳細',
+      },
+      iacDocument: {
+        header: 'IaC ドキュメント',
+        description: '生成された Infrastructure as Code ドキュメントを表示および管理します：',
+        reviewTemplates: '生成された IaC テンプレートを確認',
+        copyToClipboard: 'クリップボードにコピー',
+        downloadAsFile: 'ファイルとしてダウンロード',
+        templatesNote: 'テンプレートは AWS のベストプラクティスと Well-Architected の推奨事項に従って生成されます。',
+      },
+      workloadId: {
+        header: 'Well-Architected ワークロード ID',
+        description: 'ワークロード ID は、分析を AWS Well-Architected Tool に接続します：',
+        optionalCreate: 'オプション: 新しいワークロードを作成するには特定のワークロードを選択しない',
+        selectExisting: '既存のワークロードを更新するには既存の ID を選択',
+        foundInConsole: 'ワークロードは AWS Well-Architected Tool コンソールで見つかります',
+        learnMoreLink: 'Well-Architected ワークロードについての詳細',
+      },
+      iacTypeSelection: {
+        header: 'IaC テンプレートタイプの選択',
+        description: '生成する Infrastructure as Code テンプレートのタイプを選択してください：',
+        cloudFormation: 'CloudFormation YAML/JSON: AWS CloudFormation テンプレートを生成',
+        terraform: 'Terraform: HashiCorp Terraform 設定ファイルを生成',
+        awsCdkTitle: 'AWS CDK: お好みのプログラミング言語で AWS Cloud Development Kit コードを生成:',
+        typescript: 'TypeScript (.ts)',
+        python: 'Python (.py)',
+        go: 'Go (.go)',
+        java: 'Java (.java)',
+        csharp: 'C# (.cs)',
+        availabilityNote: 'このオプションは、アーキテクチャ図を分析する場合にのみ利用可能です。',
+      },
+      supportingDocument: {
+        header: 'サポートドキュメントのアップロード',
+        description: '追加のコンテキストを提供するサポートドキュメントをアップロードして分析を強化します：',
+        supportedFormatsTitle: 'サポートされている形式:',
+        supportedFormats: 'PDF ドキュメント (.pdf)、プレーンテキストファイル (.txt)、画像 (.png, .jpg, .jpeg)',
+        maxSizeTitle: '最大サイズ:',
+        maxSize: '4.5MB',
+        descriptionTitle: '説明:',
+        descriptionText: 'アナライザーがコンテンツを理解するのに役立つドキュメントの簡単な説明が必要です',
+        usageNote: 'サポートドキュメントは、IaC テンプレートまたはアーキテクチャ図と一緒に使用され、分析中により多くのコンテキストを提供し、より正確な推奨事項につながる可能性があります。',
+        singleDocNote: '注意: 分析には 1 つのサポートドキュメント (最後にアップロードされたもの) のみが使用されます。',
+      },
+      lensSelection: {
+        header: 'Well-Architected レンズの選択',
+        description: 'インフラストラクチャを分析するために使用する AWS Well-Architected レンズを選択してください：',
+        waFrameworkTitle: 'Well-Architected フレームワーク:',
+        waFrameworkDescription: '6 つの柱 (運用上の優秀性、セキュリティ、信頼性、パフォーマンス効率、コスト最適化、持続可能性) を持つ標準の Well-Architected フレームワーク',
+        specializedLensesTitle: '専門レンズ:',
+        specializedLensesDescription: '特定のテクノロジーまたはドメインに焦点を当てた追加のレンズ、例えば：',
+        serverlessLens: 'サーバーレスレンズ - サーバーレスアプリケーションアーキテクチャ向け',
+        iotLens: 'IoT レンズ - モノのインターネットワークロード向け',
+        saasLens: 'SaaS レンズ - サービスとしてのソフトウェアアーキテクチャ向け',
+        otherLenses: 'その他の専門的な業界およびテクノロジーレンズ',
+        lensExplanation: '各レンズは、そのドメインまたはテクノロジーに特化したベストプラクティスと推奨事項を提供します。レビューに利用可能な柱は、選択したレンズに基づいて変わります。',
+        whySpecializedTitle: 'なぜ専門レンズを使用するのか？',
+        whySpecializedDescription: '専門レンズは、特定のワークロードタイプに対してより的を絞ったガイダンスを提供します。例えば、サーバーレスレンズには、標準の Well-Architected フレームワークでカバーされていない可能性のあるサーバーレスアーキテクチャに特に関連するベストプラクティスが含まれています。',
+      },
+    },
+    riskSummary: {
+      title: 'リスク概要',
+      workloadId: 'ワークロード ID',
+      noWorkloadIdAssociated: 'ワークロード ID が関連付けられていません',
+      questionsAnswered: '回答済みの質問',
+      highRisks: '高リスク',
+      mediumRisks: '中リスク',
+      pillar: '柱',
+      progress: '進捗',
+      completeReview: 'Well-Architected Tool レビューを完了',
+      generateReport: 'Well-Architected Tool レポートを生成',
+      deleteWorkload: 'Well-Architected Tool ワークロードを削除',
+      loadingRiskSummary: 'リスク概要データを読み込み中...',
+      deleteWorkloadModal: {
+        title: 'Well-Architected Tool ワークロードを削除',
+        confirmMessage: '次の ID のワークロードを削除してもよろしいですか',
+        cannotUndo: 'この操作は元に戻せません。',
+        note: '注意:',
+        noteMessage: 'これは AWS Well-Architected Tool 内のワークロードのみを削除します。このアプリケーション内の分析結果と推奨事項は引き続き利用可能です。',
       },
     },
   },
@@ -793,6 +1264,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       info: "Info",
       and: "y",
       or: "o",
+      copy: "Copiar",
+      contentCopied: "Contenido copiado",
+      messageCopied: "Mensaje copiado",
+      failedToCopy: "Error al copiar",
+      detailedAnalysis: "Análisis detallado",
+      generatedIacDocument: "Documento IaC generado",
     },
     app: {
       title: "Analizador de Infrastructure as Code (IaC)",
@@ -895,6 +1372,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       generationCancelled: "Generación cancelada",
       partialVersionGenerated: "La generación del documento IaC fue cancelada. Se ha generado una versión parcial que se puede ver en la pestaña 'Documento IaC'. Puede usar esta versión parcial o intentar generar nuevamente el documento completo.",
       partialAnalysisResults: "Resultados de análisis parciales",
+      analysisCancelledMessage: "El análisis del archivo cargado fue cancelado. Los resultados parciales se muestran a continuación. Puede usar estos resultados parciales o intentar analizar el archivo completo nuevamente.",
       partialIacGeneration: "Generación parcial de documento IaC",
       tryGeneratingAgain: "Puede intentar generar el documento completo nuevamente después de esperar unos minutos.",
       analysisLanguageNotice: "Los resultados del análisis se generarán en español. Los nombres de las prácticas recomendadas se mantendrán en inglés para mantener coherencia con la documentación de AWS.",
@@ -971,7 +1449,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
     },
     descriptions: {
       lensSelector: "Seleccione qué lente de Well-Architected usar para revisar su infraestructura",
-      workloadIdInput: "Opcionalmente, ingrese un ID de carga de trabajo existente de Well-Architected Tool, o deje en blanco para crear uno nuevo.",
+      workloadIdInput: "Opcionalmente, ingrese un ID de carga de trabajo existente de Well-Architected Tool, o deje en blanco para crear uno nuevo. (Nota: Solo se recuperarán aquellos con nombre que comience con \"IaCAnalyzer_\")",
       workloadIdInputDefaultLabel: "Seleccione un ID de carga de trabajo (opcional)",
       workloadIdInputDefaultDescription: "Deje vacío para crear una nueva carga de trabajo",
       workloadIdInputNoWorkloadFound: "No se encontraron cargas de trabajo",
@@ -998,6 +1476,156 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         warning: "Esta acción no se puede deshacer.",
         cancel: "Cancelar",
         delete: "Eliminar"
+      },
+    },
+    helpContent: {
+      default: {
+        header: 'Acerca del Analizador de IaC Well-Architected',
+        description: 'Esta herramienta le ayuda a evaluar sus diseños de infraestructura según las mejores prácticas del AWS Well-Architected Framework.',
+        keyFeaturesTitle: 'Características principales',
+        iacAnalysis: 'Análisis de IaC: Cargue plantillas de CloudFormation (YAML/JSON), Terraform o AWS CDK para un análisis automatizado',
+        architectureReview: 'Revisión de arquitectura: Cargue diagramas de arquitectura (PNG/JPG) y obtenga recomendaciones de IaC',
+        analyzerAssistant: 'Chatbot Asistente del Analizador: Haga preguntas, solicite aclaraciones y reciba orientación personalizada sobre los resultados del análisis',
+        waIntegration: 'Integración con AWS Well-Architected: Actualice directamente su carga de trabajo en AWS Well-Architected Tool',
+        aiPoweredAnalysis: 'Análisis impulsado por IA: Obtenga recomendaciones detalladas usando AWS Bedrock',
+        howToUseTitle: 'Cómo usar',
+        step1: 'Cargue su(s) documento(s) IaC o diagrama de arquitectura',
+        step2: 'Seleccione los pilares de Well-Architected a revisar. También puede seleccionar diferentes lentes para el análisis',
+        step3: 'Opcionalmente cargue un documento de soporte para proporcionar contexto adicional para un mejor análisis',
+        step4: 'Opcionalmente proporcione un ID de carga de trabajo de Well-Architected Tool',
+        step5: 'Revise los resultados del análisis y las recomendaciones',
+        step6: 'Actualice su carga de trabajo de Well-Architected Tool o genere plantillas IaC',
+        needHelpTitle: '¿Necesita ayuda?',
+        needHelpDescription: 'Busque los iconos de ayuda en toda la aplicación para obtener información detallada sobre características específicas.',
+        additionalResourcesTitle: 'Recursos adicionales',
+        waFrameworkDocLink: 'Documentación de AWS Well-Architected Framework',
+        waToolGettingStartedLink: 'Comenzando con AWS Well-Architected Tool',
+      },
+      fileUpload: {
+        header: 'Carga de archivos',
+        description: 'Cargue sus documentos de Infraestructura como Código (IaC), diagrama de arquitectura o documentos PDF para análisis:',
+        iacFormats: 'Formatos IaC soportados: YAML, JSON (CloudFormation), Terraform (.tf) y AWS CDK (.ts, .py, .go, .java, .cs)',
+        imageFormats: 'Formatos de imagen soportados: PNG, JPG, JPEG (máx. 3.75MB por imagen, dimensiones que no excedan 8000×8000 píxeles)',
+        documentFormats: 'Formatos de documento soportados: PDF (hasta 5 documentos, máx. 4.5MB cada uno)',
+        maxSize: 'Para archivos IaC y proyectos ZIP: tamaño máximo 100MB',
+        uploadOptions: 'Puede cargar un solo archivo IaC, múltiples archivos relacionados, un proyecto completo (ZIP) o documentación arquitectónica como PDFs. Al cargar un diagrama de arquitectura, puede generar posteriormente plantillas IaC basadas en el análisis.',
+      },
+      pillarSelection: {
+        header: 'Pilares de Well-Architected',
+        description: 'Seleccione qué pilares del Well-Architected Framework incluir en su análisis:',
+        operationalExcellence: 'Excelencia operativa: Operaciones como código, observabilidad, etc.',
+        security: 'Seguridad: Gestión de identidad, protección de datos, respuesta a incidentes',
+        reliability: 'Fiabilidad: Planificación de recuperación, adaptación a cambios, etc.',
+        performanceEfficiency: 'Eficiencia del rendimiento: Optimización de recursos, monitoreo',
+        costOptimization: 'Optimización de costos: Recursos rentables, conciencia del gasto',
+        sustainability: 'Sostenibilidad: Estrategias de reducción del impacto ambiental',
+        learnMoreLink: 'Más información sobre los pilares de Well-Architected',
+      },
+      analysisResults: {
+        header: 'Resultados del análisis',
+        description: 'Revise el análisis de su infraestructura según las mejores prácticas de Well-Architected:',
+        viewBestPractices: 'Vea las mejores prácticas aplicadas, no aplicadas y no relevantes. Use los filtros y preferencias de la tabla para personalizar su vista.',
+        statusIndicatorsTitle: 'Indicadores de estado:',
+        appliedGreen: 'Aplicado (Verde): La mejor práctica está implementada en su infraestructura',
+        notAppliedRed: 'No aplicado (Rojo): La mejor práctica es relevante pero no está implementada',
+        notRelevantGrey: 'No relevante (Gris): La mejor práctica no es aplicable a su infraestructura',
+        getMoreDetails: 'Obtener más detalles: Obtenga análisis y recomendaciones en profundidad para las mejores prácticas seleccionadas',
+        generateIacDocument: 'Generar documento IaC: Convierta diagramas de arquitectura en código de infraestructura (disponible solo para cargas de imágenes)',
+        downloadAnalysis: 'Descargar análisis: Exporte todos los hallazgos y recomendaciones como archivo CSV',
+      },
+      wellArchitectedTool: {
+        header: 'Integración con Well-Architected Tool',
+        description: 'Rastree y gestione la alineación de su carga de trabajo con AWS Well-Architected Framework:',
+        viewRiskSummary: 'Vea el resumen de riesgos en todos los pilares',
+        trackRisks: 'Rastree riesgos altos y medios',
+        generateReports: 'Genere informes de Well-Architected Tool',
+        workloadManagementTitle: 'Importante: Gestión de cargas de trabajo',
+        completeReviewTitle: 'Completar revisión de Well-Architected Tool:',
+        completeReviewWithId: 'Si proporcionó un ID de carga de trabajo existente en Configuración opcional: Las actualizaciones se realizarán en esa carga de trabajo',
+        completeReviewWithoutId: 'Si no se proporcionó un ID de carga de trabajo: Se creará automáticamente una nueva carga de trabajo',
+        deleteWorkloadTitle: 'Eliminar carga de trabajo de Well-Architected Tool:',
+        deleteWorkloadOnlyCreated: 'Solo disponible para cargas de trabajo creadas por esta herramienta',
+        deleteWorkloadNotExisting: 'No disponible para cargas de trabajo existentes (donde proporcionó el ID de carga de trabajo)',
+        deleteWorkloadCleanup: 'Use esto para limpiar cargas de trabajo temporales creadas durante su análisis',
+        securityNote: 'Nota: Por razones de seguridad, esta herramienta no puede eliminar cargas de trabajo de Well-Architected que no fueron creadas por ella. Si proporcionó su propio ID de carga de trabajo, deberá gestionar esa carga de trabajo directamente en la consola de AWS.',
+        learnMoreLink: 'Más información sobre la gestión de cargas de trabajo de Well-Architected',
+      },
+      iacDocument: {
+        header: 'Documento IaC',
+        description: 'Vea y gestione los documentos de Infraestructura como Código generados:',
+        reviewTemplates: 'Revise las plantillas IaC generadas',
+        copyToClipboard: 'Copie el contenido al portapapeles',
+        downloadAsFile: 'Descargue como archivo',
+        templatesNote: 'Las plantillas se generan siguiendo las mejores prácticas de AWS y las recomendaciones de Well-Architected.',
+      },
+      workloadId: {
+        header: 'ID de carga de trabajo de Well-Architected',
+        description: 'El ID de carga de trabajo conecta su análisis con AWS Well-Architected Tool:',
+        optionalCreate: 'Opcional: No seleccione ninguna carga de trabajo específica para crear una nueva',
+        selectExisting: 'Seleccione un ID existente para actualizar una carga de trabajo existente',
+        foundInConsole: 'Las cargas de trabajo se encuentran en la consola de AWS Well-Architected Tool',
+        learnMoreLink: 'Más información sobre cargas de trabajo de Well-Architected',
+      },
+      iacTypeSelection: {
+        header: 'Selección de tipo de plantilla IaC',
+        description: 'Elija el tipo de plantilla de Infraestructura como Código a generar:',
+        cloudFormation: 'CloudFormation YAML/JSON: Generar plantillas de AWS CloudFormation',
+        terraform: 'Terraform: Generar archivos de configuración de HashiCorp Terraform',
+        awsCdkTitle: 'AWS CDK: Generar código de AWS Cloud Development Kit en su lenguaje de programación preferido:',
+        typescript: 'TypeScript (.ts)',
+        python: 'Python (.py)',
+        go: 'Go (.go)',
+        java: 'Java (.java)',
+        csharp: 'C# (.cs)',
+        availabilityNote: 'Esta opción solo está disponible al analizar diagramas de arquitectura.',
+      },
+      supportingDocument: {
+        header: 'Carga de documento de soporte',
+        description: 'Mejore su análisis cargando un documento de soporte que proporcione contexto adicional:',
+        supportedFormatsTitle: 'Formatos soportados:',
+        supportedFormats: 'Documentos PDF (.pdf), archivos de texto plano (.txt), imágenes (.png, .jpg, .jpeg)',
+        maxSizeTitle: 'Tamaño máximo:',
+        maxSize: '4.5MB',
+        descriptionTitle: 'Descripción:',
+        descriptionText: 'Se requiere una breve descripción del documento para ayudar al analizador a comprender su contenido',
+        usageNote: 'El documento de soporte se utilizará junto con su plantilla IaC o diagrama de arquitectura para proporcionar más contexto durante el análisis, lo que potencialmente resultará en recomendaciones más precisas.',
+        singleDocNote: 'Nota: Solo se utilizará un documento de soporte (el más recientemente cargado) para el análisis.',
+      },
+      lensSelection: {
+        header: 'Selección de lente de Well-Architected',
+        description: 'Seleccione qué lente de AWS Well-Architected usar para analizar su infraestructura:',
+        waFrameworkTitle: 'Well-Architected Framework:',
+        waFrameworkDescription: 'El Well-Architected Framework estándar con seis pilares (Excelencia operativa, Seguridad, Fiabilidad, Eficiencia del rendimiento, Optimización de costos, Sostenibilidad)',
+        specializedLensesTitle: 'Lentes especializadas:',
+        specializedLensesDescription: 'Lentes adicionales enfocadas en tecnologías o dominios específicos, como:',
+        serverlessLens: 'Lente Serverless - Para arquitecturas de aplicaciones sin servidor',
+        iotLens: 'Lente IoT - Para cargas de trabajo de Internet de las Cosas',
+        saasLens: 'Lente SaaS - Para arquitecturas de Software como Servicio',
+        otherLenses: 'Y otras lentes especializadas de industria y tecnología',
+        lensExplanation: 'Cada lente proporciona mejores prácticas y recomendaciones adaptadas específicamente a ese dominio o tecnología. Los pilares disponibles para revisión cambiarán según la lente seleccionada.',
+        whySpecializedTitle: '¿Por qué usar lentes especializadas?',
+        whySpecializedDescription: 'Las lentes especializadas proporcionan orientación más específica para tipos de carga de trabajo específicos. Por ejemplo, la Lente Serverless incluye mejores prácticas específicamente relevantes para la arquitectura sin servidor que pueden no estar cubiertas en el Well-Architected Framework estándar.',
+      },
+    },
+    riskSummary: {
+      title: 'Resumen de riesgos',
+      workloadId: 'ID de carga de trabajo',
+      noWorkloadIdAssociated: 'No hay ID de carga de trabajo asociado',
+      questionsAnswered: 'Preguntas respondidas',
+      highRisks: 'Riesgos altos',
+      mediumRisks: 'Riesgos medios',
+      pillar: 'Pilar',
+      progress: 'Progreso',
+      completeReview: 'Completar revisión de Well-Architected Tool',
+      generateReport: 'Generar informe de Well-Architected Tool',
+      deleteWorkload: 'Eliminar carga de trabajo de Well-Architected Tool',
+      loadingRiskSummary: 'Cargando datos del resumen de riesgos...',
+      deleteWorkloadModal: {
+        title: 'Eliminar carga de trabajo de Well-Architected Tool',
+        confirmMessage: '¿Está seguro de que desea eliminar la carga de trabajo con ID',
+        cannotUndo: 'Esta acción no se puede deshacer.',
+        note: 'Nota:',
+        noteMessage: 'Esto solo eliminará la carga de trabajo en AWS Well-Architected Tool. Sus resultados de análisis y recomendaciones en esta aplicación permanecerán disponibles.',
       },
     },
   },
@@ -1042,6 +1670,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       info: "Informação",
       and: "e",
       or: "ou",
+      copy: "Copiar",
+      contentCopied: "Conteúdo copiado",
+      messageCopied: "Mensagem copiada",
+      failedToCopy: "Falha ao copiar",
+      detailedAnalysis: "Análise Detalhada",
+      generatedIacDocument: "Documento IaC Gerado",
     },
     app: {
       title: "Analisador de Infraestrutura como Código (IaC)",
@@ -1144,6 +1778,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       generationCancelled: "Geração cancelada",
       partialVersionGenerated: "A geração do documento IaC foi cancelada. Uma versão parcial foi gerada e pode ser visualizada na aba 'Documento IaC'. Você pode usar esta versão parcial ou tentar gerar o documento completo novamente.",
       partialAnalysisResults: "Resultados Parciais da Análise",
+      analysisCancelledMessage: "A análise do arquivo enviado foi cancelada. Os resultados parciais são mostrados abaixo. Você pode usar esses resultados parciais ou tentar analisar o arquivo completo novamente.",
       partialIacGeneration: "Geração Parcial do Documento IaC",
       tryGeneratingAgain: "Você pode tentar gerar o documento completo novamente após esperar alguns minutos.",
       analysisLanguageNotice: "Os resultados da análise serão gerados em {language}. Os nomes das melhores práticas permanecerão em inglês para consistência com a documentação da AWS.",
@@ -1220,7 +1855,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
     },
     descriptions: {
       lensSelector: "Selecione qual perspectiva Well-Architected usar para revisar sua infraestrutura",
-      workloadIdInput: "Opcionalmente, insira um ID de carga de trabalho existente da  Well-Architected Tool, ou deixe em branco para criar um novo.",
+      workloadIdInput: "Opcionalmente, insira um ID de carga de trabalho existente da Well-Architected Tool, ou deixe em branco para criar um novo. (Nota: Apenas aqueles com nome começando com \"IaCAnalyzer_\" serão recuperados)",
       workloadIdInputDefaultLabel: "Selecione um ID de workload (opcional)",
       workloadIdInputDefaultDescription: "Deixe em branco para criar um novo workload",
       workloadIdInputNoWorkloadFound: "Nenhum workload encontrado",
@@ -1248,6 +1883,156 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         cancel: "Cancelar",
         delete: "Excluir"
       }
+    },
+    helpContent: {
+      default: {
+        header: 'Sobre o Analisador de IaC Well-Architected',
+        description: 'Esta ferramenta ajuda você a avaliar seus projetos de infraestrutura de acordo com as melhores práticas do AWS Well-Architected Framework.',
+        keyFeaturesTitle: 'Principais Recursos',
+        iacAnalysis: 'Análise de IaC: Faça upload de templates CloudFormation (YAML/JSON), Terraform ou AWS CDK para análise automatizada',
+        architectureReview: 'Revisão de Arquitetura: Faça upload de diagramas de arquitetura (PNG/JPG) e obtenha recomendações de IaC',
+        analyzerAssistant: 'Chatbot Assistente do Analisador: Faça perguntas, solicite esclarecimentos e receba orientações personalizadas sobre os resultados da análise',
+        waIntegration: 'Integração com AWS Well-Architected: Atualize diretamente sua carga de trabalho no AWS Well-Architected Tool',
+        aiPoweredAnalysis: 'Análise com IA: Obtenha recomendações detalhadas usando AWS Bedrock',
+        howToUseTitle: 'Como Usar',
+        step1: 'Faça upload do(s) seu(s) documento(s) IaC ou diagrama de arquitetura',
+        step2: 'Selecione os pilares do Well-Architected para revisar. Você também pode selecionar diferentes lentes para a análise',
+        step3: 'Opcionalmente, faça upload de um documento de suporte para fornecer contexto adicional para uma melhor análise',
+        step4: 'Opcionalmente, forneça um ID de carga de trabalho do Well-Architected Tool',
+        step5: 'Revise os resultados da análise e as recomendações',
+        step6: 'Atualize sua carga de trabalho do Well-Architected Tool ou gere templates IaC',
+        needHelpTitle: 'Precisa de Ajuda?',
+        needHelpDescription: 'Procure os ícones de ajuda em todo o aplicativo para obter informações detalhadas sobre recursos específicos.',
+        additionalResourcesTitle: 'Recursos Adicionais',
+        waFrameworkDocLink: 'Documentação do AWS Well-Architected Framework',
+        waToolGettingStartedLink: 'Começando com o AWS Well-Architected Tool',
+      },
+      fileUpload: {
+        header: 'Upload de Arquivos',
+        description: 'Faça upload de seus documentos de Infraestrutura como Código (IaC), diagrama de arquitetura ou documentos PDF para análise:',
+        iacFormats: 'Formatos IaC suportados: YAML, JSON (CloudFormation), Terraform (.tf) e AWS CDK (.ts, .py, .go, .java, .cs)',
+        imageFormats: 'Formatos de imagem suportados: PNG, JPG, JPEG (máx. 3,75MB por imagem, dimensões não excedendo 8000×8000 pixels)',
+        documentFormats: 'Formatos de documento suportados: PDF (até 5 documentos, máx. 4,5MB cada)',
+        maxSize: 'Para arquivos IaC e projetos ZIP: tamanho máximo 100MB',
+        uploadOptions: 'Você pode fazer upload de um único arquivo IaC, múltiplos arquivos relacionados, um projeto completo (ZIP) ou documentação arquitetônica como PDFs. Ao fazer upload de um diagrama de arquitetura, você pode posteriormente gerar templates IaC com base na análise.',
+      },
+      pillarSelection: {
+        header: 'Pilares do Well-Architected',
+        description: 'Selecione quais pilares do Well-Architected Framework incluir em sua análise:',
+        operationalExcellence: 'Excelência Operacional: Operações como código, observabilidade, etc.',
+        security: 'Segurança: Gerenciamento de identidade, proteção de dados, resposta a incidentes',
+        reliability: 'Confiabilidade: Planejamento de recuperação, adaptação a mudanças, etc.',
+        performanceEfficiency: 'Eficiência de Performance: Otimização de recursos, monitoramento',
+        costOptimization: 'Otimização de Custos: Recursos econômicos, conscientização sobre gastos',
+        sustainability: 'Sustentabilidade: Estratégias de redução do impacto ambiental',
+        learnMoreLink: 'Saiba mais sobre os pilares do Well-Architected',
+      },
+      analysisResults: {
+        header: 'Resultados da Análise',
+        description: 'Revise a análise de sua infraestrutura de acordo com as melhores práticas do Well-Architected:',
+        viewBestPractices: 'Visualize as melhores práticas aplicadas, não aplicadas e não relevantes. Use os filtros e preferências da tabela para personalizar sua visualização.',
+        statusIndicatorsTitle: 'Indicadores de Status:',
+        appliedGreen: 'Aplicado (Verde): A melhor prática está implementada em sua infraestrutura',
+        notAppliedRed: 'Não Aplicado (Vermelho): A melhor prática é relevante, mas não está implementada',
+        notRelevantGrey: 'Não Relevante (Cinza): A melhor prática não é aplicável à sua infraestrutura',
+        getMoreDetails: 'Obter Mais Detalhes: Obtenha análises e recomendações aprofundadas para as melhores práticas selecionadas',
+        generateIacDocument: 'Gerar Documento IaC: Converta diagramas de arquitetura em código de infraestrutura (disponível apenas para uploads de imagens)',
+        downloadAnalysis: 'Baixar Análise: Exporte todas as descobertas e recomendações como arquivo CSV',
+      },
+      wellArchitectedTool: {
+        header: 'Integração com o Well-Architected Tool',
+        description: 'Acompanhe e gerencie o alinhamento de sua carga de trabalho com o AWS Well-Architected Framework:',
+        viewRiskSummary: 'Visualize o resumo de riscos em todos os pilares',
+        trackRisks: 'Acompanhe riscos altos e médios',
+        generateReports: 'Gere relatórios do Well-Architected Tool',
+        workloadManagementTitle: 'Importante: Gerenciamento de Cargas de Trabalho',
+        completeReviewTitle: 'Concluir Revisão do Well-Architected Tool:',
+        completeReviewWithId: 'Se você forneceu um ID de carga de trabalho existente em Configurações Opcionais: As atualizações serão feitas nessa carga de trabalho',
+        completeReviewWithoutId: 'Se nenhum ID de carga de trabalho foi fornecido: Uma nova carga de trabalho será criada automaticamente',
+        deleteWorkloadTitle: 'Excluir Carga de Trabalho do Well-Architected Tool:',
+        deleteWorkloadOnlyCreated: 'Disponível apenas para cargas de trabalho criadas por esta ferramenta',
+        deleteWorkloadNotExisting: 'Não disponível para cargas de trabalho existentes (onde você forneceu o ID da carga de trabalho)',
+        deleteWorkloadCleanup: 'Use isso para limpar cargas de trabalho temporárias criadas durante sua análise',
+        securityNote: 'Nota: Por razões de segurança, esta ferramenta não pode excluir cargas de trabalho do Well-Architected que não foram criadas por ela. Se você forneceu seu próprio ID de carga de trabalho, precisará gerenciar essa carga de trabalho diretamente no Console da AWS.',
+        learnMoreLink: 'Saiba mais sobre o gerenciamento de cargas de trabalho do Well-Architected',
+      },
+      iacDocument: {
+        header: 'Documento IaC',
+        description: 'Visualize e gerencie documentos de Infraestrutura como Código gerados:',
+        reviewTemplates: 'Revise os templates IaC gerados',
+        copyToClipboard: 'Copie o conteúdo para a área de transferência',
+        downloadAsFile: 'Baixe como arquivo',
+        templatesNote: 'Os templates são gerados seguindo as melhores práticas da AWS e as recomendações do Well-Architected.',
+      },
+      workloadId: {
+        header: 'ID de Carga de Trabalho do Well-Architected',
+        description: 'O ID da carga de trabalho conecta sua análise ao AWS Well-Architected Tool:',
+        optionalCreate: 'Opcional: Não selecione nenhuma carga de trabalho específica para criar uma nova',
+        selectExisting: 'Selecione um ID existente para atualizar uma carga de trabalho existente',
+        foundInConsole: 'As cargas de trabalho são encontradas no console do AWS Well-Architected Tool',
+        learnMoreLink: 'Saiba mais sobre cargas de trabalho do Well-Architected',
+      },
+      iacTypeSelection: {
+        header: 'Seleção do Tipo de Template IaC',
+        description: 'Escolha o tipo de template de Infraestrutura como Código a ser gerado:',
+        cloudFormation: 'CloudFormation YAML/JSON: Gerar templates do AWS CloudFormation',
+        terraform: 'Terraform: Gerar arquivos de configuração do HashiCorp Terraform',
+        awsCdkTitle: 'AWS CDK: Gerar código do AWS Cloud Development Kit na sua linguagem de programação preferida:',
+        typescript: 'TypeScript (.ts)',
+        python: 'Python (.py)',
+        go: 'Go (.go)',
+        java: 'Java (.java)',
+        csharp: 'C# (.cs)',
+        availabilityNote: 'Esta opção está disponível apenas ao analisar diagramas de arquitetura.',
+      },
+      supportingDocument: {
+        header: 'Upload de Documento de Suporte',
+        description: 'Melhore sua análise fazendo upload de um documento de suporte que forneça contexto adicional:',
+        supportedFormatsTitle: 'Formatos Suportados:',
+        supportedFormats: 'Documentos PDF (.pdf), arquivos de texto simples (.txt), imagens (.png, .jpg, .jpeg)',
+        maxSizeTitle: 'Tamanho Máximo:',
+        maxSize: '4,5MB',
+        descriptionTitle: 'Descrição:',
+        descriptionText: 'Uma breve descrição do documento é necessária para ajudar o analisador a entender seu conteúdo',
+        usageNote: 'O documento de suporte será usado junto com seu template IaC ou diagrama de arquitetura para fornecer mais contexto durante a análise, potencialmente resultando em recomendações mais precisas.',
+        singleDocNote: 'Nota: Apenas um documento de suporte (o mais recentemente enviado) será usado para a análise.',
+      },
+      lensSelection: {
+        header: 'Seleção de Lente do Well-Architected',
+        description: 'Selecione qual lente do AWS Well-Architected usar para analisar sua infraestrutura:',
+        waFrameworkTitle: 'Well-Architected Framework:',
+        waFrameworkDescription: 'O Well-Architected Framework padrão com seis pilares (Excelência Operacional, Segurança, Confiabilidade, Eficiência de Performance, Otimização de Custos, Sustentabilidade)',
+        specializedLensesTitle: 'Lentes Especializadas:',
+        specializedLensesDescription: 'Lentes adicionais focadas em tecnologias ou domínios específicos, como:',
+        serverlessLens: 'Lente Serverless - Para arquiteturas de aplicações sem servidor',
+        iotLens: 'Lente IoT - Para cargas de trabalho de Internet das Coisas',
+        saasLens: 'Lente SaaS - Para arquiteturas de Software como Serviço',
+        otherLenses: 'E outras lentes especializadas de indústria e tecnologia',
+        lensExplanation: 'Cada lente fornece melhores práticas e recomendações adaptadas especificamente para aquele domínio ou tecnologia. Os pilares disponíveis para revisão mudarão com base na lente selecionada.',
+        whySpecializedTitle: 'Por que usar lentes especializadas?',
+        whySpecializedDescription: 'Lentes especializadas fornecem orientação mais direcionada para tipos específicos de carga de trabalho. Por exemplo, a Lente Serverless inclui melhores práticas especificamente relevantes para arquitetura sem servidor que podem não estar cobertas no Well-Architected Framework padrão.',
+      },
+    },
+    riskSummary: {
+      title: 'Resumo de Riscos',
+      workloadId: 'ID da Carga de Trabalho',
+      noWorkloadIdAssociated: 'Nenhum ID de carga de trabalho associado',
+      questionsAnswered: 'Perguntas Respondidas',
+      highRisks: 'Riscos Altos',
+      mediumRisks: 'Riscos Médios',
+      pillar: 'Pilar',
+      progress: 'Progresso',
+      completeReview: 'Concluir Revisão do Well-Architected Tool',
+      generateReport: 'Gerar Relatório do Well-Architected Tool',
+      deleteWorkload: 'Excluir Carga de Trabalho do Well-Architected Tool',
+      loadingRiskSummary: 'Carregando dados do resumo de riscos...',
+      deleteWorkloadModal: {
+        title: 'Excluir Carga de Trabalho do Well-Architected Tool',
+        confirmMessage: 'Tem certeza de que deseja excluir a carga de trabalho com ID',
+        cannotUndo: 'Esta ação não pode ser desfeita.',
+        note: 'Nota:',
+        noteMessage: 'Isso excluirá apenas a carga de trabalho no AWS Well-Architected Tool. Seus resultados de análise e recomendações neste aplicativo permanecerão disponíveis.',
+      },
     },
   },
   fr: {
@@ -1291,6 +2076,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       info: "Info",
       and: "et",
       or: "ou",
+      copy: "Copier",
+      contentCopied: "Contenu copié",
+      messageCopied: "Message copié",
+      failedToCopy: "Échec de la copie",
+      detailedAnalysis: "Analyse détaillée",
+      generatedIacDocument: "Document IaC généré",
     },
     app: {
       title: "Analyseur Infrastructure as Code (IaC)",
@@ -1393,6 +2184,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       generationCancelled: "Génération annulée",
       partialVersionGenerated: "La génération du document IaC a été annulée. Une version partielle a été générée et peut être consultée dans l'onglet 'Document IaC'. Vous pouvez soit utiliser cette version partielle, soit essayer de générer à nouveau le document complet.",
       partialAnalysisResults: "Résultats d'analyse partiels",
+      analysisCancelledMessage: "L'analyse du fichier téléchargé a été annulée. Les résultats partiels sont affichés ci-dessous. Vous pouvez soit utiliser ces résultats partiels, soit essayer d'analyser à nouveau le fichier complet.",
       partialIacGeneration: "Génération partielle du document IaC",
       tryGeneratingAgain: "Vous pouvez essayer de générer à nouveau le document complet après avoir attendu quelques minutes.",
       analysisLanguageNotice: "Les résultats d'analyse seront générés en {language}. Les noms des meilleures pratiques resteront en anglais pour la cohérence avec la documentation AWS.",
@@ -1469,7 +2261,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
     },
     descriptions: {
       lensSelector: "Sélectionnez quelle lentille Well-Architected utiliser pour examiner votre infrastructure",
-      workloadIdInput: "Entrez optionnellement un ID de charge de travail Well-Architected Tool existant, ou laissez vide pour en créer un nouveau.",
+      workloadIdInput: "Entrez optionnellement un ID de charge de travail Well-Architected Tool existant, ou laissez vide pour en créer un nouveau. (Remarque : Seuls ceux dont le nom commence par \"IaCAnalyzer_\" seront récupérés)",
       workloadIdInputDefaultLabel: "Sélectionner un ID de charge de travail (optionnel)",
       workloadIdInputDefaultDescription: "Laisser vide pour créer une nouvelle charge de travail",
       workloadIdInputNoWorkloadFound: "Aucune charge de travail trouvée",
@@ -1497,6 +2289,156 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         cancel: "Annuler",
         delete: "Supprimer",
       }
+    },
+    helpContent: {
+      default: {
+        header: 'À propos de l\'Analyseur IaC Well-Architected',
+        description: 'Cet outil vous aide à évaluer vos conceptions d\'infrastructure par rapport aux meilleures pratiques du AWS Well-Architected Framework.',
+        keyFeaturesTitle: 'Fonctionnalités principales',
+        iacAnalysis: 'Analyse IaC : Téléchargez des modèles CloudFormation (YAML/JSON), Terraform ou AWS CDK pour une analyse automatisée',
+        architectureReview: 'Revue d\'architecture : Téléchargez des diagrammes d\'architecture (PNG/JPG) et obtenez des recommandations IaC',
+        analyzerAssistant: 'Chatbot Assistant de l\'Analyseur : Posez des questions, demandez des clarifications et recevez des conseils personnalisés sur les résultats de l\'analyse',
+        waIntegration: 'Intégration AWS Well-Architected : Mettez à jour directement votre charge de travail dans AWS Well-Architected Tool',
+        aiPoweredAnalysis: 'Analyse alimentée par l\'IA : Obtenez des recommandations détaillées en utilisant AWS Bedrock',
+        howToUseTitle: 'Comment utiliser',
+        step1: 'Téléchargez votre/vos document(s) IaC ou diagramme d\'architecture',
+        step2: 'Sélectionnez les piliers Well-Architected à examiner. Vous pouvez également sélectionner différentes lentilles pour l\'analyse',
+        step3: 'Téléchargez éventuellement un document de support pour fournir un contexte supplémentaire pour une meilleure analyse',
+        step4: 'Fournissez éventuellement un ID de charge de travail Well-Architected Tool',
+        step5: 'Examinez les résultats de l\'analyse et les recommandations',
+        step6: 'Mettez à jour votre charge de travail Well-Architected Tool ou générez des modèles IaC',
+        needHelpTitle: 'Besoin d\'aide ?',
+        needHelpDescription: 'Recherchez les icônes d\'aide dans toute l\'application pour obtenir des informations détaillées sur des fonctionnalités spécifiques.',
+        additionalResourcesTitle: 'Ressources supplémentaires',
+        waFrameworkDocLink: 'Documentation du AWS Well-Architected Framework',
+        waToolGettingStartedLink: 'Démarrer avec AWS Well-Architected Tool',
+      },
+      fileUpload: {
+        header: 'Téléchargement de fichiers',
+        description: 'Téléchargez vos documents Infrastructure as Code (IaC), diagramme d\'architecture ou documents PDF pour analyse :',
+        iacFormats: 'Formats IaC pris en charge : YAML, JSON (CloudFormation), Terraform (.tf) et AWS CDK (.ts, .py, .go, .java, .cs)',
+        imageFormats: 'Formats d\'image pris en charge : PNG, JPG, JPEG (max 3,75 Mo par image, dimensions ne dépassant pas 8000×8000 pixels)',
+        documentFormats: 'Formats de document pris en charge : PDF (jusqu\'à 5 documents, max 4,5 Mo chacun)',
+        maxSize: 'Pour les fichiers IaC et les projets ZIP : taille maximale 100 Mo',
+        uploadOptions: 'Vous pouvez télécharger un seul fichier IaC, plusieurs fichiers liés, un projet complet (ZIP) ou une documentation architecturale sous forme de PDF. Lors du téléchargement d\'un diagramme d\'architecture, vous pouvez ensuite générer des modèles IaC basés sur l\'analyse.',
+      },
+      pillarSelection: {
+        header: 'Piliers Well-Architected',
+        description: 'Sélectionnez les piliers du Well-Architected Framework à inclure dans votre analyse :',
+        operationalExcellence: 'Excellence opérationnelle : Opérations en tant que code, observabilité, etc.',
+        security: 'Sécurité : Gestion des identités, protection des données, réponse aux incidents',
+        reliability: 'Fiabilité : Planification de la reprise, adaptation aux changements, etc.',
+        performanceEfficiency: 'Efficacité des performances : Optimisation des ressources, surveillance',
+        costOptimization: 'Optimisation des coûts : Ressources rentables, sensibilisation aux dépenses',
+        sustainability: 'Durabilité : Stratégies de réduction de l\'impact environnemental',
+        learnMoreLink: 'En savoir plus sur les piliers Well-Architected',
+      },
+      analysisResults: {
+        header: 'Résultats de l\'analyse',
+        description: 'Examinez l\'analyse de votre infrastructure par rapport aux meilleures pratiques Well-Architected :',
+        viewBestPractices: 'Consultez les meilleures pratiques appliquées, non appliquées et non pertinentes. Utilisez les filtres et préférences du tableau pour personnaliser votre vue.',
+        statusIndicatorsTitle: 'Indicateurs de statut :',
+        appliedGreen: 'Appliqué (Vert) : La meilleure pratique est implémentée dans votre infrastructure',
+        notAppliedRed: 'Non appliqué (Rouge) : La meilleure pratique est pertinente mais non implémentée',
+        notRelevantGrey: 'Non pertinent (Gris) : La meilleure pratique n\'est pas applicable à votre infrastructure',
+        getMoreDetails: 'Obtenir plus de détails : Obtenez une analyse approfondie et des recommandations pour les meilleures pratiques sélectionnées',
+        generateIacDocument: 'Générer un document IaC : Convertissez les diagrammes d\'architecture en code d\'infrastructure (disponible uniquement pour les téléchargements d\'images)',
+        downloadAnalysis: 'Télécharger l\'analyse : Exportez tous les résultats et recommandations sous forme de fichier CSV',
+      },
+      wellArchitectedTool: {
+        header: 'Intégration avec Well-Architected Tool',
+        description: 'Suivez et gérez l\'alignement de votre charge de travail avec le AWS Well-Architected Framework :',
+        viewRiskSummary: 'Consultez le résumé des risques pour tous les piliers',
+        trackRisks: 'Suivez les risques élevés et moyens',
+        generateReports: 'Générez des rapports Well-Architected Tool',
+        workloadManagementTitle: 'Important : Gestion des charges de travail',
+        completeReviewTitle: 'Compléter la revue Well-Architected Tool :',
+        completeReviewWithId: 'Si vous avez fourni un ID de charge de travail existant dans les Paramètres optionnels : Les mises à jour seront effectuées sur cette charge de travail',
+        completeReviewWithoutId: 'Si aucun ID de charge de travail n\'a été fourni : Une nouvelle charge de travail sera créée automatiquement',
+        deleteWorkloadTitle: 'Supprimer la charge de travail Well-Architected Tool :',
+        deleteWorkloadOnlyCreated: 'Disponible uniquement pour les charges de travail créées par cet outil',
+        deleteWorkloadNotExisting: 'Non disponible pour les charges de travail existantes (où vous avez fourni l\'ID de charge de travail)',
+        deleteWorkloadCleanup: 'Utilisez ceci pour nettoyer les charges de travail temporaires créées pendant votre analyse',
+        securityNote: 'Remarque : Pour des raisons de sécurité, cet outil ne peut pas supprimer les charges de travail Well-Architected qu\'il n\'a pas créées. Si vous avez fourni votre propre ID de charge de travail, vous devrez gérer cette charge de travail directement dans la console AWS.',
+        learnMoreLink: 'En savoir plus sur la gestion des charges de travail Well-Architected',
+      },
+      iacDocument: {
+        header: 'Document IaC',
+        description: 'Consultez et gérez les documents Infrastructure as Code générés :',
+        reviewTemplates: 'Examinez les modèles IaC générés',
+        copyToClipboard: 'Copiez le contenu dans le presse-papiers',
+        downloadAsFile: 'Téléchargez sous forme de fichier',
+        templatesNote: 'Les modèles sont générés en suivant les meilleures pratiques AWS et les recommandations Well-Architected.',
+      },
+      workloadId: {
+        header: 'ID de charge de travail Well-Architected',
+        description: 'L\'ID de charge de travail connecte votre analyse à AWS Well-Architected Tool :',
+        optionalCreate: 'Optionnel : Ne sélectionnez aucune charge de travail spécifique pour en créer une nouvelle',
+        selectExisting: 'Sélectionnez un ID existant pour mettre à jour une charge de travail existante',
+        foundInConsole: 'Les charges de travail se trouvent dans la console AWS Well-Architected Tool',
+        learnMoreLink: 'En savoir plus sur les charges de travail Well-Architected',
+      },
+      iacTypeSelection: {
+        header: 'Sélection du type de modèle IaC',
+        description: 'Choisissez le type de modèle Infrastructure as Code à générer :',
+        cloudFormation: 'CloudFormation YAML/JSON : Générer des modèles AWS CloudFormation',
+        terraform: 'Terraform : Générer des fichiers de configuration HashiCorp Terraform',
+        awsCdkTitle: 'AWS CDK : Générer du code AWS Cloud Development Kit dans votre langage de programmation préféré :',
+        typescript: 'TypeScript (.ts)',
+        python: 'Python (.py)',
+        go: 'Go (.go)',
+        java: 'Java (.java)',
+        csharp: 'C# (.cs)',
+        availabilityNote: 'Cette option n\'est disponible que lors de l\'analyse de diagrammes d\'architecture.',
+      },
+      supportingDocument: {
+        header: 'Téléchargement de document de support',
+        description: 'Améliorez votre analyse en téléchargeant un document de support qui fournit un contexte supplémentaire :',
+        supportedFormatsTitle: 'Formats pris en charge :',
+        supportedFormats: 'Documents PDF (.pdf), fichiers texte brut (.txt), images (.png, .jpg, .jpeg)',
+        maxSizeTitle: 'Taille maximale :',
+        maxSize: '4,5 Mo',
+        descriptionTitle: 'Description :',
+        descriptionText: 'Une brève description du document est requise pour aider l\'analyseur à comprendre son contenu',
+        usageNote: 'Le document de support sera utilisé avec votre modèle IaC ou diagramme d\'architecture pour fournir plus de contexte lors de l\'analyse, ce qui peut potentiellement aboutir à des recommandations plus précises.',
+        singleDocNote: 'Remarque : Un seul document de support (le plus récemment téléchargé) sera utilisé pour l\'analyse.',
+      },
+      lensSelection: {
+        header: 'Sélection de la lentille Well-Architected',
+        description: 'Sélectionnez quelle lentille AWS Well-Architected utiliser pour analyser votre infrastructure :',
+        waFrameworkTitle: 'Well-Architected Framework :',
+        waFrameworkDescription: 'Le Well-Architected Framework standard avec six piliers (Excellence opérationnelle, Sécurité, Fiabilité, Efficacité des performances, Optimisation des coûts, Durabilité)',
+        specializedLensesTitle: 'Lentilles spécialisées :',
+        specializedLensesDescription: 'Lentilles supplémentaires axées sur des technologies ou domaines spécifiques, telles que :',
+        serverlessLens: 'Lentille Serverless - Pour les architectures d\'applications sans serveur',
+        iotLens: 'Lentille IoT - Pour les charges de travail Internet des objets',
+        saasLens: 'Lentille SaaS - Pour les architectures Software-as-a-Service',
+        otherLenses: 'Et d\'autres lentilles spécialisées par industrie et technologie',
+        lensExplanation: 'Chaque lentille fournit des meilleures pratiques et recommandations adaptées spécifiquement à ce domaine ou cette technologie. Les piliers disponibles pour examen changeront en fonction de la lentille sélectionnée.',
+        whySpecializedTitle: 'Pourquoi utiliser des lentilles spécialisées ?',
+        whySpecializedDescription: 'Les lentilles spécialisées fournissent des conseils plus ciblés pour des types de charges de travail spécifiques. Par exemple, la Lentille Serverless comprend des meilleures pratiques spécifiquement pertinentes pour l\'architecture sans serveur qui peuvent ne pas être couvertes dans le Well-Architected Framework standard.',
+      },
+    },
+    riskSummary: {
+      title: 'Résumé des risques',
+      workloadId: 'ID de charge de travail',
+      noWorkloadIdAssociated: 'Aucun ID de charge de travail associé',
+      questionsAnswered: 'Questions répondues',
+      highRisks: 'Risques élevés',
+      mediumRisks: 'Risques moyens',
+      pillar: 'Pilier',
+      progress: 'Progression',
+      completeReview: 'Compléter la revue Well-Architected Tool',
+      generateReport: 'Générer un rapport Well-Architected Tool',
+      deleteWorkload: 'Supprimer la charge de travail Well-Architected Tool',
+      loadingRiskSummary: 'Chargement des données du résumé des risques...',
+      deleteWorkloadModal: {
+        title: 'Supprimer la charge de travail Well-Architected Tool',
+        confirmMessage: 'Êtes-vous sûr de vouloir supprimer la charge de travail avec l\'ID',
+        cannotUndo: 'Cette action ne peut pas être annulée.',
+        note: 'Remarque :',
+        noteMessage: 'Cela supprimera uniquement la charge de travail dans AWS Well-Architected Tool. Vos résultats d\'analyse et recommandations dans cette application resteront disponibles.',
+      },
     },
   },
   // When adding a new language, add a new entry here

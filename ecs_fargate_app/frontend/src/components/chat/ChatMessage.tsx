@@ -23,7 +23,18 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, hideAvatar = 
 
     return (
         <ChatBubble
-            avatar={<ChatBubbleAvatar {...author} loading={isLoading} />}
+            avatar={
+              <ChatBubbleAvatar
+                /* The author object comes from a controlled, internal constant (AUTHORS)
+                    defined in config.tsx with a fixed structure (type, name, initials).
+                    The ChatBubbleAvatar component is from the trusted AWS Cloudscape Design System
+                    and expects these specific props. This is the standard pattern for passing
+                    multiple props to Cloudscape components. */
+                // nosemgrep: react-props-spreading
+                {...author} 
+                loading={isLoading} 
+              />
+            }
             ariaLabel={`${author.name} at ${timestamp}`}
             type={authorId === 'gen-ai' ? 'incoming' : 'outgoing'}
             hideAvatar={hideAvatar}

@@ -25,6 +25,8 @@ export function buildKnowledgeBaseInputPrompt(
     ? `AWS Well-Architected ${lensName} pillar "${pillar}"` 
     : `Well-Architected pillar "${pillar}"`;
 
+  // LLM prompts using XML-like tags, not actual HTML that would be rendered in a browser
+  // nosemgrep: html-in-template-string
   return `Below <best_practices_to_retrieve> section contains the list of best practices of the question "${question}" in the ${lensContext}:
 <best_practices_to_retrieve>
 ${bestPracticesJson}
@@ -48,6 +50,8 @@ export function buildKnowledgeBasePromptTemplate(lensName?: string): string {
     ? `AWS Well-Architected ${lensName} expert. Using the following retrieved information about the ${lensName} lens best practices` 
     : `AWS Well-Architected Framework expert. Using the following retrieved information about AWS Well-Architected best practices`;
 
+  // LLM prompts using XML-like tags, not actual HTML that would be rendered in a browser
+  // nosemgrep: html-in-template-string
   return `You are an ${lensContext}:
   
   $search_results$

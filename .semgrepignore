@@ -1,0 +1,3 @@
+# nosemgrep: html-in-template-string, missing-template-string-indicator
+# LLM prompts using XML-like tags, not actual HTML that would be rendered in a browser
+*/prompts/system-prompts.ts

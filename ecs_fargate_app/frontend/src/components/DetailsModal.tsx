@@ -9,6 +9,7 @@ import {
 } from '@cloudscape-design/components';
 import CopyButton from './utils/CopyButton';
 import CodeBlock from './utils/CodeBlock';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface DetailsModalProps {
     visible: boolean;
@@ -27,6 +28,8 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
     originalFileName = 'unknown_file',
     lensAlias = 'unknown_lens'
 }) => {
+    const { strings } = useLanguage();
+    
     const handleDownload = () => {
         const safeFileName = originalFileName.replace(/\./g, '_');
         
@@ -47,17 +50,17 @@ export const DetailsModal: React.FC<DetailsModalProps> = ({
         <Modal
             visible={visible}
             onDismiss={onDismiss}
-            header="Detailed Analysis"
+            header={strings.common.detailedAnalysis}
             size="large"
             footer={
                 <Box float="right">
                     <SpaceBetween direction="horizontal" size="xs">
                         <CopyButton content={content} />
                         <Button onClick={handleDownload}>
-                            Download
+                            {strings.common.download}
                         </Button>
                         <Button variant="primary" onClick={onDismiss}>
-                            Close
+                            {strings.common.close}
                         </Button>
                     </SpaceBetween>
                 </Box>

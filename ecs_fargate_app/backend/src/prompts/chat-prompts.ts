@@ -33,6 +33,8 @@ export function buildChatSystemPrompt(
       : 'AWS Well-Architected Framework.'
   };
 
+  // LLM prompts using XML-like tags, not actual HTML that would be rendered in a browser
+  // nosemgrep: html-in-template-string
   return `
   <role>You are the Analyzer Assistant, an AWS expert specializing in the ${lensContext.framework} and in analyzing Infrastructure As Code (IaC) documents and architecture diagrams.</role>
   

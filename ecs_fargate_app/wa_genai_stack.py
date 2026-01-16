@@ -101,6 +101,14 @@ class WAGenAIStack(Stack):
                     standard_attributes=aws_cognito.StandardAttributes(
                         email=aws_cognito.StandardAttribute(required=True)
                     ),
+                    password_policy=aws_cognito.PasswordPolicy(
+                        min_length=8,
+                        require_lowercase=True,
+                        require_uppercase=True,
+                        require_digits=True,
+                        require_symbols=True,
+                        temp_password_validity=Duration.days(7),
+                    ),
                 )
 
                 # Create the domain
@@ -193,9 +201,16 @@ class WAGenAIStack(Stack):
         )
 
         # Add CloudWatch Logs permissions
-        lambda_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name(
-                "service-role/AWSLambdaBasicExecutionRole"
+        lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                ],
+                resources=[
+                    f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/lambda/*"
+                ],
             )
         )
 
@@ -221,6 +236,8 @@ class WAGenAIStack(Stack):
                     "ec2:DescribeSecurityGroups",
                     "ec2:DescribeSubnets",
                     "ec2:DescribeVpcs",
+                    "ec2:DescribeAddresses",
+                    "ec2:DescribeNetworkInterfaces",
                     "iam:GetInstanceProfile",
                     "iam:GetRole",
                     "iam:ListAttachedRolePolicies",
@@ -256,6 +273,10 @@ class WAGenAIStack(Stack):
                     "ec2:DetachInternetGateway",
                     "ec2:DisassociateRouteTable",
                     "ec2:TerminateInstances",
+                    "ec2:DisassociateAddress",
+                    "ec2:ReleaseAddress",
+                    "ec2:DeleteFlowLogs",
+                    "ec2:DeleteNetworkInterface",
                     "ssm:GetDeployablePatchSnapshotForInstance",
                     "ssm:PutComplianceItems",
                     "ssm:PutInventory",
@@ -263,6 +284,7 @@ class WAGenAIStack(Stack):
                     "ssm:UpdateInstanceAssociationStatus",
                     "ssm:UpdateInstanceInformation",
                     "logs:CreateLogStream",
+                    "logs:DeleteLogGroup",
                 ],
                 resources=["*"],
                 conditions=tag_conditions,
@@ -299,12 +321,14 @@ class WAGenAIStack(Stack):
         cleanup_lambda = lambda_.Function(
             self,
             "StackCleanupLambda",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.determine_latest_python_runtime(self),
             handler="stack_cleanup.handler",
             code=lambda_.Code.from_asset(
                 "ecs_fargate_app/lambda_stack_cleanup",
                 bundling=cdk.BundlingOptions(
-                    image=lambda_.Runtime.PYTHON_3_12.bundling_image,
+                    image=lambda_.Runtime.determine_latest_python_runtime(
+                        self
+                    ).bundling_image,
                     command=[
                         "bash",
                         "-c",
@@ -764,15 +788,36 @@ class WAGenAIStack(Stack):
         )
 
         # Lambda function to refresh and sync Knowledge Base with data source
+        kb_lambda_synchronizer_role = iam.Role(
+            self,
+            "KbLambdaSynchronizerRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+        )
+
+        kb_lambda_synchronizer_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                ],
+                resources=[
+                    f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/lambda/*"
+                ],
+            )
+        )
+
         kb_lambda_synchronizer = lambda_.Function(
             self,
             "KbLambdaSynchronizer",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.determine_latest_python_runtime(self),
             handler="kb_synchronizer.handler",
             code=lambda_.Code.from_asset(
                 "ecs_fargate_app/lambda_kb_synchronizer",
                 bundling=cdk.BundlingOptions(
-                    image=lambda_.Runtime.PYTHON_3_12.bundling_image,
+                    image=lambda_.Runtime.determine_latest_python_runtime(
+                        self
+                    ).bundling_image,
                     command=[
                         "bash",
                         "-c",
@@ -788,6 +833,7 @@ class WAGenAIStack(Stack):
                 "LENS_METADATA_TABLE": lens_metadata_table.table_name,
             },
             timeout=Duration.minutes(15),
+            role=kb_lambda_synchronizer_role,
         )
 
         # Grant permissions to the KB synchronizer Lambda
@@ -876,6 +922,14 @@ class WAGenAIStack(Stack):
         app_execute_role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
+                    "wellarchitected:ListWorkloads",
+                ],
+                resources=["*"],
+            )
+        )
+        app_execute_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
                     "wellarchitected:GetLensReview",
                     "wellarchitected:ListAnswers",
                     "wellarchitected:GetWorkload",
@@ -883,9 +937,16 @@ class WAGenAIStack(Stack):
                     "wellarchitected:CreateMilestone",
                     "wellarchitected:GetLensReviewReport",
                     "wellarchitected:AssociateLenses",
-                    "wellarchitected:ListWorkloads",
                 ],
                 resources=["*"],
+                conditions={
+                    "StringLike": {
+                        "aws:ResourceTag/WorkloadName": [
+                            "DO_NOT_DELETE_temp_IaCAnalyzer_*",
+                            "IaCAnalyzer_*",
+                        ]
+                    }
+                },
             )
         )
         app_execute_role.add_to_policy(
@@ -933,8 +994,21 @@ class WAGenAIStack(Stack):
                 ],
             )
         )
-        app_execute_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonBedrockFullAccess")
+        app_execute_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "bedrock:InvokeModel",
+                    "bedrock:Retrieve",
+                    "bedrock:RetrieveAndGenerate",
+                    "bedrock:GetInferenceProfile",
+                ],
+                resources=[
+                    "arn:aws:bedrock:::foundation-model/*",
+                    f"arn:aws:bedrock:{self.region}::foundation-model/*",
+                    f"arn:aws:bedrock:{self.region}:{self.account}:inference-profile/*",
+                    f"arn:aws:bedrock:{self.region}:{self.account}:knowledge-base/{KB_ID}",
+                ],
+            )
         )
 
         # Adding DDB and S3 data store bucket permission for app_execute_role
@@ -1057,6 +1131,7 @@ class WAGenAIStack(Stack):
                 ),
                 public_load_balancer=public_lb,
                 security_groups=[frontend_security_group],
+                min_healthy_percent=100,
                 certificate=certificate,
                 redirect_http=True,
                 ssl_policy=elbv2.SslPolicy.RECOMMENDED_TLS,
@@ -1078,6 +1153,14 @@ class WAGenAIStack(Stack):
                     sign_in_aliases=aws_cognito.SignInAliases(email=True),
                     standard_attributes=aws_cognito.StandardAttributes(
                         email=aws_cognito.StandardAttribute(required=True)
+                    ),
+                    password_policy=aws_cognito.PasswordPolicy(
+                        min_length=8,
+                        require_lowercase=True,
+                        require_uppercase=True,
+                        require_digits=True,
+                        require_symbols=True,
+                        temp_password_validity=Duration.days(7),
                     ),
                 )
 
@@ -1160,6 +1243,7 @@ class WAGenAIStack(Stack):
                 ),
                 public_load_balancer=public_lb,
                 security_groups=[frontend_security_group],
+                min_healthy_percent=100,
             )
             # Store reference to frontend target group
             self.frontend_target_group = frontend_service.target_group
@@ -1243,6 +1327,7 @@ class WAGenAIStack(Stack):
                 subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
             ),
             security_groups=[backend_security_group],
+            min_healthy_percent=100,
         )
 
         # Add service discovery
@@ -1290,15 +1375,36 @@ class WAGenAIStack(Stack):
         # Migration Lambda function for transitioning from single-lens to multi-lens storage structure
         # The new multi-lenses support introduced on 14-April-2025 is a breaking change. This function is meant to support a seamless transition from previous single-lens (wellarchitected) storage structure to the new multi-lens structure.
         # The Lambda will only run at cdk deployment time once and only for deployments where the old single-lens structure is detected.
+        migration_lambda_role = iam.Role(
+            self,
+            "MigrationLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+        )
+
+        migration_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                ],
+                resources=[
+                    f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/lambda/*"
+                ],
+            )
+        )
+
         migration_lambda = lambda_.Function(
             self,
             "MigrationLambda",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.determine_latest_python_runtime(self),
             handler="migration.handler",
             code=lambda_.Code.from_asset(
                 "ecs_fargate_app/lambda_migration",
                 bundling=cdk.BundlingOptions(
-                    image=lambda_.Runtime.PYTHON_3_12.bundling_image,
+                    image=lambda_.Runtime.determine_latest_python_runtime(
+                        self
+                    ).bundling_image,
                     command=[
                         "bash",
                         "-c",
@@ -1312,14 +1418,15 @@ class WAGenAIStack(Stack):
                 "WA_DOCS_BUCKET_NAME": wafrReferenceDocsBucket.bucket_name,
             },
             timeout=Duration.minutes(15),
+            role=migration_lambda_role,
         )
 
         # Grant DynamoDB permissions to migration Lambda
-        analysis_metadata_table.grant_read_write_data(migration_lambda)
+        analysis_metadata_table.grant_read_write_data(migration_lambda_role)
 
         # Grant S3 permissions for both buckets to migration Lambda
-        analysis_storage_bucket.grant_read_write(migration_lambda)
-        wafrReferenceDocsBucket.grant_read_write(migration_lambda)
+        analysis_storage_bucket.grant_read_write(migration_lambda_role)
+        wafrReferenceDocsBucket.grant_read_write(migration_lambda_role)
 
         # Create a custom resource to trigger migration Lambda after KB synchronization
         migration_trigger_cr = cr.AwsCustomResource(

@@ -377,12 +377,14 @@ class KBStorageStack(Stack):
         kb_lambda_synchronizer = lambda_.Function(
             self,
             "KbLambdaSynchronizer",
-            runtime=lambda_.Runtime.PYTHON_3_12,
+            runtime=lambda_.Runtime.determine_latest_python_runtime(self),
             handler="kb_synchronizer.handler",
             code=lambda_.Code.from_asset(
                 "../ecs_fargate_app/lambda_kb_synchronizer",
                 bundling=cdk.BundlingOptions(
-                    image=lambda_.Runtime.PYTHON_3_12.bundling_image,
+                    image=lambda_.Runtime.determine_latest_python_runtime(
+                        self
+                    ).bundling_image,
                     command=[
                         "bash",
                         "-c",
