@@ -31,6 +31,11 @@ export const SUPPORTED_LANGUAGES: LanguageDefinition[] = [
     nativeName: '日本語'
   },
   {
+    code: 'ko',
+    label: 'Korean',
+    nativeName: '한국어'
+  },
+  {
     code: 'es',
     label: 'Spanish',
     nativeName: 'Español'

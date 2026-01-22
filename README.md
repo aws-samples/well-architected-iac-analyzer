@@ -58,7 +58,7 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
 - **Export analysis results and recommendations**
 - **Language Localization Support**:
   - Select your preferred language from the Output Language in Optional Settings menu 
-  - Support for English, Japanese, Brazilian Portuguese, Spanish and French
+  - Support for English, Japanese, Korean, Brazilian Portuguese, Spanish and French
   - Language selection affects analysis results, recommendations, and detailed explanations
   - Consistent localization across all file types (CloudFormation, Terraform, CDK, PDF documents, and architecture diagrams)
 - **Multi-lens support**:
