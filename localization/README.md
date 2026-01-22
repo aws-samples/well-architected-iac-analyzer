@@ -28,6 +28,7 @@ The Well-Architected IaC Analyzer supports multiple languages using a centralize
 Currently, the application supports:
 - English (en) - Default
 - Japanese (ja)
+- Korean (ko)
 - Spanish (es)
 - Brazilian Portuguese (pt-BR)
 - French (fr)

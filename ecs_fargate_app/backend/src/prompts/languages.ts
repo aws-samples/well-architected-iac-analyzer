@@ -26,6 +26,11 @@ export const SUPPORTED_LANGUAGES: Language[] = [
     nativeName: '日本語'
   },
   {
+    code: 'ko',
+    name: 'Korean',
+    nativeName: '한국어'
+  },
+  {
     code: 'es',
     name: 'Spanish',
     nativeName: 'Español'
