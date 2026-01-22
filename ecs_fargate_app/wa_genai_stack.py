@@ -985,9 +985,6 @@ class WAGenAIStack(Stack):
             )
         )
         app_execute_role.add_to_policy(
-            iam.PolicyStatement(actions=["bedrock:InvokeModel"], resources=["*"])
-        )
-        app_execute_role.add_to_policy(
             iam.PolicyStatement(
                 actions=["s3:GetObject", "s3:ListBucket"],
                 resources=[
