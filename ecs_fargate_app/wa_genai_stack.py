@@ -855,7 +855,7 @@ class WAGenAIStack(Stack):
                     "wellarchitected:DisassociateLenses",
                 ],
                 resources=[
-                    f"arn:aws:wellarchitected:{self.region}:{self.account}:workload/{workload_cr.get_response_field("WorkloadId")}"
+                    f"arn:aws:wellarchitected:{self.region}:{self.account}:workload/{workload_cr.get_response_field('WorkloadId')}"
                 ],
             )
         )
