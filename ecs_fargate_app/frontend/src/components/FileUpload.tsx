@@ -20,6 +20,11 @@ interface FileUploadProps {
   acceptedFileTypes: string[];
 }
 
+// File size limits
+const MAX_IAC_FILE_SIZE = 100 * 1024 * 1024; // 100MB for IaC files and ZIP projects
+const MAX_IMAGE_FILE_SIZE = 3.75 * 1024 * 1024; // 3.75MB for images
+const MAX_PDF_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB for PDFs
+
 export const FileUpload: React.FC<FileUploadProps> = ({
   onFileUploaded,
   acceptedFileTypes,
@@ -41,6 +46,25 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const isPdfFile = (file: File): boolean => {
     const extension = `.${file.name.split('.').pop()?.toLowerCase()}`;
     return extension === '.pdf';
+  };
+
+  // Helper function to check if a file is a ZIP
+  const isZipFile = (file: File): boolean => {
+    const extension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+    return extension === '.zip';
+  };
+
+  // Helper function to check if a file is an IaC file
+  const isIaCFile = (file: File): boolean => {
+    const extension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+    return ['.yaml', '.yml', '.json', '.tf', '.ts', '.py', '.go', '.java', '.cs'].includes(extension);
+  };
+
+  // Helper function to format file size for display
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
   // Filter options based on the current mode
@@ -91,14 +115,30 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       }
 
       // Check file sizes (4.5MB each max)
-      const MAX_PDF_SIZE = 4.5 * 1024 * 1024; // 4.5MB in bytes
-      const oversizedFiles = files.filter(file => file.size > MAX_PDF_SIZE);
+      const oversizedFiles = files.filter(file => file.size > MAX_PDF_FILE_SIZE);
       if (oversizedFiles.length > 0) {
-        const oversizedNames = oversizedFiles.map(f => f.name).join(', ');
+        const oversizedNames = oversizedFiles.map(f => `${f.name} (${formatFileSize(f.size)})`).join(', ');
         setError(`Each PDF file must be less than 4.5MB. Oversized files: ${oversizedNames}`);
         return;
       }
+    } else if (uploadMode === FileUploadMode.ZIP_FILE) {
+      // ZIP file mode validations
+      const file = files[0];
+      
+      // Validate file type
+      if (!isZipFile(file)) {
+        setError(`Only ZIP files are allowed in this mode. Selected file: ${file.name}`);
+        return;
+      }
+
+      // Check file size (100MB max for ZIP)
+      if (file.size > MAX_IAC_FILE_SIZE) {
+        setError(`ZIP file must be less than 100MB. Selected file size: ${formatFileSize(file.size)}`);
+        return;
+      }
     } else {
+      // Single or Multiple files mode validations
+      
       // Validate file types for non-PDF modes
       const invalidFiles = files.filter(file => {
         const extension = `.${file.name.split('.').pop()?.toLowerCase()}`;
@@ -123,6 +163,32 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         // Check if there are image files mixed with non-image files
         if (imageFiles.length > 0 && files.length > imageFiles.length) {
           setError('Cannot mix image files (.png, .jpg, .jpeg) with other file types.');
+          return;
+        }
+      }
+
+      // Validate file sizes based on file type
+      for (const file of files) {
+        if (isImageFile(file)) {
+          // Image file size validation (3.75MB max)
+          if (file.size > MAX_IMAGE_FILE_SIZE) {
+            setError(`Image file "${file.name}" exceeds the maximum size of 3.75MB. Selected file size: ${formatFileSize(file.size)}`);
+            return;
+          }
+        } else if (isIaCFile(file)) {
+          // IaC file size validation (100MB max)
+          if (file.size > MAX_IAC_FILE_SIZE) {
+            setError(`File "${file.name}" exceeds the maximum size of 100MB. Selected file size: ${formatFileSize(file.size)}`);
+            return;
+          }
+        }
+      }
+
+      // For multiple IaC files, also check total size
+      if (actualUploadMode === FileUploadMode.MULTIPLE_FILES) {
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+        if (totalSize > MAX_IAC_FILE_SIZE) {
+          setError(`Total file size (${formatFileSize(totalSize)}) exceeds the maximum of 100MB.`);
           return;
         }
       }
@@ -276,11 +342,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           />
           
           {uploadMode === FileUploadMode.SINGLE_FILE && (
-            <Box>{strings.fileUpload.singleOrMultipleFilesDescription}</Box>
+            <Box>{strings.fileUpload.singleOrMultipleFilesDescription} (Images: max 3.75MB, IaC files: max 100MB)</Box>
           )}
           
           {uploadMode === FileUploadMode.ZIP_FILE && (
-            <Box>{strings.fileUpload.completeIacProjectDescription}</Box>
+            <Box>{strings.fileUpload.completeIacProjectDescription} (max 100MB)</Box>
           )}
           
           {uploadMode === FileUploadMode.PDF_FILE && (
