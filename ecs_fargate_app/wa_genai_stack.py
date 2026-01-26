@@ -387,30 +387,8 @@ class WAGenAIStack(Stack):
             ),
         )
 
-        # Data Ingestion Params
-        dataSourceIngestionParams = {
-            "dataSourceId": kbDataSource.data_source_id,
-            "knowledgeBaseId": KB_ID,
-        }
-
-        # Define a custom resource to make an AwsSdk startIngestionJob call
-        ingestion_job_cr = cr.AwsCustomResource(
-            self,
-            "IngestionCustomResource",
-            on_create=cr.AwsSdkCall(
-                service="bedrock-agent",
-                action="startIngestionJob",
-                parameters=dataSourceIngestionParams,
-                physical_resource_id=cr.PhysicalResourceId.of("Parameter.ARN"),
-            ),
-            policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
-                resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE
-            ),
-        )
-
         # Node dependencies
         kbDataSource.node.add_dependency(wafrReferenceDocsBucket)
-        ingestion_job_cr.node.add_dependency(kb)
 
         return kb, kbDataSource, KB_ID
 
@@ -566,29 +544,6 @@ class WAGenAIStack(Stack):
 
         # Ensure data source is created after KB
         cfn_data_source.add_dependency(cfn_kb)
-
-        # Data Ingestion Params
-        dataSourceIngestionParams = {
-            "dataSourceId": cfn_data_source.attr_data_source_id,
-            "knowledgeBaseId": cfn_kb.attr_knowledge_base_id,
-        }
-
-        # Define a custom resource to make an AwsSdk startIngestionJob call
-        ingestion_job_cr = cr.AwsCustomResource(
-            self,
-            "IngestionCustomResource",
-            on_create=cr.AwsSdkCall(
-                service="bedrock-agent",
-                action="startIngestionJob",
-                parameters=dataSourceIngestionParams,
-                physical_resource_id=cr.PhysicalResourceId.of("Parameter.ARN"),
-            ),
-            policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
-                resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE
-            ),
-        )
-
-        ingestion_job_cr.node.add_dependency(cfn_data_source)
 
         return (
             cfn_kb.attr_knowledge_base_id,
