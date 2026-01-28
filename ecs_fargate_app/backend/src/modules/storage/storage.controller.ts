@@ -51,7 +51,7 @@ export class StorageController {
             return devEmail;
         }
 
-        // Production mode - parse from header
+        // Auth mode - parse from header
         if (!userDataHeader) {
             return null;
         }

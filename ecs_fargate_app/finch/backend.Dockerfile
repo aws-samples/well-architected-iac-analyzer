@@ -23,7 +23,7 @@ COPY backend/ .
 # Build the application
 RUN npm run build
 
-# Production stage
+# Deployment stage
 # avoid-platform-with-from: Intentional multi-architecture support. Defaults to amd64 for AWS ECS Fargate
 # deployment while allowing override for local development on different architectures.
 # dockerfile-source-not-pinned: Using version tag (alpine3.23) for maintainability. SHA256 pinning would require
@@ -33,7 +33,7 @@ FROM --platform=linux/${PLATFORM} node:alpine3.23
 
 WORKDIR /app
 
-# Copy package files and install production dependencies
+# Copy package files and install Deployment dependencies
 COPY backend/package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --only=production

@@ -1,4 +1,4 @@
-# checkov:skip=CKV_DOCKER_3:Development container running locally with mounted volumes. Non-root user would cause permission issues with volume mounts. Production deployment uses ECS Fargate with task-level isolation.
+# checkov:skip=CKV_DOCKER_3:Development container running locally with mounted volumes. Non-root user would cause permission issues with volume mounts. Non-local deployment uses ECS Fargate with task-level isolation.
 # Set to "amd64" for Intel/AMD or "arm64" if Apple Silicon/ARM
 ARG PLATFORM="arm64"
 

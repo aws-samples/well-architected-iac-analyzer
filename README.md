@@ -13,9 +13,10 @@ This tool provides users with insights into how well their infrastructure code a
 
 Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask questions, seek clarification, and receive personalized guidance about analysis results and Well-Architected best practices.
 
+> ***Note:** This is a sample project, for non-production usage. You should work with your security and legal teams to meet your organizational security, regulatory and compliance requirements before deployment*
+
 ## Features
 
----
 - **NEW** 🚀 **Accelerated Analysis with Parallel Processing:**
   - Configurable batch size controls how many Well-Architected (or selected Lens) questions are processed in parallel
   - Complete full framework review up to **80% faster** compared to previous sequential processing
@@ -762,11 +763,6 @@ This will:
 ```
 
 Where `<container_tool>` is either `docker` or `finch`.
-
-### Switching Between Development and Production
-
-- Local development uses `finch-compose.dev.yaml` for container configuration
-- Production deployment continues to use CDK as described in the Installation and Deployment section
 
 ## Contributing
 

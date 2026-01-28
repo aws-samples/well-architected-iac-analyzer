@@ -23,7 +23,7 @@ COPY frontend/ .
 # Build the application
 RUN npm run build
 
-# Production stage
+# Deployment stage
 # dockerfile-source-not-pinned: Using version tag (stable-alpine-slim) for maintainability. SHA256 pinning would
 # require manual updates for every security patch, which is impractical for this sample project.
 # avoid-platform-with-from: Intentional multi-architecture support. Defaults to amd64 for AWS ECS Fargate

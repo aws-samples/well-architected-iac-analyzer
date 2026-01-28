@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     });
                     return;
                 }
-                // In production, redirect to Cognito logout URL
+                // In auth-mode, redirect to Cognito logout URL
                 window.location.href = redirectUrl;
             } else {
                 console.error('Logout failed');
