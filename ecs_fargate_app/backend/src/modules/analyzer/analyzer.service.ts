@@ -256,7 +256,10 @@ export class AnalyzerService {
                     thinking: {
                         type: "enabled",
                         budget_tokens: 8000
-                    }
+                    },
+                    anthropic_beta: [
+                        "context-1m-2025-08-07"
+                    ]
                 },
                 inferenceConfig: {
                     maxTokens: 20480
