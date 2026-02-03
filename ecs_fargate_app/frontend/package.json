@@ -13,10 +13,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-agent-runtime": "3.969.0",
-    "@aws-sdk/client-bedrock-runtime": "3.969.0",
-    "@aws-sdk/client-s3": "3.969.0",
-    "@aws-sdk/client-wellarchitected": "3.969.0",
+    "@aws-sdk/client-bedrock-agent-runtime": "3.981.0",
+    "@aws-sdk/client-bedrock-runtime": "3.981.0",
+    "@aws-sdk/client-s3": "3.981.0",
+    "@aws-sdk/client-wellarchitected": "3.981.0",
     "@cloudscape-design/chat-components": "1.0.89",
     "@cloudscape-design/code-view": "3.0.94",
     "@cloudscape-design/component-toolkit": "1.0.0-beta.131",
