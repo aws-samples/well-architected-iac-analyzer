@@ -342,11 +342,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           />
           
           {uploadMode === FileUploadMode.SINGLE_FILE && (
-            <Box>{strings.fileUpload.singleOrMultipleFilesDescription} (Images: max 3.75MB, IaC files: max 100MB)</Box>
+            <Box>{strings.fileUpload.singleOrMultipleFilesDescription}</Box>
           )}
           
           {uploadMode === FileUploadMode.ZIP_FILE && (
-            <Box>{strings.fileUpload.completeIacProjectDescription} (max 100MB)</Box>
+            <Box>{strings.fileUpload.completeIacProjectDescription}</Box>
           )}
           
           {uploadMode === FileUploadMode.PDF_FILE && (
