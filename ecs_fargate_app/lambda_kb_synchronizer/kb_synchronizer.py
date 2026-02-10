@@ -15,7 +15,7 @@ def download_file(url):
     return response.content
 
 
-def create_metadata_json(lens_name, lens_arn, pillar_name=None):
+def create_metadata_json(lens_name, lens_arn, pillar_name=None, lens_author="AWS"):
     """
     Creates metadata JSON content for a lens
     """
@@ -23,7 +23,7 @@ def create_metadata_json(lens_name, lens_arn, pillar_name=None):
         "metadataAttributes": {
             "lens_name": lens_name,
             "lens_arn": lens_arn,
-            "lens_author": "AWS",
+            "lens_author": lens_author,
         }
     }
 
@@ -47,12 +47,20 @@ def upload_to_s3(bucket_name, file_name, file_content, prefix=""):
 
 
 def upload_metadata_file(
-    bucket_name, pdf_file_name, lens_name, lens_arn, pillar_name=None, prefix=""
+    bucket_name,
+    pdf_file_name,
+    lens_name,
+    lens_arn,
+    pillar_name=None,
+    prefix="",
+    lens_author="AWS",
 ):
     """
     Create and upload a metadata JSON file for a PDF
     """
-    metadata_content = create_metadata_json(lens_name, lens_arn, pillar_name)
+    metadata_content = create_metadata_json(
+        lens_name, lens_arn, pillar_name, lens_author
+    )
     metadata_file_name = f"{pdf_file_name}.metadata.json"
     return upload_to_s3(bucket_name, metadata_file_name, metadata_content, prefix)
 
@@ -164,7 +172,7 @@ def create_csv(data):
 
 
 def store_lens_metadata(
-    lens_alias, pdf_url, lens_name, lens_description, pillar_mapping
+    lens_alias, pdf_url, lens_name, lens_description, pillar_mapping, lens_author="AWS"
 ):
     """Store metadata about processed lens in DynamoDB"""
     dynamodb = boto3.resource("dynamodb")
@@ -179,6 +187,7 @@ def store_lens_metadata(
                 "uploadDate": datetime.utcnow().isoformat(),
                 "lensDescription": lens_description,
                 "lensPillars": pillar_mapping,
+                "lensAuthor": lens_author,
             }
         )
         print(f"Stored metadata for lens {lens_alias} in DynamoDB")
@@ -186,6 +195,84 @@ def store_lens_metadata(
     except Exception as e:
         print(f"Error storing metadata for lens {lens_alias} in DynamoDB: {e}")
         return False
+
+
+def get_custom_lenses_from_ssm():
+    """Retrieve custom lenses configuration from SSM Parameter Store"""
+    ssm_client = boto3.client("ssm")
+    param_name = os.environ.get("CUSTOM_LENSES_SSM_PARAMETER", "")
+
+    if not param_name:
+        print(
+            "No CUSTOM_LENSES_SSM_PARAMETER environment variable set. Skipping custom lenses."
+        )
+        return []
+
+    try:
+        response = ssm_client.get_parameter(Name=param_name)
+        param_value = response["Parameter"]["Value"]
+
+        # Handle empty parameter
+        if not param_value or param_value.strip() == "" or param_value.strip() == "[]":
+            print("Custom lenses SSM parameter is empty. No custom lenses to process.")
+            return []
+
+        custom_lenses = json.loads(param_value)
+
+        if not isinstance(custom_lenses, list):
+            print(
+                f"Custom lenses SSM parameter is not a list. Got: {type(custom_lenses)}"
+            )
+            return []
+
+        # Validate each entry
+        validated_lenses = []
+        for lens in custom_lenses:
+            if not isinstance(lens, dict):
+                print(f"Skipping invalid custom lens entry (not a dict): {lens}")
+                continue
+
+            required_keys = ["lensName", "lensArn", "lensDescription"]
+            missing_keys = [k for k in required_keys if k not in lens or not lens[k]]
+            if missing_keys:
+                print(
+                    f"Skipping custom lens entry with missing keys {missing_keys}: {lens}"
+                )
+                continue
+
+            # Generate s3Prefix from lensName if not provided
+            if "s3Prefix" not in lens or not lens["s3Prefix"]:
+                lens["s3Prefix"] = normalize_lens_name_to_prefix(lens["lensName"])
+
+            # Warn if fileNameWithExtension is not provided
+            if "fileNameWithExtension" not in lens or not lens["fileNameWithExtension"]:
+                print(
+                    f"Warning: 'fileNameWithExtension' not provided for custom lens '{lens['lensName']}'. "
+                    f"Metadata JSON for the PDF will not be created."
+                )
+
+            validated_lenses.append(lens)
+
+        print(f"Found {len(validated_lenses)} valid custom lens(es) in SSM parameter.")
+        return validated_lenses
+
+    except ssm_client.exceptions.ParameterNotFound:
+        print(f"SSM parameter {param_name} not found. No custom lenses to process.")
+        return []
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON from SSM parameter {param_name}: {e}")
+        return []
+    except ClientError as e:
+        print(f"Error reading SSM parameter {param_name}: {e}")
+        return []
+
+
+def normalize_lens_name_to_prefix(lens_name):
+    """
+    Normalize a lens name to a valid S3 prefix.
+    Removes spaces, converts to lowercase, removes non-alphanumeric characters.
+    """
+    return "".join(c for c in lens_name.lower() if c.isalnum())
 
 
 def process_lens(bucket_name, workload_id, lens_data, is_primary_lens=False):
@@ -305,6 +392,120 @@ def process_lens(bucket_name, workload_id, lens_data, is_primary_lens=False):
                     f"Failed to disassociate lens {lens_alias} during cleanup: {disassociate_error}"
                 )
         return False
+
+
+def process_custom_lens(bucket_name, workload_id, custom_lens_data):
+    """
+    Process a custom lens.
+    Unlike additional (AWS official) lenses, the PDF is NOT downloaded (admin user uploads it manually).
+    This function associates the custom lens, extracts best practices, generates metadata,
+    creates the metadata JSON for the PDF specified via fileNameWithExtension in the SSM
+    parameter, and disassociates the lens.
+    """
+    lens_arn = custom_lens_data.get("lensArn", "")
+    lens_name = custom_lens_data.get("lensName", "")
+    lens_description = custom_lens_data.get("lensDescription", "")
+    file_name_with_extension = custom_lens_data.get("fileNameWithExtension", "")
+
+    # Extract the lens ID from the ARN (the part after the last '/')
+    s3_prefix = lens_arn.split("/")[-1] if "/" in lens_arn else lens_arn
+
+    print(
+        f"Processing custom lens: {lens_name} (ARN: {lens_arn}, S3 prefix: {s3_prefix})"
+    )
+
+    # Step 1: Associate the custom lens with the workload
+    try:
+        if not associate_lens(workload_id, lens_arn):
+            print(
+                f"Failed to associate custom lens {lens_arn}. Skipping further processing."
+            )
+            return False
+    except Exception as e:
+        print(f"Error associating custom lens {lens_arn}: {e}")
+        return False
+
+    try:
+        # Step 2: Get lens review and extract best practices
+        try:
+            lens_review = get_lens_review(workload_id, lens_arn)
+
+            # Create pillar mapping
+            pillar_mapping = {
+                pillar.get("PillarId", ""): pillar.get("PillarName", "")
+                for pillar in lens_review.get("PillarReviewSummaries", [])
+            }
+
+            # Get answers
+            answers = list_answers(workload_id, lens_arn)
+
+            # Process answers
+            processed_data = process_answers(answers, pillar_mapping)
+
+            # Create JSON and CSV content
+            json_data = create_json(processed_data)
+            csv_data = create_csv(processed_data)
+
+            # Store best practices using the lens ID from ARN as the primary prefix
+            lens_id_best_practices_prefix = f"{s3_prefix}/best_practices_list"
+
+            json_upload_success = upload_to_s3(
+                bucket_name,
+                s3_prefix + "_best_practices.json",
+                json_data,
+                prefix=lens_id_best_practices_prefix,
+            )
+            csv_upload_success = upload_to_s3(
+                bucket_name,
+                s3_prefix + "_best_practices.csv",
+                csv_data,
+                prefix=lens_id_best_practices_prefix,
+            )
+
+            if not json_upload_success or not csv_upload_success:
+                print(
+                    f"Failed to upload best practices data for custom lens {lens_arn}"
+                )
+
+            # Step 3: Create metadata JSON file for the PDF specified in SSM parameter
+            if file_name_with_extension:
+                print(
+                    f"Creating metadata for custom lens PDF: {file_name_with_extension}"
+                )
+                upload_metadata_file(
+                    bucket_name,
+                    file_name_with_extension,
+                    lens_name,
+                    lens_arn,
+                    prefix=s3_prefix,
+                    lens_author="custom",
+                )
+            else:
+                print(
+                    f"No fileNameWithExtension provided for custom lens '{lens_name}'. "
+                    f"Skipping metadata JSON creation for PDF."
+                )
+
+            # Step 4: Store lens metadata in DynamoDB (with lens_author = "custom")
+            store_lens_metadata(
+                lens_arn,
+                "",  # No PDF URL for custom lenses
+                lens_name,
+                lens_description,
+                pillar_mapping,
+                lens_author="custom",
+            )
+
+            print(f"Successfully processed custom lens: {lens_name}")
+
+        except Exception as e:
+            print(f"Error processing custom lens review for {lens_arn}: {e}")
+
+    finally:
+        # Always disassociate the custom lens when done
+        disassociate_lens(workload_id, lens_arn)
+
+    return True
 
 
 def handler(event, context):
@@ -472,10 +673,11 @@ def handler(event, context):
         },
     ]
 
-    # Process primary Well-Architected lens first
+    # =========================================================================
+    # Step 1: Process primary Well-Architected Framework lens
+    # =========================================================================
     print("Processing primary Well-Architected Framework lens")
 
-    # Process the main well-architected lens
     wellarchitected_lens = {
         "url": "multiple PDFs",
         "pdfName": "multiple PDFs",
@@ -488,11 +690,9 @@ def handler(event, context):
     for file_data in wellarchitected_files:
         try:
             pdf_content = download_file(file_data["url"])
-            # Upload to S3 with wellarchitected prefix
             upload_to_s3(
                 bucket_name, file_data["pdfName"], pdf_content, prefix="wellarchitected"
             )
-            # Upload corresponding metadata file
             upload_metadata_file(
                 bucket_name,
                 file_data["pdfName"],
@@ -506,17 +706,28 @@ def handler(event, context):
                 f"Error processing Well-Architected document {file_data['pdfName']}: {e}"
             )
 
-    # Now process the wellarchitected lens as a whole
     process_lens(bucket_name, workload_id, wellarchitected_lens, is_primary_lens=True)
 
-    # Process additional lenses
+    # =========================================================================
+    # Step 2: Process additional (AWS official) lenses
+    # =========================================================================
     for lens in additional_lenses:
         print(f"Processing additional lens: {lens['lensName']}")
-
-        # Process this lens
         process_lens(bucket_name, workload_id, lens, is_primary_lens=False)
 
-    # After all lenses are processed, start the ingestion job
+    # =========================================================================
+    # Step 3: Process custom lenses from SSM Parameter Store
+    # =========================================================================
+    print("Checking for custom lenses in SSM Parameter Store...")
+    custom_lenses = get_custom_lenses_from_ssm()
+
+    for custom_lens in custom_lenses:
+        print(f"Processing custom lens: {custom_lens['lensName']}")
+        process_custom_lens(bucket_name, workload_id, custom_lens)
+
+    # =========================================================================
+    # Step 4: Start the ingestion job after all lenses are processed
+    # =========================================================================
     bedrock_agent = boto3.client("bedrock-agent")
     try:
         response = bedrock_agent.start_ingestion_job(
