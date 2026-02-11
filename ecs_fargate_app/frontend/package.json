@@ -23,7 +23,7 @@
     "@cloudscape-design/components": "3.0.1174",
     "@cloudscape-design/global-styles": "1.0.49",
     "@cloudscape-design/design-tokens": "3.0.68",
-    "axios": "1.13.2",
+    "axios": "1.13.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "10.1.0",
