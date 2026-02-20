@@ -57,7 +57,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Call backend logout endpoint to expire ALB cookies
             const response = await fetch('/api/auth/logout', {
                 method: 'POST',
-                credentials: 'include'
+                credentials: 'include',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
             });
 
             if (response.ok) {
