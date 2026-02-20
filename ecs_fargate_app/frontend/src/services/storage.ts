@@ -5,6 +5,7 @@ const api = axios.create({
   baseURL: '/api/storage',
   headers: {
     'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
 });
 
