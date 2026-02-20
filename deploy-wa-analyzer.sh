@@ -307,6 +307,18 @@ check_auth_config() {
         else
             echo "✅ Vector store type: s3_vectors (default)"
         fi
+
+        # Validate extended context window configuration
+        EXTENDED_CONTEXT_WINDOW=$(awk -F "=" '/^extended_context_window/ {gsub(/ /,"",$2); print $2}' config.ini)
+        if [ -n "$EXTENDED_CONTEXT_WINDOW" ]; then
+            if [ "$EXTENDED_CONTEXT_WINDOW" != "True" ] && [ "$EXTENDED_CONTEXT_WINDOW" != "False" ]; then
+                echo "❌ Error: Invalid extended_context_window. Must be one of: True, False"
+                exit 1
+            fi
+            echo "✅ Extended context window: $EXTENDED_CONTEXT_WINDOW"
+        else
+            echo "✅ Extended context window: False (default)"
+        fi
     fi
 }
 

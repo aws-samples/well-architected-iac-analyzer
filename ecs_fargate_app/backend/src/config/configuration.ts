@@ -19,6 +19,7 @@ export default () => ({
     bedrock: {
       knowledgeBaseId: process.env.KNOWLEDGE_BASE_ID,
       modelId: process.env.MODEL_ID,
+      extendedContextWindow: process.env.EXTENDED_CONTEXT_WINDOW === 'true',
     },
     ddb: {
       lensMetadataTable: process.env.LENS_METADATA_TABLE,

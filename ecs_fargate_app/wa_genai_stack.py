@@ -567,6 +567,9 @@ class WAGenAIStack(Stack):
         vector_store_type = config.get(
             "settings", "vector_store_type", fallback="s3_vectors"
         )
+        extended_context_window = config.get(
+            "settings", "extended_context_window", fallback="False"
+        )
 
         # Check if auto-cleanup is enabled (from environment variable set by deploy script)
         auto_cleanup = os.environ.get("AUTO_CLEANUP", "false").lower() == "true"
@@ -1267,6 +1270,7 @@ class WAGenAIStack(Stack):
                 "AUTH_ENABLED": str(auth_config["enabled"]).lower(),
                 "AUTH_SIGN_OUT_URL": sign_out_url,
                 "BATCH_SIZE": batch_size,
+                "EXTENDED_CONTEXT_WINDOW": extended_context_window.lower(),
             },
             logging=ecs.LogDriver.aws_logs(stream_prefix="backend"),
         )

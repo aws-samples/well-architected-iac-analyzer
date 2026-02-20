@@ -23,8 +23,13 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
   - Default adjustable batch size configuration (between 1-12) balances speed and API throttling risk
 
 - **NEW** 🧠 **Enhanced AI Capabilities with Latest Anthropic Models:**
-  - Full support for **Claude Sonnet 4.5** and **Claude Opus 4.5** models
-  - Leverages **Extended Thinking** capabilities for deeper analysis and more comprehensive recommendations
+  - Full support for **Claude Sonnet 4.6** and **Claude Opus 4.6** models
+  - **Claude 4.6 models** leverage **Adaptive Thinking** with high effort for complex reasoning and analysis
+
+- **NEW** 📄 **1-Million Token Context Window Support:**
+  - Optional support for **1M token context window** when using Claude Opus 4.6 or Claude Sonnet 4.6 models
+  - Enabled via the `ExtendedContextWindow` deployment parameter (default: disabled, using the standard 200K token window)
+  - Process much larger IaC projects and architectural documentation in a single analysis pass
 
 - **NEW** 💰 **Cost-Optimized Vector Storage with Amazon S3 Vectors:**
   - **S3 Vectors** is now the default vector store for the Bedrock Knowledge Base
@@ -337,9 +342,11 @@ After successful deployment, you can find the Application Load Balancer (ALB) DN
   - ⚠️ **Security Warning**: By default, authentication is enabled for secure access. If you disable authentication while using a public load balancer (`True`), your application will be publicly accessible without any security controls. We strongly recommend keeping authentication enabled for public-facing deployments.
 
 - **Amazon Bedrock Model ID** (`ModelId`)
-  - Default: `global.anthropic.claude-sonnet-4-5-20250929-v1:0` (Claude Sonnet 4.5)
+  - Default: `global.anthropic.claude-sonnet-4-6` (Claude Sonnet 4.6)
   - You can specify an alternative [Bedrock model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns) if needed
-  - **Note**: This application has been primarily tested with Anthropic models (Claude Sonnet 4.5 and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results.
+  - **Note**: This application has been primarily tested with Anthropic models (Claude Sonnet 4.6, Claude Opus 4.6, Claude Sonnet 4.5, and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results.
+  - **Claude 4.6 models**: Use Adaptive Thinking with high effort for complex reasoning and analysis. Support optional 1M token context window (see `ExtendedContextWindow` parameter).
+  - **Claude 4.5 models**: Use Extended Thinking with budget tokens for enhanced analysis.
 
 - **Analysis Batch Size** (`BatchSize`)
   - Default: `5`
@@ -348,6 +355,13 @@ After successful deployment, you can find the Application Load Balancer (ALB) DN
   - **Lower values (1-3)**: More conservative approach, reduces the risk of API throttling
   - **Higher values (6-12)**: Faster processing, but may increase the risk of API throttling
   - **Recommendation**: Start with the default value of 5 and adjust based on your experience with API throttling
+
+- **Enable 1M Token Context Window** (`ExtendedContextWindow`)
+  - Default: `False`
+  - `False`: Uses the standard 200K token context window (compatible with all supported models)
+  - `True`: Enables the 1-million token context window using the Anthropic Beta header, allowing you to process much larger documents in a single analysis pass
+  - **Important**: This feature is only supported by **Claude Opus 4.6** and **Claude Sonnet 4.6** models. Enabling this with other models will have no effect.
+  - **When to enable**: Use when you need to analyze very large IaC projects or architectural documentation that exceeds the standard 200K token limit
 
 ### Authentication Settings
 
@@ -448,13 +462,24 @@ These parameters are required when `AuthType` is set to `oidc`:
 
 ### Model Selection
 
-If you want to use a different model than "Claude Opus 4.5", update the config.ini with the correct [model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns):
+If you want to use a different model than the default Claude Sonnet 4.6, update the config.ini with the correct [model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns):
 ```ini
 [settings]
-model_id = global.anthropic.claude-sonnet-4-5-20250929-v1:0
+model_id = global.anthropic.claude-sonnet-4-6
 ```
 
-> **Note:** This application has been primarily tested with Anthropic models (Claude Sonnet 4.5 and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results. The default model ID is set to `global.anthropic.claude-sonnet-4-5-20250929-v1:0`.
+> **Note:** This application has been primarily tested with Anthropic models (Claude Sonnet 4.6, Claude Opus 4.6, Claude Sonnet 4.5, and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results. The default model ID is set to `global.anthropic.claude-sonnet-4-6`. Claude 4.6 models use Adaptive Thinking with high effort, while Claude 4.5 models use Extended Thinking with budget tokens.
+
+### Extended Context Window (1M Tokens)
+
+Claude Opus 4.6 and Claude Sonnet 4.6 models support a 1-million token context window. To enable this, set the following in config.ini:
+
+```ini
+[settings]
+extended_context_window = True
+```
+
+> **Note:** When set to `False` (default), the standard 200K token context window is used. When set to `True`, the Anthropic Beta header is added to Bedrock API requests, enabling the 1M token context window. This is only effective when using Claude Opus 4.6 or Claude Sonnet 4.6 models. Enabling this with other models will have no effect.
 
 ### Batch Size Configuration
 
@@ -710,6 +735,7 @@ MODEL_ID=global.anthropic.claude-sonnet-4-5-20250929-v1:0
 
 # Analysis Configuration
 BATCH_SIZE=5
+EXTENDED_CONTEXT_WINDOW=false
 
 # Storage Configuration
 STORAGE_ENABLED=true

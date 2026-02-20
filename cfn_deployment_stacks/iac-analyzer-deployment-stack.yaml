@@ -11,8 +11,14 @@ Parameters:
   
   ModelId:
     Type: String
-    Default: 'global.anthropic.claude-sonnet-4-5-20250929-v1:0'
+    Default: 'global.anthropic.claude-sonnet-4-6'
     Description: 'Amazon Bedrock Model ID to use for analysis. By default uses Claude Sonnet 4.5. The default model uses a GLOBAL cross-Region inference profile, which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix).'
+  
+  ExtendedContextWindow:
+    Type: String
+    Default: 'False'
+    AllowedValues: ['True', 'False']
+    Description: 'Enable 1-million token context window using the Anthropic Beta header. Supported by Claude Opus 4.6 and Claude Sonnet 4.6 models. When False (default), the standard 200K token context window is used. When True, allows processing of much larger documents with up to 1M tokens of context. Only enable this when using a compatible model (Claude Opus 4.6 or Sonnet 4.6).'
   
   BatchSize:
     Type: Number
@@ -125,6 +131,7 @@ Metadata:
         Parameters: 
           - PublicLoadBalancer
           - ModelId
+          - ExtendedContextWindow
           - BatchSize
           - VectorStoreType
       - 
@@ -165,6 +172,8 @@ Metadata:
         default: "Deploy with internet-facing Application Load Balancer?"
       ModelId:
         default: "Amazon Bedrock Model ID"
+      ExtendedContextWindow:
+        default: "Enable 1M Token Context Window (Claude 4.6 models)"
       BatchSize:
         default: "Analysis Batch Size"
       VectorStoreType:
@@ -877,6 +886,9 @@ Resources:
 
                 # Update vector store type
                 sed -i "s/^vector_store_type = .*$/vector_store_type = ${VectorStoreType}/" $CONFIG_FILE
+
+                # Update extended context window
+                sed -i "s/^extended_context_window = .*$/extended_context_window = ${ExtendedContextWindow}/" $CONFIG_FILE
                 
                 # Update authentication settings - handle "False (Not Recommended)" case
                 if [ "${Authentication}" == "False (Not Recommended)" ]; then
