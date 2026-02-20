@@ -226,7 +226,20 @@ export class AnalyzerService {
             'claude-3-7-sonnet',
             'claude-haiku-4-5',
             'claude-sonnet-4-5',
-            'claude-opus-4-5'
+            'claude-opus-4-5',
+            'claude-opus-4-6',
+            'claude-sonnet-4-6'
+        ].some(model => modelId.includes(model));
+    }
+
+    // Check if the current model supports adaptive thinking (Claude 4.6+ models)
+    private supportsAdaptiveThinking(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+
+        return [
+            'claude-opus-4-6',
+            'claude-sonnet-4-6'
         ].some(model => modelId.includes(model));
     }
 
@@ -248,8 +261,35 @@ export class AnalyzerService {
 
     // Configure model parameters based on the model type
     private getModelParameters() {
+        const useAdaptiveThinking = this.supportsAdaptiveThinking();
         const useExtendedThinking = this.supportsExtendedThinking();
+        const extendedContextWindow = this.configService.get<boolean>('aws.bedrock.extendedContextWindow', false);
 
+        // Claude 4.6+ models: Use adaptive thinking with high effort
+        if (useAdaptiveThinking) {
+            const additionalFields: Record<string, any> = {
+                thinking: {
+                    type: "adaptive"
+                },
+                output_config: {
+                    effort: "high"
+                }
+            };
+
+            // Add 1M context window beta header when enabled
+            if (extendedContextWindow) {
+                additionalFields.anthropic_beta = ["context-1m-2025-08-07"];
+            }
+
+            return {
+                additionalModelRequestFields: additionalFields,
+                inferenceConfig: {
+                    maxTokens: 32000
+                }
+            };
+        }
+
+        // Claude 3.7/4.5 models: Use enabled thinking with budget
         if (useExtendedThinking) {
             return {
                 additionalModelRequestFields: {
@@ -259,11 +299,12 @@ export class AnalyzerService {
                     }
                 },
                 inferenceConfig: {
-                    maxTokens: 20480
+                    maxTokens: 32000
                 }
             };
         }
 
+        // Legacy models: Use temperature-based inference
         return {
             inferenceConfig: {
                 maxTokens: 8192,

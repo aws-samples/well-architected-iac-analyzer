@@ -14,7 +14,9 @@ function supportsExtendedThinking(modelId?: string): boolean {
     'claude-3-7-sonnet',
     'claude-haiku-4-5',
     'claude-sonnet-4-5',
-    'claude-opus-4-5'
+    'claude-opus-4-5',
+    'claude-opus-4-6',
+    'claude-sonnet-4-6'
   ].some(model => modelId.includes(model));
 }
 
