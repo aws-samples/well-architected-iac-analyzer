@@ -48,6 +48,11 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
   const [chatToDelete, setChatToDelete] = useState<WorkItem | null>(null);
   const { strings } = useLanguage();
 
+  // Helper function to normalize lens name
+  const normalizeLensName = (lensName: string): string => {
+    return lensName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  };
+
   // Helper function to determine badge color based on analysis status
   const getBadgeColor = (status?: WorkItemStatus): BadgeProps['color'] => {
     switch (status) {
@@ -225,7 +230,7 @@ export const WorkSideNavigation = forwardRef<WorkSideNavigationRef, WorkSideNavi
                   key={lens.lensAlias} 
                   color={getBadgeColor(item.analysisStatus?.[lens.lensAlias])}
                 >
-                  {lens.lensAlias}
+                  {normalizeLensName(lens.lensName)}
                 </Badge>
               ))}
             </SpaceBetween>

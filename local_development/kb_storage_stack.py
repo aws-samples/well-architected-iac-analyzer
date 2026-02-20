@@ -14,6 +14,7 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_s3_deployment as s3deploy
 from aws_cdk import aws_s3vectors as s3vectors
+from aws_cdk import aws_ssm as ssm
 from aws_cdk import custom_resources as cr
 from cdklabs.generative_ai_cdk_constructs import bedrock
 from constructs import Construct
@@ -373,6 +374,16 @@ class KBStorageStack(Stack):
             ),
         )
 
+        # Create SSM Parameter Store for custom lenses configuration
+        custom_lenses_parameter = ssm.StringParameter(
+            self,
+            "CustomLensesParameter",
+            parameter_name=f"/wa-iac-analyzer/{self.region}/custom-lenses",
+            string_value="[]",
+            description="JSON array of custom lens configurations for the WA IaC Analyzer.",
+            tier=ssm.ParameterTier.ADVANCED,
+        )
+
         # Lambda function to refresh and sync Knowledge Base with data source
         kb_lambda_synchronizer = lambda_.Function(
             self,
@@ -398,6 +409,7 @@ class KBStorageStack(Stack):
                 "WA_DOCS_BUCKET_NAME": wafrReferenceDocsBucket.bucket_name,
                 "WORKLOAD_ID": workload_cr.get_response_field("WorkloadId"),
                 "LENS_METADATA_TABLE": lens_metadata_table.table_name,
+                "CUSTOM_LENSES_SSM_PARAMETER": custom_lenses_parameter.parameter_name,
             },
             timeout=Duration.minutes(15),
         )
@@ -429,6 +441,9 @@ class KBStorageStack(Stack):
 
         # Grant Lambda access to the WA docs bucket
         wafrReferenceDocsBucket.grant_put(kb_lambda_synchronizer)
+
+        # Grant Lambda read access to the custom lenses SSM parameter
+        custom_lenses_parameter.grant_read(kb_lambda_synchronizer)
 
         # Create EventBridge rule to trigger KbLambdaSynchronizer weekly on Mondays
         events.Rule(
@@ -538,6 +553,13 @@ class KBStorageStack(Stack):
             "VectorStoreType",
             value=vector_store_type,
             description="Vector store type used for the Knowledge Base (opensearch_serverless or s3_vectors)",
+        )
+
+        CfnOutput(
+            self,
+            "CustomLensesSSMParameter",
+            value=custom_lenses_parameter.parameter_name,
+            description="SSM Parameter Store name for custom lenses configuration",
         )
 
         # Output storage resource information if deployed
