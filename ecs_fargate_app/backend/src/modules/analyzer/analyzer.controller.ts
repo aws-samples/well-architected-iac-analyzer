@@ -11,6 +11,7 @@ import { AnalyzerService } from './analyzer.service';
 import { StorageService } from '../storage/storage.service';
 import { AnalyzeRequestDto, IaCTemplateType } from '../../shared/dto/analysis.dto';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('analyzer')
 export class AnalyzerController {
@@ -56,6 +57,7 @@ export class AnalyzerController {
     }
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('analyze')
   async analyze(
     @Body() analyzeRequest: AnalyzeRequestDto,
@@ -121,6 +123,7 @@ export class AnalyzerController {
     }
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('generate-iac')
   async generateIacDocument(
     @Body() body: {
@@ -159,6 +162,7 @@ export class AnalyzerController {
     }
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('get-more-details')
   async getMoreDetails(@Body() body: {
     selectedItems: any[];
@@ -213,6 +217,7 @@ export class AnalyzerController {
     }
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('chat')
   async chat(
     @Body() body: { fileId: string; message: string, lensName?: string, lensAliasArn?: string },

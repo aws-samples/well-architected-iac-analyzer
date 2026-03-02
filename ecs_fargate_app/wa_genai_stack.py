@@ -619,6 +619,22 @@ class WAGenAIStack(Stack):
         # Create S3 bucket and DynamoDB table for storage layer
         # This will be set after the frontend service is created
 
+        # Dedicated bucket for S3 server access logs
+        access_logs_bucket = s3.Bucket(
+            self,
+            "S3AccessLogsBucket",
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
+            enforce_ssl=True,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            lifecycle_rules=[
+                s3.LifecycleRule(
+                    expiration=Duration.days(365),
+                )
+            ],
+        )
+
         # Create S3 bucket for storing analysis results
         analysis_storage_bucket = s3.Bucket(
             self,
@@ -628,6 +644,8 @@ class WAGenAIStack(Stack):
             enforce_ssl=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            server_access_logs_bucket=access_logs_bucket,
+            server_access_logs_prefix="analysis-storage-logs/",
         )
 
         # Create DynamoDB table for metadata
@@ -670,6 +688,8 @@ class WAGenAIStack(Stack):
             enforce_ssl=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            server_access_logs_bucket=access_logs_bucket,
+            server_access_logs_prefix="wafr-docs-logs/",
         )
 
         # Uploading WAFR docs to the corresponding S3 bucket [wafrReferenceDocsBucket]
@@ -1523,6 +1543,14 @@ class WAGenAIStack(Stack):
             "CustomLensesSSMParameter",
             value=custom_lenses_parameter.parameter_name,
             description="SSM Parameter Store name for custom lenses configuration. Update this parameter with your custom lens definitions.",
+        )
+
+        # Output the S3 access logs bucket name
+        cdk.CfnOutput(
+            self,
+            "S3AccessLogsBucketName",
+            value=access_logs_bucket.bucket_name,
+            description="Dedicated S3 bucket for server access logs",
         )
 
         # Node dependencies based on vector store type
