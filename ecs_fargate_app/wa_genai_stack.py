@@ -124,6 +124,9 @@ class WAGenAIStack(Stack):
                 client = user_pool.add_client(
                     "WAAnalyzerClient",
                     generate_secret=True,
+                    id_token_validity=Duration.hours(2),
+                    access_token_validity=Duration.hours(2),
+                    refresh_token_validity=Duration.days(1),
                     o_auth=aws_cognito.OAuthSettings(
                         flows=aws_cognito.OAuthFlows(authorization_code_grant=True),
                         scopes=[aws_cognito.OAuthScope.OPENID],
@@ -138,6 +141,7 @@ class WAGenAIStack(Stack):
                 user_pool=user_pool,
                 user_pool_client=client,
                 user_pool_domain=domain,
+                session_timeout=Duration.hours(2),
                 next=elbv2.ListenerAction.forward([self.frontend_target_group]),
             )
         elif auth_config["authType"] == "existing-cognito":
@@ -161,6 +165,7 @@ class WAGenAIStack(Stack):
                 user_pool=user_pool,
                 user_pool_client=user_pool_client,
                 user_pool_domain=domain,
+                session_timeout=Duration.hours(2),
                 next=elbv2.ListenerAction.forward([self.frontend_target_group]),
             )
         elif auth_config["authType"] == "oidc":
@@ -178,6 +183,7 @@ class WAGenAIStack(Stack):
                 issuer=auth_config["oidc"]["issuer"],
                 token_endpoint=auth_config["oidc"]["tokenEndpoint"],
                 user_info_endpoint=auth_config["oidc"]["userInfoEndpoint"],
+                session_timeout=Duration.hours(2),
                 next=elbv2.ListenerAction.forward([self.frontend_target_group]),
             )
 
@@ -850,6 +856,29 @@ class WAGenAIStack(Stack):
             )
         )
 
+        # Permissions for periodic cleanup of stale temporary workloads
+        kb_lambda_synchronizer.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "wellarchitected:ListWorkloads",
+                ],
+                resources=["*"],
+            )
+        )
+        kb_lambda_synchronizer.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "wellarchitected:DeleteWorkload",
+                ],
+                resources=["*"],
+                conditions={
+                    "StringLike": {
+                        "aws:ResourceTag/WorkloadName": "DO_NOT_DELETE_temp_IaCAnalyzer_*"
+                    }
+                },
+            )
+        )
+
         # Grant Lambda access to the lens metadata table
         lens_metadata_table.grant_read_write_data(kb_lambda_synchronizer)
 
@@ -1126,7 +1155,7 @@ class WAGenAIStack(Stack):
                 min_healthy_percent=100,
                 certificate=certificate,
                 redirect_http=True,
-                ssl_policy=elbv2.SslPolicy.RECOMMENDED_TLS,
+                ssl_policy=elbv2.SslPolicy.TLS13_13,
             )
 
             # Store reference to frontend target group
@@ -1174,6 +1203,9 @@ class WAGenAIStack(Stack):
                 client = user_pool.add_client(
                     "WAAnalyzerClient",
                     generate_secret=True,
+                    id_token_validity=Duration.hours(2),
+                    access_token_validity=Duration.hours(2),
+                    refresh_token_validity=Duration.days(1),
                     o_auth=aws_cognito.OAuthSettings(
                         flows=aws_cognito.OAuthFlows(authorization_code_grant=True),
                         scopes=[aws_cognito.OAuthScope.OPENID],
@@ -1243,6 +1275,16 @@ class WAGenAIStack(Stack):
         # Set ALB idle timeout to 60 minutes
         frontend_service.load_balancer.set_attribute(
             "idle_timeout.timeout_seconds", "3600"
+        )
+
+        # Ensure non-standard or malformed headers are dropped at the load balancer
+        frontend_service.load_balancer.set_attribute(
+            "routing.http.drop_invalid_header_fields.enabled", "true"
+        )
+
+        # Enable ALB access logs, stored in access_logs_bucket under the "alb-access-logs" prefix
+        frontend_service.load_balancer.log_access_logs(
+            access_logs_bucket, "alb-access-logs"
         )
 
         # Allow ALB to access frontend on port 8080

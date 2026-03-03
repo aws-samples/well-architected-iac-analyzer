@@ -436,6 +436,29 @@ class KBStorageStack(Stack):
             )
         )
 
+        # Permissions for periodic cleanup of stale temporary workloads
+        kb_lambda_synchronizer.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "wellarchitected:ListWorkloads",
+                ],
+                resources=["*"],
+            )
+        )
+        kb_lambda_synchronizer.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "wellarchitected:DeleteWorkload",
+                ],
+                resources=["*"],
+                conditions={
+                    "StringLike": {
+                        "aws:ResourceTag/WorkloadName": "DO_NOT_DELETE_temp_IaCAnalyzer_*"
+                    }
+                },
+            )
+        )
+
         # Grant Lambda access to the lens metadata table
         lens_metadata_table.grant_read_write_data(kb_lambda_synchronizer)
 

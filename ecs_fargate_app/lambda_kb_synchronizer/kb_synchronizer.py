@@ -1,6 +1,8 @@
 import csv
 import json
 import os
+import time
+import uuid as uuid_module
 from datetime import datetime
 from io import StringIO
 
@@ -508,9 +510,87 @@ def process_custom_lens(bucket_name, workload_id, custom_lens_data):
     return True
 
 
+def cleanup_stale_temp_workloads():
+    """
+    Periodically lists and removes temporary workloads that have been
+    inactive for more than 24 hours to prevent resource accumulation.
+    """
+    client = boto3.client("wellarchitected")
+    current_time = time.time()
+    max_age_seconds = 86400  # 24 hours
+
+    try:
+        next_token = None
+        stale_workloads = []
+
+        while True:
+            params = {"WorkloadNamePrefix": "DO_NOT_DELETE_temp_IaCAnalyzer_"}
+            if next_token:
+                params["NextToken"] = next_token
+
+            response = client.list_workloads(**params)
+
+            for workload in response.get("WorkloadSummaries", []):
+                updated_at = workload.get("UpdatedAt")
+                if updated_at is None:
+                    continue
+
+                try:
+                    # boto3 returns datetime objects for timestamp fields
+                    if hasattr(updated_at, "timestamp"):
+                        updated_at_unix = updated_at.timestamp()
+                    else:
+                        updated_at_unix = float(updated_at)
+
+                    age_seconds = current_time - updated_at_unix
+                    if age_seconds > max_age_seconds:
+                        stale_workloads.append(
+                            {
+                                "WorkloadId": workload["WorkloadId"],
+                                "WorkloadName": workload.get("WorkloadName", ""),
+                                "AgeHours": round(age_seconds / 3600, 1),
+                            }
+                        )
+                except (TypeError, ValueError):
+                    continue
+
+            next_token = response.get("NextToken")
+            if not next_token:
+                break
+
+        print(f"Found {len(stale_workloads)} stale temporary workload(s) to clean up")
+
+        deleted_count = 0
+        for workload in stale_workloads:
+            try:
+                client.delete_workload(
+                    WorkloadId=workload["WorkloadId"],
+                    ClientRequestToken=str(uuid_module.uuid4()),
+                )
+                deleted_count += 1
+                print(
+                    f"Deleted stale temporary workload: {workload['WorkloadName']} "
+                    f"(ID: {workload['WorkloadId']}, Age: {workload['AgeHours']} hours)"
+                )
+            except ClientError as e:
+                print(f"Error deleting workload {workload['WorkloadId']}: {e}")
+
+        return deleted_count
+
+    except ClientError as e:
+        print(f"Error during temporary workload cleanup: {e}")
+        return 0
+
+
 def handler(event, context):
     bucket_name = os.environ["WA_DOCS_BUCKET_NAME"]
     workload_id = os.environ.get("WORKLOAD_ID")
+
+    # =========================================================================
+    # Step 0: Clean up stale temporary workloads (older than 24 hours)
+    # =========================================================================
+    print("Checking for stale temporary workloads...")
+    cleanup_stale_temp_workloads()
 
     # Define primary Well-Architected lens files
     wellarchitected_files = [
