@@ -20,6 +20,8 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { createHash } from 'crypto';
 import { WorkItem } from '../../shared/interfaces/storage.interface';
 import { FileUploadMode } from '../../shared/dto/analysis.dto';
+import { Throttle } from '@nestjs/throttler';
+import { validateFileContent } from '../../shared/utils/file-validator';
 
 @Controller('storage')
 export class StorageController {
@@ -67,6 +69,7 @@ export class StorageController {
     }
 
     // Endpoint for supporting document upload
+    @Throttle({ default: { limit: 10, ttl: 60000 } })
     @Post('work-items/upload-supporting')
     @UseInterceptors(FileInterceptor('file'))
     async uploadSupportingDocument(
@@ -102,23 +105,32 @@ export class StorageController {
                 );
             }
 
-            // Validate file type
-            const validTypes = [
+            // Validate actual file content against the claimed extension
+            const validation = validateFileContent(file.buffer, file.originalname);
+            if (!validation.valid) {
+                throw new HttpException(
+                    validation.message || 'File content does not match its claimed type',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            // Accept only the expected content types
+            const allowedMimes = [
                 'application/pdf',
                 'text/plain',
                 'image/png',
-                'image/jpeg'
+                'image/jpeg',
             ];
 
-            const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
-            if (fileExtension === 'txt' && !validTypes.includes(file.mimetype)) {
-                file.mimetype = 'text/plain';
-            } else if (!validTypes.includes(file.mimetype)) {
+            if (!validation.detectedMime || !allowedMimes.includes(validation.detectedMime)) {
                 throw new HttpException(
                     'Unsupported file type. Supported types: PDF, TXT, PNG, JPEG/JPG',
                     HttpStatus.BAD_REQUEST,
                 );
             }
+
+            // Use the content-validated MIME type
+            file.mimetype = validation.detectedMime;
 
             // Check if description is provided
             if (!description) {
@@ -208,6 +220,7 @@ export class StorageController {
         }
     }
 
+    @Throttle({ default: { limit: 10, ttl: 60000 } })
     @Post('work-items/upload-files')
     @UseInterceptors(FilesInterceptor('files'))
     async uploadMultipleFiles(
@@ -242,6 +255,17 @@ export class StorageController {
                     `Expected one file for ${uploadMode} mode, but received ${files.length}`,
                     HttpStatus.BAD_REQUEST
                 );
+            }
+
+            // Validate file content integrity for every uploaded file
+            for (const file of files) {
+                const validation = validateFileContent(file.buffer, file.originalname);
+                if (!validation.valid) {
+                    throw new HttpException(
+                        `File "${file.originalname}": ${validation.message}`,
+                        HttpStatus.BAD_REQUEST,
+                    );
+                }
             }
 
             // Process files based on mode

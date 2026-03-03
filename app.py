@@ -39,7 +39,7 @@ nagsuppression_checks = [
     },
     {
         "rule": "AwsSolutions-S1",
-        "reason": "This is a sample solution. S3 server access logging is disabled to minimize costs. Enable in production for audit purposes.",
+        "reason": "Server access logging is enabled on all data buckets. The dedicated access-logs bucket and CDK-managed transient buckets (e.g., BucketDeployment) are excluded to avoid circular logging dependencies.",
     },
     {
         "rule": "AwsSolutions-VPC7",
