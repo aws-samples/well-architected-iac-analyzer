@@ -20,7 +20,8 @@ import { AnalysisResult } from '../../shared/interfaces/analysis.interface';
 import { StorageService } from '../storage/storage.service';
 import * as Prompts from '../../prompts';
 import { FileUploadMode } from '../../shared/dto/analysis.dto';
-import { LensInfo } from '../../shared/interfaces/storage.interface';
+import { GetItemCommand } from '@aws-sdk/client-dynamodb';
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 
 
 interface QuestionGroup {
@@ -97,6 +98,41 @@ export class AnalyzerService {
         this.storageEnabled = this.configService.get<boolean>('storage.enabled', false);
         this.outputLanguage = this.configService.get<string>('language.output', 'en'); // Get language from config
         this.BATCH_SIZE = this.configService.get<number>('analysis.batchSize', 5);
+    }
+
+    /**
+     * Resolves a trusted lens name from the metadata table using the lens ARN.
+     */
+    private async resolveLensName(lensAliasArn?: string): Promise<string> {
+        const defaultName = 'Well-Architected Framework';
+        if (!lensAliasArn) return defaultName;
+
+        try {
+            const dynamoClient = this.awsConfig.createDynamoDBClient();
+            const tableName = this.configService.get<string>('aws.ddb.lensMetadataTable');
+
+            const result = await dynamoClient.send(
+                new GetItemCommand({
+                    TableName: tableName,
+                    Key: marshall({ lensAlias: lensAliasArn }),
+                    ProjectionExpression: 'lensName',
+                }),
+            );
+
+            if (result.Item) {
+                const record = unmarshall(result.Item);
+                if (record.lensName && typeof record.lensName === 'string') {
+                    return record.lensName;
+                }
+            }
+
+            this.logger.warn(`Lens not found in metadata table for ARN: ${lensAliasArn}`);
+            throw new Error('The specified lens is not available. Please select a valid lens.');
+        } catch (error) {
+            if (error.message?.includes('not available')) throw error;
+            this.logger.error('Error resolving lens name:', error);
+            return defaultName;
+        }
     }
 
     /**
@@ -320,11 +356,14 @@ export class AnalyzerService {
      * @param userId The user ID for looking up relevant data
      * @returns A response message from the AI assistant
      */
-    async chat(fileId: string, message: string, userId: string, lensName?: string, lensAlias?: string): Promise<string> {
+    async chat(fileId: string, message: string, userId: string, lensAlias?: string, lensAliasArn?: string): Promise<string> {
         try {
             if (!fileId || !userId) {
                 throw new Error('File ID and User ID are required for chat');
             }
+
+            // Resolve lens name from metadata table
+            const resolvedLensName = await this.resolveLensName(lensAliasArn);
 
             // Get work item and analysis results
             const workItem = await this.storageService.getWorkItem(userId, fileId);
@@ -405,7 +444,7 @@ export class AnalyzerService {
                 uploadMode,
                 analysisContext,
                 fileType,
-                lensName
+                resolvedLensName
             );
 
             // Create array of messages for conversation
@@ -768,7 +807,9 @@ export class AnalyzerService {
 
             // Use the provided lens or default to wellarchitected
             const currentLensAlias = lensAlias || 'wellarchitected';
-            const currentLensName = lensName || 'Well-Architected Framework';
+
+            // Resolve lens name from metadata table
+            const currentLensName = await this.resolveLensName(lensAliasArn);
 
             // Use provided output language or default from service
             const currentOutputLanguage = outputLanguage || this.outputLanguage;
@@ -957,7 +998,7 @@ export class AnalyzerService {
                         supportingDocType,
                         supportingDocName,
                         supportingDocumentDescription,
-                        lensName,
+                        currentLensName,
                         lensPillars,
                         currentOutputLanguage,
                         lensAliasArn
@@ -1097,8 +1138,8 @@ export class AnalyzerService {
         templateType: IaCTemplateType,
         userId?: string,
         lensAlias?: string,
-        lensName?: string,
-        outputLanguage?: string
+        outputLanguage?: string,
+        lensAliasArn?: string
     ): Promise<{ content: string; isCancelled: boolean; error?: string }> {
         try {
             if (!userId) {
@@ -1115,7 +1156,9 @@ export class AnalyzerService {
 
             // Use provided lens or default to 'wellarchitected'
             const currentLensAlias = lensAlias || 'wellarchitected';
-            const currentLensName = lensName || 'Well-Architected Framework';
+
+            // Resolve lens name from metadata table
+            const currentLensName = await this.resolveLensName(lensAliasArn);
 
             // Update lens-specific IaC generation status
             const iacGenerationStatusMap = { ...(workItem.iacGenerationStatus || {}) };
@@ -1405,8 +1448,8 @@ export class AnalyzerService {
         fileId: string,
         templateType?: IaCTemplateType,
         lensAlias?: string,
-        lensName?: string,
-        outputLanguage?: string
+        outputLanguage?: string,
+        lensAliasArn?: string
     ): Promise<{ content: string; error?: string }> {
         const filteredItems = selectedItems.filter(item => !item.applied && item.relevant === true);
         try {
@@ -1417,6 +1460,9 @@ export class AnalyzerService {
             if (!fileId || !userId) {
                 throw new Error('File ID and User ID are required');
             }
+
+            // Resolve lens name from metadata table
+            const resolvedLensName = await this.resolveLensName(lensAliasArn);
 
             // Get file type from work item
             const workItem = await this.storageService.getWorkItem(userId, fileId);
@@ -1494,7 +1540,7 @@ export class AnalyzerService {
                             );
 
                             // Get system prompt for PDFs
-                            const systemPrompt = Prompts.buildPdfDetailsSystemPrompt(lensName, outputLanguage || this.outputLanguage);
+                            const systemPrompt = Prompts.buildPdfDetailsSystemPrompt(resolvedLensName, outputLanguage || this.outputLanguage);
 
                             // Invoke model with PDFs
                             const bedrockClient = this.awsConfig.createBedrockClient();
@@ -1762,7 +1808,7 @@ export class AnalyzerService {
                                 messages,
                                 system: [
                                     {
-                                        text: Prompts.buildImageDetailsSystemPrompt(templateType, modelId, lensName, outputLanguage || this.outputLanguage)
+                                        text: Prompts.buildImageDetailsSystemPrompt(templateType, modelId, resolvedLensName, outputLanguage || this.outputLanguage)
                                     }
                                 ]
                             });
@@ -1842,7 +1888,7 @@ export class AnalyzerService {
                                 messages,
                                 system: [
                                     {
-                                        text: Prompts.buildDetailsSystemPrompt(modelId, lensName, outputLanguage || this.outputLanguage)
+                                        text: Prompts.buildDetailsSystemPrompt(modelId, resolvedLensName, outputLanguage || this.outputLanguage)
                                     }
                                 ]
                             });

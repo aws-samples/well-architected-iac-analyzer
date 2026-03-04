@@ -103,11 +103,6 @@ export const useAnalyzer = () => {
         setPartialResultsError(analysisError);
       }
   
-      // Delete temp workload if it was created
-      if (tempWorkloadId) {
-        await analyzerApi.deleteWorkload(tempWorkloadId);
-      }
-  
       return { results, isCancelled, error: analysisError, fileId: resultFileId };
   
     } catch (err) {
@@ -138,6 +133,16 @@ export const useAnalyzer = () => {
       };
   
     } finally {
+      // Ensure temporary workloads are cleaned up
+      if (tempWorkloadId) {
+        try {
+          await analyzerApi.deleteWorkload(tempWorkloadId);
+        } catch (cleanupErr) {
+          // Cleanup is best-effort; server-side scheduled tasks handle residual cases
+          console.warn('Failed to clean up temporary workload:', cleanupErr);
+        }
+      }
+
       setIsAnalyzing(false);
       setIsCancellingAnalysis(false);
       setProgress(null);

@@ -147,8 +147,8 @@ export class AnalyzerController {
         body.templateType,
         userId,
         lensAlias,
-        body.lensName,
-        body.outputLanguage
+        body.outputLanguage,
+        body.lensAliasArn
       );
       return result;
     } catch (error) {
@@ -184,8 +184,8 @@ export class AnalyzerController {
         body.fileId,
         body.templateType,
         lensAlias,
-        body.lensName,
-        body.outputLanguage
+        body.outputLanguage,
+        body.lensAliasArn
       );
       return result;
     } catch (error) {
@@ -236,8 +236,8 @@ export class AnalyzerController {
         body.fileId,
         body.message,
         userId,
-        body.lensName,
-        lensAlias
+        lensAlias,
+        body.lensAliasArn
       );
 
       return { content: result };
