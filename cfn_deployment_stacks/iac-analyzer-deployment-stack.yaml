@@ -12,7 +12,7 @@ Parameters:
   ModelId:
     Type: String
     Default: 'global.anthropic.claude-sonnet-4-6'
-    Description: 'Amazon Bedrock Model ID to use for analysis. By default uses Claude Sonnet 4.5. The default model uses a GLOBAL cross-Region inference profile, which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix).'
+    Description: 'Amazon Bedrock Model ID to use for analysis. By default uses Claude Sonnet 4.6. The default model uses a GLOBAL cross-Region inference profile, which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix).'
   
   ExtendedContextWindow:
     Type: String
