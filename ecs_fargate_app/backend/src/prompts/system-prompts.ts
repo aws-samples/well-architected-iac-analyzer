@@ -42,7 +42,8 @@ export function buildImageSystemPrompt(
   lensName?: string,
   pillarNames?: string,
   lensPillars?: Record<string, string>,
-  outputLanguage: string = 'en' // Add language parameter with English default
+  outputLanguage: string = 'en',
+  useStructuredOutput: boolean = false
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
   
@@ -63,19 +64,17 @@ export function buildImageSystemPrompt(
     ? `\n\nIMPORTANT: Provide the review results in ${getLanguageNameFromCode(outputLanguage)}. Keep the best practice names in English, but all explanations, reasons, and recommendations should be in ${getLanguageNameFromCode(outputLanguage)}.`
     : '';
 
-  // LLM prompts using XML-like tags, not actual HTML that would be rendered in a browser
-  // nosemgrep: html-in-template-string
-  return `
-  <role>You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).</role>
-  
-  <context>
-  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
-  An architecture diagram has been provided. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
-  </context>
-
-  <instructions>
-  <step>1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given architecture diagram image (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given architecture diagram image.</step>
-  <step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
+  // Conditional content based on output mode
+  const outputFormatStep = useStructuredOutput
+    ? `<step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, provide your analysis as structured JSON. For each best practice:
+   - "name": The exact best practice name from the best_practices_json section. Do not rephrase or summarize.
+   - "relevant": Set based on the criteria in note_on_relevance below.
+   - When relevant is true: set "applied" to true or false based on your assessment of the architecture diagram image.
+     - If applied is true: provide "reasonApplied" (max 100 words) explaining why, citing specific components or services visible in the diagram. Set "reasonNotApplied" and "recommendations" to null.
+     - If applied is false: provide "reasonNotApplied" (max 100 words) explaining why, and "recommendations" (max 400 words) with risks, recommendations and implementation examples. Set "reasonApplied" to null.
+   - When relevant is false: set "applied", "reasonApplied", "reasonNotApplied", and "recommendations" all to null.
+</step>`
+    : `<step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
 \`\`\`
 <json_response>
 {
@@ -92,7 +91,58 @@ export function buildImageSystemPrompt(
 }
 </json_response>
 \`\`\`
-</step>
+</step>`;
+
+  const relevanceClosingNote = useStructuredOutput
+    ? `For best practices marked as "relevant: false", set "applied", "reasonApplied", "reasonNotApplied", and "recommendations" all to null, as these cannot be meaningfully determined from the provided artifact.`
+    : `For best practices marked as "relevant: false", do not include the "applied" field or any recommendations, as these cannot be meaningfully determined from the provided artifact.`;
+
+  const exampleResponseSection = useStructuredOutput ? '' : `
+
+  <example_response>
+  <json_response>
+  {
+      "bestPractices": [
+          {
+          "name": "Implement secure key and certificate management",
+          "relevant": true,
+          "applied": true,
+          "reasonApplied": "The architecture diagram references the use of an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit."
+          },
+          {
+          "name": "Enforce encryption in transit",
+          "relevant": true,
+          "applied": true,
+          "reasonApplied": "The Application Load Balancer referenced in the diagram is configured to use HTTPS protocol on port 443 with SSL policy ELBSecurityPolicy-2016-08."
+          },
+          {
+          "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
+          "relevant": true,
+          "applied": false,
+          "reasonNotApplied": "The architecture diagram does not provide details about the overall network topology or interconnections between multiple VPCs.",
+          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs."
+          },
+          {
+          "name": "Evaluate external customer needs",
+          "relevant": false
+          }
+      ]
+  }
+  </json_response>
+  </example_response>`;
+
+  // nosemgrep: html-in-template-string
+  return `
+  <role>You are an AWS Cloud Solutions Architect who specializes in reviewing architecture diagrams against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).</role>
+  
+  <context>
+  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
+  An architecture diagram has been provided. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
+  </context>
+
+  <instructions>
+  <step>1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given architecture diagram image (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given architecture diagram image.</step>
+  ${outputFormatStep}
 
   <step>3) Do not rephrase or summarize the practice name, and DO NOT skip any of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section.</step>
   <step>4) Do not make any assumptions or make up information. Your responses should only be based on the actual architecture diagram provided, together with the attached supporting document (if provided). Refer to the "<supporting_document>" for specific instructions and descriptions related to the supporting document.</step>
@@ -128,41 +178,10 @@ export function buildImageSystemPrompt(
      - It involves human procedures, meetings, or operational activities that happen outside the infrastructure definition
      - It cannot be reasonably assessed by examining the technical artifact provided
 
-  For best practices marked as "relevant: false", do not include the "applied" field or any recommendations, as these cannot be meaningfully determined from the provided artifact.
+  ${relevanceClosingNote}
   </thinking>
   </note_on_relevance>
-
-  <example_response>
-  <json_response>
-  {
-      "bestPractices": [
-          {
-          "name": "Implement secure key and certificate management",
-          "relevant": true,
-          "applied": true,
-          "reasonApplied": "The architecture diagram references the use of an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit."
-          },
-          {
-          "name": "Enforce encryption in transit",
-          "relevant": true,
-          "applied": true,
-          "reasonApplied": "The Application Load Balancer referenced in the diagram is configured to use HTTPS protocol on port 443 with SSL policy ELBSecurityPolicy-2016-08."
-          },
-          {
-          "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
-          "relevant": true,
-          "applied": false,
-          "reasonNotApplied": "The architecture diagram does not provide details about the overall network topology or interconnections between multiple VPCs.",
-          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs."
-          },
-          {
-          "name": "Evaluate external customer needs",
-          "relevant": false
-          }
-      ]
-  }
-  </json_response>
-  </example_response>
+${exampleResponseSection}
 `;
 }
 
@@ -181,7 +200,8 @@ export function buildSystemPrompt(
   lensName?: string,
   pillarNames?: string,
   lensPillars?: Record<string, string>,
-  outputLanguage: string = 'en' // Add language parameter with English default
+  outputLanguage: string = 'en',
+  useStructuredOutput: boolean = false
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
 
@@ -202,19 +222,17 @@ export function buildSystemPrompt(
     ? `\n\nIMPORTANT: Provide the review results in ${getLanguageNameFromCode(outputLanguage)}. Keep the best practice names in English, but all explanations, reasons, and recommendations should be in ${getLanguageNameFromCode(outputLanguage)}.`
     : '';
 
-  // LLM prompts using XML-like tags, not actual HTML that would be rendered in a browser
-  // nosemgrep: html-in-template-string
-  return `
-  <role>You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).</role>
-  
-  <context>
-  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
-  The content of a CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) template document is provided below in the "uploaded_template_document" section. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
-  </context>
-  
-  <instructions>
-  <step>1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given CloudFormation, Terraform or AWS CDK template document (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given CloudFormation, Terraform or AWS CDK template document.</step>
-  <step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
+  // Conditional content based on output mode
+  const outputFormatStep = useStructuredOutput
+    ? `<step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, provide your analysis as structured JSON. For each best practice:
+   - "name": The exact best practice name from the best_practices_json section. Do not rephrase or summarize.
+   - "relevant": Set based on the criteria in note_on_relevance below.
+   - When relevant is true: set "applied" to true or false based on your assessment of the CloudFormation, Terraform or AWS CDK template document.
+     - If applied is true: provide "reasonApplied" (max 100 words) explaining why, citing specific template resources or configurations. Set "reasonNotApplied" and "recommendations" to null.
+     - If applied is false: provide "reasonNotApplied" (max 100 words) explaining why, and "recommendations" (max 400 words) with risks, recommendations and implementation examples including code snippets. Set "reasonApplied" to null.
+   - When relevant is false: set "applied", "reasonApplied", "reasonNotApplied", and "recommendations" all to null.
+</step>`
+    : `<step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
   \`\`\`
   <json_response>
   {
@@ -231,7 +249,55 @@ export function buildSystemPrompt(
   }
   </json_response>
   \`\`\`
-  </step>
+  </step>`;
+
+  const relevanceClosingNote = useStructuredOutput
+    ? `For best practices marked as "relevant: false", set "applied", "reasonApplied", "reasonNotApplied", and "recommendations" all to null, as these cannot be meaningfully determined from the provided artifact.`
+    : `For best practices marked as "relevant: false", do not include the "applied" field or any recommendations, as these cannot be meaningfully determined from the provided artifact.`;
+
+  const exampleResponseSection = useStructuredOutput ? '' : `
+
+  <example_response>
+  <json_response>
+  {
+      "bestPractices": [
+          {
+          "name": "Implement secure key and certificate management",
+          "applied": true,
+          "reasonApplied": "The template provisions an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit."
+          },
+          {
+          "name": "Enforce encryption in transit",
+          "applied": true,
+          "reasonApplied": "The Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
+          },
+          {
+          "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
+          "applied": false,
+          "reasonNotApplied": "The template does not provide details about the overall network topology or interconnections between multiple VPCs.",
+          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs."
+          },
+          {
+          "name": "Evaluate external customer needs",
+          "relevant": false
+          }
+      ]
+  }
+  </json_response>
+  </example_response>`;
+
+  // nosemgrep: html-in-template-string
+  return `
+  <role>You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).</role>
+  
+  <context>
+  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
+  The content of a CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) template document is provided below in the "uploaded_template_document" section. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
+  </context>
+  
+  <instructions>
+  <step>1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given CloudFormation, Terraform or AWS CDK template document (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given CloudFormation, Terraform or AWS CDK template document.</step>
+  ${outputFormatStep}
 
   <step>3) Do not rephrase or summarize the practice name, and DO NOT skip any of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section.</step>
   <step>4) Do not make any assumptions or make up information. Your responses should only be based on the actual solution document provided in the "uploaded_template_document" section below, together with the attached supporting document (if provided). Refer to the "<supporting_document>" for specific instructions and descriptions related to the supporting document.</step>
@@ -267,38 +333,10 @@ export function buildSystemPrompt(
      - It involves human procedures, meetings, or operational activities that happen outside the infrastructure definition
      - It cannot be reasonably assessed by examining the technical artifact provided
 
-  For best practices marked as "relevant: false", do not include the "applied" field or any recommendations, as these cannot be meaningfully determined from the provided artifact.
+  ${relevanceClosingNote}
   </thinking>
   </note_on_relevance>
-
-  <example_response>
-  <json_response>
-  {
-      "bestPractices": [
-          {
-          "name": "Implement secure key and certificate management",
-          "applied": true,
-          "reasonApplied": "The template provisions an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit."
-          },
-          {
-          "name": "Enforce encryption in transit",
-          "applied": true,
-          "reasonApplied": "The Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
-          },
-          {
-          "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
-          "applied": false,
-          "reasonNotApplied": "The template does not provide details about the overall network topology or interconnections between multiple VPCs.",
-          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs."
-          },
-          {
-          "name": "Evaluate external customer needs",
-          "relevant": false
-          }
-      ]
-  }
-  </json_response>
-  </example_response>
+${exampleResponseSection}
 
   <uploaded_template_document>
   ${fileContent}
@@ -321,7 +359,8 @@ export function buildProjectSystemPrompt(
   lensName?: string,
   pillarNames?: string,
   lensPillars?: Record<string, string>,
-  outputLanguage: string = 'en' // Add language parameter with English default
+  outputLanguage: string = 'en',
+  useStructuredOutput: boolean = false
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
 
@@ -342,19 +381,17 @@ export function buildProjectSystemPrompt(
     ? `\n\nIMPORTANT: Provide the review results in ${getLanguageNameFromCode(outputLanguage)}. Keep the best practice names in English, but all explanations, reasons, and recommendations should be in ${getLanguageNameFromCode(outputLanguage)}.`
     : '';
 
-  // LLM prompts using XML-like tags, not actual HTML that would be rendered in a browser
-  // nosemgrep: html-in-template-string
-  return `
-  <role>You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).</role>
-  
-  <context>
-  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
-  A complete project containing multiple Infrastructure as Code (IaC) files is provided below in the "uploaded_project" section. The project could contain multiple CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) files that together define the complete infrastructure or application. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
-  </context>
-  
-  <instructions>
-  <step>1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given project (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given project.</step>
-  <step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
+  // Conditional content based on output mode
+  const outputFormatStep = useStructuredOutput
+    ? `<step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, provide your analysis as structured JSON. For each best practice:
+   - "name": The exact best practice name from the best_practices_json section. Do not rephrase or summarize.
+   - "relevant": Set based on the criteria in note_on_relevance below.
+   - When relevant is true: set "applied" to true or false based on your assessment of the project.
+     - If applied is true: provide "reasonApplied" (max 100 words) explaining why, citing the specific file(s) where this is implemented. Set "reasonNotApplied" and "recommendations" to null.
+     - If applied is false: provide "reasonNotApplied" (max 100 words) explaining why, and "recommendations" (max 400 words) with risks, recommendations and implementation examples referencing specific files. Set "reasonApplied" to null.
+   - When relevant is false: set "applied", "reasonApplied", "reasonNotApplied", and "recommendations" all to null.
+</step>`
+    : `<step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
   \`\`\`
   <json_response>
   {
@@ -371,7 +408,51 @@ export function buildProjectSystemPrompt(
   }
   </json_response>
   \`\`\`
-  </step>
+  </step>`;
+
+  const relevanceClosingNote = useStructuredOutput
+    ? `For best practices marked as "relevant: false", set "applied", "reasonApplied", "reasonNotApplied", and "recommendations" all to null, as these cannot be meaningfully determined from the provided artifact.`
+    : `For best practices marked as "relevant: false", do not include the "applied" field or any recommendations, as these cannot be meaningfully determined from the provided artifact.`;
+
+  const exampleResponseSection = useStructuredOutput ? '' : `
+
+  <example_response>
+  <json_response>
+  {
+      "bestPractices": [
+          {
+          "name": "Implement secure key and certificate management",
+          "applied": true,
+          "reasonApplied": "The project implements secure key management in 'network/load_balancer.tf' where an AWS Certificate Manager (ACM) certificate is provisioned for the Application Load Balancer to enforce HTTPS encryption in transit."
+          },
+          {
+          "name": "Enforce encryption in transit",
+          "applied": true,
+          "reasonApplied": "In 'network/load_balancer.tf', the Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
+          },
+          {
+          "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
+          "applied": false,
+          "reasonNotApplied": "The project does not implement any specific network topology in the VPC configuration files ('network/vpc.tf' and 'network/subnets.tf').",
+          "recommendations": "In 'network/vpc.tf', you should implement a hub-and-spoke model using transit gateways instead of the direct VPC peering seen in the file. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity, potential misconfiguration leading to reachability issues, and difficulty applying consistent network policies across VPCs."
+          }
+      ]
+  }
+  </json_response>
+  </example_response>`;
+
+  // nosemgrep: html-in-template-string
+  return `
+  <role>You are an AWS Cloud Solutions Architect who specializes in reviewing solution architecture documents against the ${lensContext}, using a process called the Well-Architected Framework Review (WAFR).</role>
+  
+  <context>
+  The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
+  A complete project containing multiple Infrastructure as Code (IaC) files is provided below in the "uploaded_project" section. The project could contain multiple CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) files that together define the complete infrastructure or application. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
+  </context>
+  
+  <instructions>
+  <step>1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given project (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given project.</step>
+  ${outputFormatStep}
 
   <step>3) Do not rephrase or summarize the practice name, and DO NOT skip any of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section.</step>
   <step>4) Do not make any assumptions or make up information. Your responses should only be based on the actual project provided in the "uploaded_project" section below, together with the attached supporting document (if provided). Refer to the "<supporting_document>" for specific instructions and descriptions related to the supporting document.</step>
@@ -408,34 +489,10 @@ export function buildProjectSystemPrompt(
      - It involves human procedures, meetings, or operational activities that happen outside the infrastructure definition
      - It cannot be reasonably assessed by examining the technical artifact provided
 
-  For best practices marked as "relevant: false", do not include the "applied" field or any recommendations, as these cannot be meaningfully determined from the provided artifact.
+  ${relevanceClosingNote}
   </thinking>
   </note_on_relevance>
-
-  <example_response>
-  <json_response>
-  {
-      "bestPractices": [
-          {
-          "name": "Implement secure key and certificate management",
-          "applied": true,
-          "reasonApplied": "The project implements secure key management in 'network/load_balancer.tf' where an AWS Certificate Manager (ACM) certificate is provisioned for the Application Load Balancer to enforce HTTPS encryption in transit."
-          },
-          {
-          "name": "Enforce encryption in transit",
-          "applied": true,
-          "reasonApplied": "In 'network/load_balancer.tf', the Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
-          },
-          {
-          "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
-          "applied": false,
-          "reasonNotApplied": "The project does not implement any specific network topology in the VPC configuration files ('network/vpc.tf' and 'network/subnets.tf').",
-          "recommendations": "In 'network/vpc.tf', you should implement a hub-and-spoke model using transit gateways instead of the direct VPC peering seen in the file. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity, potential misconfiguration leading to reachability issues, and difficulty applying consistent network policies across VPCs."
-          }
-      ]
-  }
-  </json_response>
-  </example_response>
+${exampleResponseSection}
 
   <uploaded_project>
   ${projectContent}
@@ -660,7 +717,8 @@ export function buildPdfSystemPrompt(
   lensName?: string,
   numberOfPdfs: number = 1,
   lensPillars?: Record<string, string>,
-  outputLanguage: string = 'en' // Add language parameter with English default
+  outputLanguage: string = 'en',
+  useStructuredOutput: boolean = false // reserved for future use; always false for PDF (citations conflict)
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
   

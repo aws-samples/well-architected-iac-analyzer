@@ -20,6 +20,7 @@ export default () => ({
       knowledgeBaseId: process.env.KNOWLEDGE_BASE_ID,
       modelId: process.env.MODEL_ID,
       extendedContextWindow: process.env.EXTENDED_CONTEXT_WINDOW === 'true',
+      structuredOutput: process.env.STRUCTURED_OUTPUT !== 'false', // enabled by default for supported models
     },
     ddb: {
       lensMetadataTable: process.env.LENS_METADATA_TABLE,

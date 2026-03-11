@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AwsConfigService } from '../../config/aws.config';
 import {
     ConverseCommand,
+    ConverseCommandInput,
     Message,
     SystemContentBlock,
     ThrottlingException as BedrockThrottlingException
@@ -22,6 +23,7 @@ import * as Prompts from '../../prompts';
 import { FileUploadMode } from '../../shared/dto/analysis.dto';
 import { GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+import { buildAnalysisOutputConfig } from '../../shared/schemas/analysis-output-schema';
 
 
 interface QuestionGroup {
@@ -276,6 +278,25 @@ export class AnalyzerService {
         return [
             'claude-opus-4-6',
             'claude-sonnet-4-6'
+        ].some(model => modelId.includes(model));
+    }
+
+    // Check if the current model and configuration support structured output
+    private supportsStructuredOutput(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+
+        // Respect explicit opt-out via configuration
+        const configEnabled = this.configService.get<boolean>('aws.bedrock.structuredOutput', true);
+        if (!configEnabled) return false;
+
+        // Structured output is available on Claude 4.5+ models
+        return [
+            'claude-haiku-4-5',
+            'claude-sonnet-4-5',
+            'claude-opus-4-5',
+            'claude-opus-4-6',
+            'claude-sonnet-4-6',
         ].some(model => modelId.includes(model));
     }
 
@@ -2082,14 +2103,21 @@ export class AnalyzerService {
         supportingDocDescription?: string,
         lensName?: string,
         lensPillars?: Record<string, string>,
-        outputLanguage: string = 'en' // Add language parameter with English default
+        outputLanguage: string = 'en'
     ): Promise<any> {
         try {
+            // Determine whether structured output can be used for this request.
+            // It is incompatible with document citations (used for PDF analysis),
+            // so it is only enabled when no PDF documents are part of the request.
+            const hasPdfSupportingDoc = supportingDocType === 'application/pdf';
+            const useStructuredOutput =
+                this.supportsStructuredOutput() &&
+                uploadMode !== FileUploadMode.PDF_FILE &&
+                !hasPdfSupportingDoc;
+
             // Handle PDF files
             if (uploadMode === FileUploadMode.PDF_FILE) {
-                // fileContent should be an array of PDF files with filename and buffer
                 const pdfFiles = fileContent;
-
                 return await this.analyzePdfFiles(
                     pdfFiles,
                     question,
@@ -2118,12 +2146,12 @@ export class AnalyzerService {
             const pillarNames = lensPillars ? Object.values(lensPillars).join(', ') :
                 'Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability';
 
-            // Choose the appropriate system prompt based on uploadMode and pass the language parameter
+            // Choose the appropriate system prompt based on uploadMode and pass the language and structured output parameters
             const systemPrompt = isImage
-                ? Prompts.buildImageSystemPrompt(question, lensName, pillarNames, lensPillars, outputLanguage)
+                ? Prompts.buildImageSystemPrompt(question, lensName, pillarNames, lensPillars, outputLanguage, useStructuredOutput)
                 : uploadMode === FileUploadMode.SINGLE_FILE
-                    ? Prompts.buildSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars, outputLanguage)
-                    : Prompts.buildProjectSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars, outputLanguage);
+                    ? Prompts.buildSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars, outputLanguage, useStructuredOutput)
+                    : Prompts.buildProjectSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars, outputLanguage, useStructuredOutput);
 
             // Ensure fileContent is properly formatted for images
             if (isImage && !fileContent.startsWith('data:')) {
@@ -2138,14 +2166,16 @@ export class AnalyzerService {
                     fileContent,
                     supportingDocContent,
                     supportingDocType,
-                    supportingDocName
+                    supportingDocName,
+                    useStructuredOutput
                 )
                 : await this.invokeBedrockModel(
                     prompt,
                     systemPrompt,
                     supportingDocContent,
                     supportingDocType,
-                    supportingDocName
+                    supportingDocName,
+                    useStructuredOutput
                 );
 
             return {
@@ -2224,13 +2254,18 @@ export class AnalyzerService {
         imageContent: string,
         supportingDocContent?: string,
         supportingDocType?: string,
-        supportingDocName?: string
+        supportingDocName?: string,
+        useStructuredOutput: boolean = false
     ): Promise<ModelResponse> {
         const bedrockClient = this.awsConfig.createBedrockClient();
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
 
         // Get model parameters based on the model type
         const modelParams = this.getModelParameters();
+
+        // Safety check: structured output is incompatible with document citations
+        const hasPdfInRequest = supportingDocType === 'application/pdf';
+        const shouldUseStructuredOutput = useStructuredOutput && !hasPdfInRequest;
 
         try {
             // Extract base64 data and media type from data URL
@@ -2240,11 +2275,11 @@ export class AnalyzerService {
             }
 
             const [, imageMediaType, imageBase64Data] = matches;
-            const imageFormat = imageMediaType.split('/')[1]; // Extract format from media type (e.g., "png" from "image/png")
+            const imageFormat = imageMediaType.split('/')[1];
 
             const messages: Message[] = [
                 {
-                    role: "user", // Using literal "user" as required by the API
+                    role: "user",
                     content: [
                         {
                             image: {
@@ -2264,13 +2299,11 @@ export class AnalyzerService {
             // Add supporting document to message content if provided
             if (supportingDocContent && supportingDocType) {
                 if (supportingDocType === 'text/plain') {
-                    // For plain text
                     messages[0].content.push({
                         text: supportingDocContent
                     });
                 } else if (supportingDocType.startsWith('image/')) {
-                    // For images
-                    const supportingFormat = supportingDocType.split('/')[1]; // Extract format
+                    const supportingFormat = supportingDocType.split('/')[1];
                     messages[0].content.push({
                         image: {
                             format: supportingFormat as "png" | "jpeg" | "gif" | "webp",
@@ -2280,7 +2313,6 @@ export class AnalyzerService {
                         }
                     });
                 } else if (supportingDocType === 'application/pdf') {
-                    // For PDFs
                     messages[0].content.push({
                         document: {
                             format: "pdf",
@@ -2304,17 +2336,33 @@ export class AnalyzerService {
                 }
             ];
 
-            const command = new ConverseCommand({
+            const commandInput: ConverseCommandInput = {
                 modelId,
                 ...modelParams,
                 messages,
                 system
-            });
+            };
 
+            // Attach output schema when the model supports constrained decoding
+            if (shouldUseStructuredOutput) {
+                commandInput.outputConfig = buildAnalysisOutputConfig();
+            }
+
+            const command = new ConverseCommand(commandInput);
             const response = await bedrockClient.send(command);
 
             // Extract text from the response
             const responseText = this.extractTextFromContent(response.output.message.content);
+
+            if (shouldUseStructuredOutput) {
+                try {
+                    return JSON.parse(responseText);
+                } catch (parseError) {
+                    this.logger.warn('Schema-constrained response failed direct parse, falling back to cleaning');
+                    const cleaned = this.cleanJsonString(responseText);
+                    return JSON.parse(cleaned);
+                }
+            }
 
             const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
             return JSON.parse(cleanedAnalysisJsonString);
@@ -2329,7 +2377,8 @@ export class AnalyzerService {
         systemPrompt: string,
         supportingDocContent?: string,
         supportingDocType?: string,
-        supportingDocName?: string
+        supportingDocName?: string,
+        useStructuredOutput: boolean = false
     ): Promise<ModelResponse> {
         const bedrockClient = this.awsConfig.createBedrockClient();
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
@@ -2349,16 +2398,18 @@ export class AnalyzerService {
             }
         ];
 
+        // Safety check: structured output is incompatible with document citations
+        const hasPdfInRequest = supportingDocType === 'application/pdf';
+        const shouldUseStructuredOutput = useStructuredOutput && !hasPdfInRequest;
+
         // Add supporting document to message content if provided
         if (supportingDocContent && supportingDocType) {
             if (supportingDocType === 'text/plain') {
-                // For plain text
                 messages[0].content.push({
                     text: supportingDocContent
                 });
             } else if (supportingDocType.startsWith('image/')) {
-                // For images
-                const supportingFormat = supportingDocType.split('/')[1]; // Extract format
+                const supportingFormat = supportingDocType.split('/')[1];
                 messages[0].content.push({
                     image: {
                         format: supportingFormat as "png" | "jpeg" | "gif" | "webp",
@@ -2368,7 +2419,6 @@ export class AnalyzerService {
                     }
                 });
             } else if (supportingDocType === 'application/pdf') {
-                // For PDFs
                 messages[0].content.push({
                     document: {
                         format: "pdf",
@@ -2386,7 +2436,7 @@ export class AnalyzerService {
         }
 
         try {
-            const command = new ConverseCommand({
+            const commandInput: ConverseCommandInput = {
                 modelId,
                 ...modelParams,
                 messages,
@@ -2394,17 +2444,33 @@ export class AnalyzerService {
                     {
                         text: systemPrompt
                     }
-                ]
-            });
+                ],
+            };
 
+            // Attach output schema when the model supports constrained decoding
+            if (shouldUseStructuredOutput) {
+                commandInput.outputConfig = buildAnalysisOutputConfig();
+            }
+
+            const command = new ConverseCommand(commandInput);
             const response = await bedrockClient.send(command);
 
             // Extract text from response
             const responseText = this.extractTextFromContent(response.output.message.content);
 
+            if (shouldUseStructuredOutput) {
+                // Schema-constrained response is guaranteed valid JSON
+                try {
+                    return JSON.parse(responseText);
+                } catch (parseError) {
+                    this.logger.warn('Schema-constrained response failed direct parse, falling back to cleaning');
+                    const cleaned = this.cleanJsonString(responseText);
+                    return JSON.parse(cleaned);
+                }
+            }
+
             const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
             const parsedAnalysis = JSON.parse(cleanedAnalysisJsonString);
-
             return parsedAnalysis;
         } catch (error) {
             this.logger.error('Error invoking Bedrock model:', error);
