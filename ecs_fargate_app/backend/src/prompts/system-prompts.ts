@@ -169,7 +169,6 @@ export function buildImageSystemPrompt(
 
 /**
  * Generates a system prompt for analyzing IaC templates (CloudFormation, Terraform, CDK)
- * @param fileContent The content of the template file
  * @param question The question group containing best practices to evaluate
  * @param lensName Optional lens name
  * @param pillarNames Comma-separated pillar names  
@@ -177,12 +176,11 @@ export function buildImageSystemPrompt(
  * @returns A system prompt for IaC template analysis
  */
 export function buildSystemPrompt(
-  fileContent: string, 
   question: QuestionGroup,
   lensName?: string,
   pillarNames?: string,
   lensPillars?: Record<string, string>,
-  outputLanguage: string = 'en' // Add language parameter with English default
+  outputLanguage: string = 'en'
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
 
@@ -210,11 +208,11 @@ export function buildSystemPrompt(
   
   <context>
   The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
-  The content of a CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) template document is provided below in the "uploaded_template_document" section. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
+  A CloudFormation, Terraform, or AWS Cloud Development Kit (AWS CDK) template document has been provided in the user message within <uploaded_document> tags. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
   </context>
   
   <instructions>
-  <step>1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given CloudFormation, Terraform or AWS CDK template document (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given CloudFormation, Terraform or AWS CDK template document.</step>
+  <step>1) In the "<best_practices_json>" section of the user message, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given CloudFormation, Terraform or AWS CDK template document (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given CloudFormation, Terraform or AWS CDK template document.</step>
   <step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
   \`\`\`
   <json_response>
@@ -235,12 +233,12 @@ export function buildSystemPrompt(
   </step>
 
   <step>3) Do not rephrase or summarize the practice name, and DO NOT skip any of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section.</step>
-  <step>4) Do not make any assumptions or make up information. Your responses should only be based on the actual solution document provided in the "uploaded_template_document" section below, together with the attached supporting document (if provided). Refer to the "<supporting_document>" for specific instructions and descriptions related to the supporting document.</step>
+  <step>4) Do not make any assumptions or make up information. Your responses should only be based on the actual template document provided in the <uploaded_document> section, together with the attached supporting document (if provided). Refer to the "<supporting_document>" for specific instructions and descriptions related to the supporting document.</step>
   <step>5) You are also provided with a Knowledge Base which has information about the specific question's best practices from the ${lensContext}. The relevant parts from the Knowledge Base will be provided under the "<kb>" section.</step>
   </instructions>
 
   <document_processing>
-  <step>1. First, thoroughly examine BOTH the IaC template in "uploaded_template_document" AND any supporting documents provided</step>
+  <step>1. First, thoroughly examine BOTH the provided IaC template AND any supporting documents provided</step>
   <step>2. Supporting documents may be in various formats (.pdf, .txt, .png, .jpg, .jpeg) and contain critical context not visible in the IaC template alone</step>
   <step>3. Consider the architectural layers: 
      - IaC template defines workload-specific resources
@@ -301,16 +299,11 @@ export function buildSystemPrompt(
   }
   </json_response>
   </example_response>
-
-  <uploaded_template_document>
-  ${fileContent}
-  </uploaded_template_document>
 `;
 }
 
 /**
  * Generates a system prompt for analyzing projects with multiple files (ZIP or multiple files)
- * @param projectContent The packed content of the project
  * @param question The question group containing best practices to evaluate
  * @param lensName Optional lens name
  * @param pillarNames Comma-separated pillar names  
@@ -318,12 +311,11 @@ export function buildSystemPrompt(
  * @returns A system prompt for project analysis
  */
 export function buildProjectSystemPrompt(
-  projectContent: string, 
   question: QuestionGroup,
   lensName?: string,
   pillarNames?: string,
   lensPillars?: Record<string, string>,
-  outputLanguage: string = 'en' // Add language parameter with English default
+  outputLanguage: string = 'en'
 ): string {
   const numberOfBestPractices = question.bestPractices.length;
 
@@ -351,11 +343,11 @@ export function buildProjectSystemPrompt(
   
   <context>
   The WAFR process consists of evaluating the provided solution architecture document against the ${pillarCount} pillars of the ${lensContext}, namely - ${formattedPillarNames} - by asking fixed questions for each pillar.
-  A complete project containing multiple Infrastructure as Code (IaC) files is provided below in the "uploaded_project" section. The project could contain multiple CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) files that together define the complete infrastructure or application. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
+  A complete project containing multiple Infrastructure as Code (IaC) files has been provided in the user message within <uploaded_project> tags. The project could contain multiple CloudFormation, Terraform or AWS Cloud Development Kit (AWS CDK) files that together define the complete infrastructure or application. Follow the instructions listed under "<instructions>" section below.${languageInstruction}
   </context>
   
   <instructions>
-  <step>1) In the "<best_practices_json>" section, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given project (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given project.</step>
+  <step>1) In the "<best_practices_json>" section of the user message, you are provided with the name of the ${numberOfBestPractices} Best Practices related to the questions "${question.title}" of the ${lensContext}. For each Best Practice, first, determine if it is relevant to the given project (refer to the <note_on_relevance> section below for more details). Then, if considered relevant, determine if it is applied or not in the given project.</step>
   <step>2) For each of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section, create and return your answer as a JSON between <json_response> and </json_response> tags following the exact format as below example:
   \`\`\`
   <json_response>
@@ -376,13 +368,13 @@ export function buildProjectSystemPrompt(
   </step>
 
   <step>3) Do not rephrase or summarize the practice name, and DO NOT skip any of the ${numberOfBestPractices} best practices listed in the "<best_practices_json>" section.</step>
-  <step>4) Do not make any assumptions or make up information. Your responses should only be based on the actual project provided in the "uploaded_project" section below, together with the attached supporting document (if provided). Refer to the "<supporting_document>" for specific instructions and descriptions related to the supporting document.</step>
+  <step>4) Do not make any assumptions or make up information. Your responses should only be based on the actual project provided in the <uploaded_project> section, together with the attached supporting document (if provided). Refer to the "<supporting_document>" for specific instructions and descriptions related to the supporting document.</step>
   <step>5) You are also provided with a Knowledge Base which has information about the specific question's best practices from the ${lensContext}. The relevant parts from the Knowledge Base will be provided under the "<kb>" section.</step>
   <step>6) When referencing files in your response, use the exact file paths as shown in the "Directory Structure" section of the uploaded project.</step>
   </instructions>
 
   <document_processing>
-  <step>1. First, thoroughly examine BOTH the IaC project in "uploaded_project" AND any supporting documents provided</step>
+  <step>1. First, thoroughly examine BOTH the provided IaC project AND any supporting documents provided</step>
   <step>2. Supporting documents may be in various formats (.pdf, .txt, .png, .jpg, .jpeg) and contain critical context not visible in the IaC project alone</step>
   <step>3. Consider the architectural layers: 
      - IaC project defines workload-specific resources
@@ -439,10 +431,6 @@ export function buildProjectSystemPrompt(
   }
   </json_response>
   </example_response>
-
-  <uploaded_project>
-  ${projectContent}
-  </uploaded_project>
 `;
 }
 

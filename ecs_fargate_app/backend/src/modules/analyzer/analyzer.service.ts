@@ -181,6 +181,55 @@ export class AnalyzerService {
     }
 
     /**
+     * Sends a command to Bedrock, extracts the text response, and parses it as
+     * structured JSON.  If the model output is not valid JSON, the command is
+     * re-invoked (up to maxRetries additional attempts) so the model can
+     * produce a well-formed response.
+     *
+     * Non-parse errors (e.g. throttling, network) are thrown immediately and
+     * handled by the caller's own error-handling / retry logic.
+     */
+    private async sendAndParseModelResponse(
+        sendCommand: () => Promise<any>,
+        maxRetries: number = 5,
+        operationLabel: string = 'model invocation'
+    ): Promise<ModelResponse> {
+        let lastError: Error | undefined;
+
+        for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+            try {
+                const response = await sendCommand();
+                const responseText = this.extractTextFromContent(
+                    response.output.message.content
+                );
+                const cleanedJson = this.cleanJsonString(responseText);
+                return JSON.parse(cleanedJson);
+            } catch (error) {
+                lastError = error as Error;
+
+                // Re-invoke only when the model produced a response that could
+                // not be parsed as valid JSON
+                if (error instanceof SyntaxError && attempt <= maxRetries) {
+                    this.logger.warn(
+                        `Malformed model response for ${operationLabel} ` +
+                        `(attempt ${attempt}/${maxRetries + 1}). Re-invoking model...`
+                    );
+                    // Progressive back-off: 1 s, 2 s, 3 s, …
+                    await new Promise(resolve =>
+                        setTimeout(resolve, 1000 * attempt)
+                    );
+                    continue;
+                }
+
+                // Non-parse errors or retries exhausted — propagate immediately
+                throw error;
+            }
+        }
+
+        throw lastError!;
+    }
+
+    /**
      * Process a batch of questions in parallel
      */
     private async processBatch(
@@ -2082,7 +2131,7 @@ export class AnalyzerService {
         supportingDocDescription?: string,
         lensName?: string,
         lensPillars?: Record<string, string>,
-        outputLanguage: string = 'en' // Add language parameter with English default
+        outputLanguage: string = 'en'
     ): Promise<any> {
         try {
             // Handle PDF files
@@ -2107,23 +2156,23 @@ export class AnalyzerService {
             // Determine if it's an image
             const isImage = uploadMode === FileUploadMode.SINGLE_FILE && fileType.startsWith('image/');
 
-            // Choose the appropriate prompt based on uploadMode
-            const prompt = isImage
-                ? Prompts.buildImagePrompt(question, kbContexts, supportingDocName, supportingDocDescription)
-                : uploadMode === FileUploadMode.SINGLE_FILE
-                    ? Prompts.buildPrompt(question, kbContexts, supportingDocName, supportingDocDescription)
-                    : Prompts.buildProjectPrompt(question, kbContexts, supportingDocName, supportingDocDescription);
-
             // Get pillar names as comma-separated string for prompts
             const pillarNames = lensPillars ? Object.values(lensPillars).join(', ') :
                 'Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability';
 
-            // Choose the appropriate system prompt based on uploadMode and pass the language parameter
+            // Build user prompt — for text/project modes, include file content in the user message
+            const prompt = isImage
+                ? Prompts.buildImagePrompt(question, kbContexts, supportingDocName, supportingDocDescription)
+                : uploadMode === FileUploadMode.SINGLE_FILE
+                    ? Prompts.buildPrompt(question, kbContexts, supportingDocName, supportingDocDescription, fileContent)
+                    : Prompts.buildProjectPrompt(question, kbContexts, supportingDocName, supportingDocDescription, fileContent);
+
+            // Build system prompt — instructions only, no file content
             const systemPrompt = isImage
                 ? Prompts.buildImageSystemPrompt(question, lensName, pillarNames, lensPillars, outputLanguage)
                 : uploadMode === FileUploadMode.SINGLE_FILE
-                    ? Prompts.buildSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars, outputLanguage)
-                    : Prompts.buildProjectSystemPrompt(fileContent, question, lensName, pillarNames, lensPillars, outputLanguage);
+                    ? Prompts.buildSystemPrompt(question, lensName, pillarNames, lensPillars, outputLanguage)
+                    : Prompts.buildProjectSystemPrompt(question, lensName, pillarNames, lensPillars, outputLanguage);
 
             // Ensure fileContent is properly formatted for images
             if (isImage && !fileContent.startsWith('data:')) {
@@ -2311,13 +2360,11 @@ export class AnalyzerService {
                 system
             });
 
-            const response = await bedrockClient.send(command);
-
-            // Extract text from the response
-            const responseText = this.extractTextFromContent(response.output.message.content);
-
-            const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
-            return JSON.parse(cleanedAnalysisJsonString);
+            return await this.sendAndParseModelResponse(
+                () => bedrockClient.send(command),
+                5,
+                'image analysis'
+            );
         } catch (error) {
             this.logger.error('Error invoking Bedrock model:', error);
             throw new Error(`Failed to analyze diagram with AI model. Error invoking Bedrock model: ${error}`);
@@ -2397,15 +2444,11 @@ export class AnalyzerService {
                 ]
             });
 
-            const response = await bedrockClient.send(command);
-
-            // Extract text from response
-            const responseText = this.extractTextFromContent(response.output.message.content);
-
-            const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
-            const parsedAnalysis = JSON.parse(cleanedAnalysisJsonString);
-
-            return parsedAnalysis;
+            return await this.sendAndParseModelResponse(
+                () => bedrockClient.send(command),
+                5,
+                'template analysis'
+            );
         } catch (error) {
             this.logger.error('Error invoking Bedrock model:', error);
             throw new Error(`Failed to analyze template with AI model. Error invoking Bedrock model: ${error}`);
@@ -2697,13 +2740,11 @@ export class AnalyzerService {
                 system: [{ text: systemPrompt }]
             });
 
-            const response = await bedrockClient.send(command);
-
-            // Extract text from response
-            const responseText = this.extractTextFromContent(response.output.message.content);
-
-            const cleanedAnalysisJsonString = this.cleanJsonString(responseText);
-            return JSON.parse(cleanedAnalysisJsonString);
+            return await this.sendAndParseModelResponse(
+                () => bedrockClient.send(command),
+                5,
+                'PDF analysis'
+            );
         } catch (error) {
             this.logger.error('Error invoking Bedrock model with PDFs:', error);
             throw new Error(`Failed to analyze PDF documents with AI model. Error invoking Bedrock model: ${error}`);
