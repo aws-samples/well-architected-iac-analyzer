@@ -116,12 +116,13 @@ export function buildImageSystemPrompt(
   <thinking>
   When determining if a best practice is "relevant", consider whether it can be meaningfully assessed from the technical artifact provided:
 
-  1. Mark a best practice as "relevant: true" ONLY if:
+  1. Mark a best practice as "relevant: true" ONLY if ALL of the below statements are TRUE:
      - The [**Technical Relevancy score:**] for the particular best practice within the <kb> section is 7 or greater than 7.
      - It directly relates to AWS resources, configurations, architecture patterns, or technical implementations
+     - It can be reasonably assessed by examining and in the context of the technical artifact provided
      - Evidence of its application (or lack thereof) can be observed in the provided architecture diagram
 
-  2. Mark a best practice as "relevant: false" if:
+  2. Mark a best practice as "relevant: false" if at least ONE of the below statements are TRUE:
      - The [**Technical Relevancy score:**] for the particular best practice within the <kb> section is 6 or less than 6.
      - It primarily concerns organizational processes, team structures, or governance (e.g., "Establish ownership of cost optimization")
      - It focuses on business practices not reflected in technical implementations (e.g., "Evaluate external customer needs")
@@ -255,12 +256,13 @@ export function buildSystemPrompt(
   <thinking>
   When determining if a best practice is "relevant", consider whether it can be meaningfully assessed from the technical artifact provided:
 
-  1. Mark a best practice as "relevant: true" ONLY if:
+  1. Mark a best practice as "relevant: true" ONLY if ALL of the below statements are TRUE:
      - The [**Technical Relevancy score:**] for the particular best practice within the <kb> section is 7 or greater than 7.
      - It directly relates to AWS resources, configurations, architecture patterns, or technical implementations
+     - It can be reasonably assessed by examining and in the context of the technical artifact provided
      - Evidence of its application (or lack thereof) can be observed in the provided CloudFormation, Terraform or AWS CDK template files
 
-  2. Mark a best practice as "relevant: false" if:
+  2. Mark a best practice as "relevant: false" if at least ONE of the below statements are TRUE:
      - The [**Technical Relevancy score:**] for the particular best practice within the <kb> section is 6 or less than 6.
      - It primarily concerns organizational processes, team structures, or governance (e.g., "Establish ownership of cost optimization")
      - It focuses on business practices not reflected in technical implementations (e.g., "Evaluate external customer needs")
@@ -396,12 +398,13 @@ export function buildProjectSystemPrompt(
   <thinking>
   When determining if a best practice is "relevant", consider whether it can be meaningfully assessed from the technical artifact provided:
 
-  1. Mark a best practice as "relevant: true" ONLY if:
+  1. Mark a best practice as "relevant: true" ONLY if ALL of the below statements are TRUE:
      - The [**Technical Relevancy score:**] for the particular best practice within the <kb> section is 7 or greater than 7.
      - It directly relates to AWS resources, configurations, architecture patterns, or technical implementations
+     - It can be reasonably assessed by examining and in the context of the technical artifact provided
      - Evidence of its application (or lack thereof) can be observed in the provided project files
 
-  2. Mark a best practice as "relevant: false" if:
+  2. Mark a best practice as "relevant: false" if at least ONE of the below statements are TRUE:
      - The [**Technical Relevancy score:**] for the particular best practice within the <kb> section is 6 or less than 6.
      - It primarily concerns organizational processes, team structures, or governance (e.g., "Establish ownership of cost optimization")
      - It focuses on business practices not reflected in technical implementations (e.g., "Evaluate external customer needs")
@@ -737,12 +740,13 @@ export function buildPdfSystemPrompt(
   <thinking>
   When determining if a best practice is "relevant", consider whether it can be meaningfully assessed from the documentation provided:
 
-  1. Mark a best practice as "relevant: true" ONLY if:
+  1. Mark a best practice as "relevant: true" ONLY if ALL of the below statements are TRUE:
      - The [**Technical Relevancy score:**] for the particular best practice within the <kb> section is 7 or greater than 7.
      - It directly relates to AWS resources, configurations, architecture patterns, or technical implementations
+     - It can be reasonably assessed by examining and in the context of the technical artifact provided
      - Evidence of its application (or lack thereof) can be observed from the information provided in the PDF documentation file(s)
 
-  2. Mark a best practice as "relevant: false" if:
+  2. Mark a best practice as "relevant: false" if at least ONE of the below statements are TRUE:
      - The [**Technical Relevancy score:**] for the particular best practice within the <kb> section is 6 or less than 6.
      - It primarily concerns organizational processes, team structures, or governance (e.g., "Establish ownership of cost optimization")
      - It focuses on business practices not reflected in technical implementations (e.g., "Evaluate external customer needs")
