@@ -72,13 +72,15 @@ export function buildImagePrompt(
  * @param kbContexts Knowledge base contexts from Bedrock
  * @param supportingDocName Name of supporting document (if any)
  * @param supportingDocDescription Description of supporting document (if any)
+ * @param fileContent Optional IaC template content to include at the top of the prompt
  * @returns A prompt for IaC template analysis
  */
 export function buildPrompt(
   question: QuestionGroup,
   kbContexts: string[],
   supportingDocName?: string,
-  supportingDocDescription?: string
+  supportingDocDescription?: string,
+  fileContent?: string
 ): string {
   const bestPracticesJson = JSON.stringify({
     pillar: question.pillar,
@@ -86,7 +88,19 @@ export function buildPrompt(
     bestPractices: question.bestPractices
   }, null, 2);
 
-  let prompt = `
+  // Start with longform document content at the top when provided
+  let prompt = '';
+
+  if (fileContent) {
+    prompt += `
+  <uploaded_document>
+  ${fileContent}
+  </uploaded_document>
+
+`;
+  }
+
+  prompt += `
   <best_practices_json>
   ${bestPracticesJson}
   </best_practices_json>
@@ -138,13 +152,15 @@ export function buildPrompt(
  * @param kbContexts Knowledge base contexts from Bedrock
  * @param supportingDocName Name of supporting document (if any)
  * @param supportingDocDescription Description of supporting document (if any)
+ * @param projectContent Optional project packed content to include at the top of the prompt
  * @returns A prompt for project analysis
  */
 export function buildProjectPrompt(
   question: QuestionGroup,
   kbContexts: string[],
   supportingDocName?: string,
-  supportingDocDescription?: string
+  supportingDocDescription?: string,
+  projectContent?: string
 ): string {
   const bestPracticesJson = JSON.stringify({
     pillar: question.pillar,
@@ -152,7 +168,19 @@ export function buildProjectPrompt(
     bestPractices: question.bestPractices
   }, null, 2);
 
-  let prompt = `
+  // Start with longform project content at the top when provided
+  let prompt = '';
+
+  if (projectContent) {
+    prompt += `
+  <uploaded_project>
+  ${projectContent}
+  </uploaded_project>
+
+`;
+  }
+
+  prompt += `
   <best_practices_json>
   ${bestPracticesJson}
   </best_practices_json>

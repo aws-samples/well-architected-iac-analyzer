@@ -14,14 +14,15 @@ export function buildDetailsPrompt(
   supportingDocName?: string,
   supportingDocDescription?: string
 ): string {
+  // Longform document content placed first for optimal processing
   let prompt = `
-    <bp_recommendation_analysis>
-    ${JSON.stringify([item], null, 2)}
-    </bp_recommendation_analysis>
-    
     <iac_document_or_project>
     ${fileContent}
     </iac_document_or_project>
+
+    <bp_recommendation_analysis>
+    ${JSON.stringify([item], null, 2)}
+    </bp_recommendation_analysis>
     ${previousContent ? `\n<previous_analysis>\n${previousContent}\n</previous_analysis>` : ''}
   `;
 
