@@ -11,6 +11,13 @@ FROM --platform=linux/${PLATFORM} node:alpine3.23
 
 WORKDIR /app
 
+# avoid-apk-upgrade: Security best practice. Running apk upgrade ensures the alpine container has the latest
+# security patches applied, even if the base image has known vulnerabilities at publish time.
+# nosemgrep: avoid-apk-upgrade
+RUN apk update && \
+    apk upgrade --no-cache && \
+    rm -rf /var/cache/apk/*
+
 # Install dependencies
 COPY frontend/package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
