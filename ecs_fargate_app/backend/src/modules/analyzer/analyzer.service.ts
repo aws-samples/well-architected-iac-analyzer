@@ -323,6 +323,7 @@ export class AnalyzerService {
         if (!modelId) return false;
 
         return [
+            'claude-opus-4-7',
             'claude-opus-4-6',
             'claude-sonnet-4-6'
         ].some(model => modelId.includes(model));
