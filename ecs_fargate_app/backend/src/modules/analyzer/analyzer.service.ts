@@ -329,6 +329,13 @@ export class AnalyzerService {
         ].some(model => modelId.includes(model));
     }
 
+    // Check if the current model is Claude Opus 4.7 (has specific API differences)
+    private isOpus47(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+        return modelId.includes('claude-opus-4-7');
+    }
+
     /**
      * Extracts and concatenates all text content from a Bedrock response content array.
      * @param content The content array from Bedrock response
@@ -351,7 +358,25 @@ export class AnalyzerService {
         const useExtendedThinking = this.supportsExtendedThinking();
         const extendedContextWindow = this.configService.get<boolean>('aws.bedrock.extendedContextWindow', false);
 
-        // Claude 4.6+ models: Use adaptive thinking with high effort
+        // Claude Opus 4.7: Adaptive thinking only, no budget_tokens, no sampling params,
+        // native 1M context window (no beta header needed), supports xhigh effort
+        if (this.isOpus47()) {
+            return {
+                additionalModelRequestFields: {
+                    thinking: {
+                        type: "adaptive"
+                    },
+                    output_config: {
+                        effort: "xhigh"
+                    }
+                },
+                inferenceConfig: {
+                    maxTokens: 32000
+                }
+            };
+        }
+
+        // Claude 4.6 models: Use adaptive thinking with high effort
         if (useAdaptiveThinking) {
             const additionalFields: Record<string, any> = {
                 thinking: {
@@ -2046,6 +2071,54 @@ export class AnalyzerService {
         };
     }
 
+    /**
+     * Returns a model ARN suitable for the Bedrock Knowledge Base RetrieveAndGenerate API.
+     * Some models (e.g. Claude Opus 4.7) are not supported by the KB RetrieveAndGenerate
+     * API or require custom orchestration/generation prompt templates. For those models
+     * we fall back to a compatible model for the KB retrieval step only — the main
+     * analysis still uses the configured model via the Converse API.
+     */
+    private getKnowledgeBaseModelArn(): string {
+        const configuredModelId = this.configService.get<string>('aws.bedrock.modelId');
+        const region = this.configService.get<string>('aws.region');
+
+        // Models that are NOT supported by the KB RetrieveAndGenerate API
+        // (or require custom prompt templates).
+        const unsupportedKbModels = [
+            'claude-opus-4-7',
+        ];
+
+        const isUnsupported = unsupportedKbModels.some(m => configuredModelId.includes(m));
+
+        if (isUnsupported) {
+            this.logger.log(
+                `Model "${configuredModelId}" is not supported by the KB RetrieveAndGenerate API. ` +
+                `Falling back to Claude Sonnet 4.6 for knowledge base retrieval.`
+            );
+            // Use a geographic inference profile matching the deployment region prefix,
+            // or fall back to the global profile.
+            const regionPrefix = configuredModelId.split('.')[0]; // e.g. "global", "us", "eu"
+            const validPrefixes = ['us', 'eu'];
+            const prefix = validPrefixes.includes(regionPrefix) ? regionPrefix : 'global';
+            return `${prefix}.anthropic.claude-sonnet-4-6`;
+        }
+
+        return configuredModelId;
+    }
+
+    /**
+     * Returns whether the configured model forbids explicit sampling parameters
+     * (temperature, top_p, top_k) in the KB generation inference config.
+     */
+    private kbModelForbidsSamplingParams(): boolean {
+        const configuredModelId = this.configService.get<string>('aws.bedrock.modelId');
+        // Claude Opus 4.7 rejects non-default temperature/top_p/top_k.
+        // The fallback model (Sonnet 4.6) also uses adaptive thinking and
+        // may reject these, so we check the *effective* KB model too.
+        const modelsWithoutSampling = ['claude-opus-4-7'];
+        return modelsWithoutSampling.some(m => configuredModelId.includes(m));
+    }
+
     private async retrieveFromKnowledgeBase(
         pillar: string,
         question: string,
@@ -2054,7 +2127,7 @@ export class AnalyzerService {
     ): Promise<string[]> {
         const bedrockAgent = this.awsConfig.createBedrockAgentClient();
         const knowledgeBaseId = this.configService.get<string>('aws.bedrock.knowledgeBaseId');
-        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        const kbModelArn = this.getKnowledgeBaseModelArn();
 
         // Filter KB documentation per pillar if reviewing the standard Well-Architected Framework
         let filter;
@@ -2084,6 +2157,14 @@ export class AnalyzerService {
             };
         }
 
+        // Build generation inference config — omit sampling params for models that reject them
+        const textInferenceConfig: Record<string, any> = {
+            maxTokens: 8192,
+        };
+        if (!this.kbModelForbidsSamplingParams()) {
+            textInferenceConfig.temperature = 0.7;
+        }
+
         const command = new RetrieveAndGenerateCommand({
             input: {
                 text: Prompts.buildKnowledgeBaseInputPrompt(question, pillar, questionGroup, lensName),
@@ -2092,7 +2173,7 @@ export class AnalyzerService {
                 type: "KNOWLEDGE_BASE",
                 knowledgeBaseConfiguration: {
                     knowledgeBaseId: knowledgeBaseId,
-                    modelArn: modelId,
+                    modelArn: kbModelArn,
                     retrievalConfiguration: {
                         vectorSearchConfiguration: {
                             numberOfResults: 10,
@@ -2101,10 +2182,7 @@ export class AnalyzerService {
                     },
                     generationConfiguration: {
                         inferenceConfig: {
-                            textInferenceConfig: {
-                                maxTokens: 8192,
-                                temperature: 0.7
-                            }
+                            textInferenceConfig
                         },
                         promptTemplate: {
                             textPromptTemplate: Prompts.buildKnowledgeBasePromptTemplate(lensName)

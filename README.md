@@ -23,9 +23,9 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
   - Default adjustable batch size configuration (between 1-12) balances speed and API throttling risk
 
 - **NEW** 🧠 **Enhanced AI Capabilities with Latest Anthropic Models:**
-  - Full support for **Claude Sonnet 4.6** and **Claude Opus 4.6** models
-  - **Claude 4.6 models** leverage **Adaptive Thinking** with high effort for complex reasoning and analysis
-  - **1M token context window** natively supported by Claude Opus 4.6 and Claude Sonnet 4.6 models, enabling analysis of much larger IaC projects and architectural documentation in a single pass
+  - Full support for **Claude Opus 4.7**, **Claude Sonnet 4.6**, and **Claude Opus 4.6** models
+  - **Claude 4.6+ models** leverage **Adaptive Thinking** for complex reasoning and analysis
+  - **1M token context window** natively supported by Claude Opus 4.7, Claude Opus 4.6, and Claude Sonnet 4.6 models, enabling analysis of much larger IaC projects and architectural documentation in a single pass
 
 - **NEW** 💰 **Cost-Optimized Vector Storage with Amazon S3 Vectors:**
   - **S3 Vectors** is now the default vector store for the Bedrock Knowledge Base
@@ -136,7 +136,7 @@ This option uses AWS CloudFormation to create a temporary deployment environment
 
      - **Security Note:** By default, the stack deploys with a Public Application Load Balancer (internet-facing) with authentication enabled. For maximum security, we strongly recommend keeping authentication enabled for internet-facing deployments. If you disable authentication, your application will be publicly accessible without any security controls.
 
-     - **Model Selection Note:** The tool currently defaults to **Claude Sonnet 4.6**. If you want to use a different model (E.g. Claude Opus 4.6), you'll need to explicitly add the model ID in the stack "Amazon Bedrock Model ID" configuration parameter. Please note that not all models are available in all AWS regions, so verify availability in your region before deployment.
+     - **Model Selection Note:** The tool currently defaults to **Claude Sonnet 4.6**. If you want to use a different model (E.g. Claude Opus 4.7 or Claude Opus 4.6), you'll need to explicitly add the model ID in the stack "Amazon Bedrock Model ID" configuration parameter. Please note that not all models are available in all AWS regions, so verify availability in your region before deployment.
   
      - **Geographic and Global Cross-Region Inference Note:** The default Claude Sonnet 4.6 model ID uses a GLOBAL cross-Region inference profile (`global.anthropic.claude-sonnet-4-6`), which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix). For more information visit the documentation [Choosing between Geographic and Global cross-Region inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html#cross-region-inference-comparison)
 
@@ -345,7 +345,8 @@ After successful deployment, you can find the Application Load Balancer (ALB) DN
 - **Amazon Bedrock Model ID** (`ModelId`)
   - Default: `global.anthropic.claude-sonnet-4-6` (Claude Sonnet 4.6)
   - You can specify an alternative [Bedrock model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns) if needed
-  - **Note**: This application has been primarily tested with Anthropic models (Claude Sonnet 4.6, Claude Opus 4.6, Claude Sonnet 4.5, and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results.
+  - **Note**: This application has been primarily tested with Anthropic models (Claude Opus 4.7, Claude Sonnet 4.6, Claude Opus 4.6, Claude Sonnet 4.5, and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results.
+  - **Claude 4.7 models**: Use Adaptive Thinking with xhigh effort for complex reasoning and analysis. Natively support 1M token context window.
   - **Claude 4.6 models**: Use Adaptive Thinking with high effort for complex reasoning and analysis. Natively support 1M token context window.
   - **Claude 4.5 models**: Use Extended Thinking with budget tokens for enhanced analysis.
 
@@ -462,7 +463,7 @@ If you want to use a different model than the default Claude Sonnet 4.6, update 
 model_id = global.anthropic.claude-sonnet-4-6
 ```
 
-> **Note:** This application has been primarily tested with Anthropic models (Claude Sonnet 4.6, Claude Opus 4.6, Claude Sonnet 4.5, and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results. The default model ID is set to `global.anthropic.claude-sonnet-4-6`. Claude 4.6 models use Adaptive Thinking with high effort and natively support 1M token context window, while Claude 4.5 models use Extended Thinking with budget tokens.
+> **Note:** This application has been primarily tested with Anthropic models (Claude Opus 4.7, Claude Sonnet 4.6, Claude Opus 4.6, Claude Sonnet 4.5, and Claude Opus 4.5). While other Bedrock models may work, using different models might lead to unexpected results. The default model ID is set to `global.anthropic.claude-sonnet-4-6`. Claude 4.7 models use Adaptive Thinking with xhigh effort and natively support 1M token context window. Claude 4.6 models use Adaptive Thinking with high effort and natively support 1M token context window, while Claude 4.5 models use Extended Thinking with budget tokens.
 
 ### Batch Size Configuration
 
