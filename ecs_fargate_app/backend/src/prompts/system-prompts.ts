@@ -11,6 +11,7 @@ function supportsExtendedThinking(modelId?: string): boolean {
   if (!modelId) return false;
   
   return [
+    'claude-opus-4-7',
     'claude-3-7-sonnet',
     'claude-haiku-4-5',
     'claude-sonnet-4-5',
