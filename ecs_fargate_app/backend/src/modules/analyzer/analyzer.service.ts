@@ -2091,10 +2091,6 @@ export class AnalyzerService {
         const isUnsupported = unsupportedKbModels.some(m => configuredModelId.includes(m));
 
         if (isUnsupported) {
-            this.logger.log(
-                `Model "${configuredModelId}" is not supported by the KB RetrieveAndGenerate API. ` +
-                `Falling back to Claude Sonnet 4.6 for knowledge base retrieval.`
-            );
             // Use a geographic inference profile matching the deployment region prefix,
             // or fall back to the global profile.
             const regionPrefix = configuredModelId.split('.')[0]; // e.g. "global", "us", "eu"
