@@ -62,6 +62,10 @@ nagsuppression_checks = [
         "reason": "This is a sample solution. AdvancedSecurityMode is not enabled to minimize costs for users evaluating this sample, as it incurs additional charges (Cognito Plus subscription). In production, enable AdvancedSecurityMode set to ENFORCED to detect and act upon malicious sign-in attempts.",
     },
     {
+        "rule": "AwsSolutions-COG8",
+        "reason": "This is a sample solution. The Cognito user pool is not on the Plus tier / feature plan to minimize costs for users evaluating this sample, as it incurs additional charges. In production, enable the Plus tier / feature plan to leverage advanced security features such as detecting and acting upon malicious sign-in attempts and protecting against unsafe passwords.",
+    },
+    {
         "rule": "AwsSolutions-COG2",
         "reason": "This is a sample solution. MFA is not enforced to simplify the setup process for users evaluating this sample. In production environments, MFA should be enabled to provide an additional layer of security beyond username and password authentication.",
     },
