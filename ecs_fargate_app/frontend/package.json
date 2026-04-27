@@ -31,7 +31,7 @@
     "react-syntax-highlighter": "16.1.0",
     "rehype-highlight": "7.0.2",
     "socket.io-client": "4.8.3",
-    "uuid": "13.0.0"
+    "uuid": "14.0.0"
   },
   "devDependencies": {
     "@eslint/js": "9.39.3",
