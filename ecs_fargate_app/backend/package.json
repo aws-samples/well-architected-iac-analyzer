@@ -40,8 +40,8 @@
     "uuid": "14.0.0"
   },
   "devDependencies": {
-    "@nestjs/cli": "11.0.16",
-    "@nestjs/schematics": "11.0.9",
+    "@nestjs/cli": "11.0.21",
+    "@nestjs/schematics": "11.1.0",
     "@types/adm-zip": "0.5.7",
     "@types/express": "5.0.6",
     "@types/multer": "2.0.0",
