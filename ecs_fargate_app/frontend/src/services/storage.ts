@@ -36,8 +36,11 @@ export const storageApi = {
         responseType: 'arraybuffer'
       });
 
-      // Get the content type from headers
-      const contentType = response.headers['content-type'] || 'application/octet-stream';
+      // Get the content type from headers; only accept string values, otherwise fall back
+      const rawContentType = response.headers['content-type'];
+      const contentType = typeof rawContentType === 'string' && rawContentType.length > 0
+        ? rawContentType
+        : 'application/octet-stream';
 
       // Create blob from array buffer
       const blob = new Blob([response.data], { type: contentType });
@@ -119,8 +122,11 @@ export const storageApi = {
         responseType: 'arraybuffer'
       });
 
-      // Get the content type from headers
-      const contentType = response.headers['content-type'] || 'application/octet-stream';
+      // Get the content type from headers; only accept string values, otherwise fall back
+      const rawContentType = response.headers['content-type'];
+      const contentType = typeof rawContentType === 'string' && rawContentType.length > 0
+        ? rawContentType
+        : 'application/octet-stream';
 
       // Create blob from array buffer
       const blob = new Blob([response.data], { type: contentType });
