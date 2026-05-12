@@ -49,6 +49,12 @@ interface BestPractice {
     reasonNotApplied: string;
     recommendations: string;
     extendedRecommendations?: string;
+    criticality?: 'High' | 'Medium' | 'Low' | 'N/A';
+    criticalityReason?: string;
+    complexity?: 'High' | 'Medium' | 'Low' | 'N/A';
+    complexityReason?: string;
+    priority?: 'Immediate' | 'Short-term' | 'Long-term' | 'N/A';
+    priorityReason?: string;
 }
 
 interface ModelResponse {
@@ -2826,18 +2832,79 @@ export class AnalyzerService {
         }
     }
 
+    private sanitizeCriticality(value: any): 'High' | 'Medium' | 'Low' | 'N/A' {
+        if (!value) return 'N/A';
+        const normalized = String(value).trim();
+        if (/^high$/i.test(normalized)) return 'High';
+        if (/^medium$/i.test(normalized)) return 'Medium';
+        if (/^low$/i.test(normalized)) return 'Low';
+        return 'N/A';
+    }
+
+    private sanitizeComplexity(value: any): 'High' | 'Medium' | 'Low' | 'N/A' {
+        if (!value) return 'N/A';
+        const normalized = String(value).trim();
+        if (/^high$/i.test(normalized)) return 'High';
+        if (/^medium$/i.test(normalized)) return 'Medium';
+        if (/^low$/i.test(normalized)) return 'Low';
+        return 'N/A';
+    }
+
+    private sanitizePriority(value: any): 'Immediate' | 'Short-term' | 'Long-term' | 'N/A' {
+        if (!value) return 'N/A';
+        const normalized = String(value).trim();
+        if (/^immediate$/i.test(normalized)) return 'Immediate';
+        if (/^short[- ]?term$/i.test(normalized)) return 'Short-term';
+        if (/^long[- ]?term$/i.test(normalized)) return 'Long-term';
+        return 'N/A';
+    }
+
+    private truncateReason(reason: any): string {
+        if (!reason) return 'N/A';
+        const str = String(reason).trim();
+        if (!str) return 'N/A';
+        return str.length > 300 ? `${str.substring(0, 297)}...` : str;
+    }
+
     private parseModelResponse(response: ModelResponse, questionGroup: QuestionGroup): any[] {
         try {
-            return response.bestPractices.map((bp: BestPractice, index: number) => ({
-                id: questionGroup.bestPracticeIds[index],
-                name: bp.name,
-                relevant: bp.relevant,
-                applied: bp.applied,
-                reasonApplied: bp.reasonApplied,
-                reasonNotApplied: bp.reasonNotApplied,
-                recommendations: bp.recommendations,
-                extendedRecommendations: bp.extendedRecommendations,
-            }));
+            return response.bestPractices.map((bp: BestPractice, index: number) => {
+                // Best practices that are Not Relevant or Applied have N/A for all priority fields
+                const isNotRelevantOrApplied = !bp.relevant || bp.applied === true;
+
+                const criticality = isNotRelevantOrApplied
+                    ? 'N/A' as const
+                    : this.sanitizeCriticality(bp.criticality);
+                const complexity = isNotRelevantOrApplied
+                    ? 'N/A' as const
+                    : this.sanitizeComplexity(bp.complexity);
+                const priority = isNotRelevantOrApplied
+                    ? 'N/A' as const
+                    : this.sanitizePriority(bp.priority);
+
+                return {
+                    id: questionGroup.bestPracticeIds[index],
+                    name: bp.name,
+                    relevant: bp.relevant,
+                    applied: bp.applied,
+                    reasonApplied: bp.reasonApplied,
+                    reasonNotApplied: bp.reasonNotApplied,
+                    recommendations: bp.recommendations,
+                    extendedRecommendations: bp.extendedRecommendations,
+                    criticality,
+                    criticalityReason: isNotRelevantOrApplied
+                        ? 'N/A'
+                        : this.truncateReason(bp.criticalityReason),
+                    complexity,
+                    complexityReason: isNotRelevantOrApplied
+                        ? 'N/A'
+                        : this.truncateReason(bp.complexityReason),
+                    priority,
+                    priorityReason: isNotRelevantOrApplied
+                        ? 'N/A'
+                        : this.truncateReason(bp.priorityReason),
+                };
+            });
         } catch (error) {
             this.logger.error('Error parsing model response:', error);
             throw new Error('Failed to parse analysis results');

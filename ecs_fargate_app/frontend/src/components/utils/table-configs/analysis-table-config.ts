@@ -33,6 +33,24 @@ export const getTableFilteringProperties = (language: Language) => {
       groupValuesLabel: strings.propertyFilter.groupValuesLabel.status,
       operators: ['=', '!='],
     },
+    {
+      propertyLabel: strings.analysisResults.criticality,
+      key: 'criticality',
+      groupValuesLabel: `${strings.analysisResults.criticality} ${strings.propertyFilter.groupValuesLabel.status.toLowerCase()}`,
+      operators: ['=', '!='],
+    },
+    {
+      propertyLabel: strings.analysisResults.complexity,
+      key: 'complexity',
+      groupValuesLabel: `${strings.analysisResults.complexity} ${strings.propertyFilter.groupValuesLabel.status.toLowerCase()}`,
+      operators: ['=', '!='],
+    },
+    {
+      propertyLabel: strings.analysisResults.priority,
+      key: 'priority',
+      groupValuesLabel: `${strings.analysisResults.priority} ${strings.propertyFilter.groupValuesLabel.status.toLowerCase()}`,
+      operators: ['=', '!='],
+    },
   ];
 };
 

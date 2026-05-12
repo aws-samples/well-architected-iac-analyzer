@@ -5,6 +5,10 @@ export interface WellArchitectedPillar {
   pillarId?: string;
 }
 
+export type CriticalityLevel = 'High' | 'Medium' | 'Low' | 'N/A';
+export type ComplexityLevel = 'High' | 'Medium' | 'Low' | 'N/A';
+export type PriorityLevel = 'Immediate' | 'Short-term' | 'Long-term' | 'N/A';
+
 export interface BestPractice {
   id: string;
   name: string;
@@ -16,6 +20,12 @@ export interface BestPractice {
   reasonNotApplied?: string;
   recommendations?: string;
   extendedRecommendations?: string;
+  criticality?: CriticalityLevel;
+  criticalityReason?: string;
+  complexity?: ComplexityLevel;
+  complexityReason?: string;
+  priority?: PriorityLevel;
+  priorityReason?: string;
 }
 
 export interface AnalysisResult {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Table,
   Box,
@@ -12,6 +12,7 @@ import {
   Container,
   KeyValuePairs,
   SpaceBetween,
+  Badge,
 } from '@cloudscape-design/components';
 import { HelpButton } from './utils/HelpButton';
 import { useCollection } from '@cloudscape-design/collection-hooks';
@@ -60,7 +61,20 @@ interface PreferencesType {
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAnalyzing, onDownloadRecommendations, onGenerateIacDocument, isDownloading, isImplementing, isLoadingDetails, setIsLoadingDetails, uploadedFileType, selectedIaCType, setError, fileId, fileName, lensAliasArn, lensName, outputLanguage }) => {
   const [preferences, setPreferences] = useState<PreferencesType>({
     pageSize: 10,
-    visibleContent: ['pillar', 'question', 'name', 'status', 'reason', 'recommendations'],
+    visibleContent: [
+      'pillar',
+      'question',
+      'name',
+      'status',
+      'reason',
+      'priority',
+      'priorityReason',
+      'recommendations',
+      'criticality',
+      'criticalityReason',
+      'complexity',
+      'complexityReason',
+    ],
   });
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
@@ -68,6 +82,78 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const { openChatWithSupportPrompt } = useChat();
   const { strings, language } = useLanguage();
+
+  // Render order for Priority values: Immediate first, then Short-term, Long-term, and N/A last
+  const priorityRank = useMemo(() => ({
+    'Immediate': 0,
+    'Short-term': 1,
+    'Long-term': 2,
+    'N/A': 3,
+  } as Record<string, number>), []);
+
+  // Render order for Criticality/Complexity values
+  const levelRank = useMemo(() => ({
+    'High': 0,
+    'Medium': 1,
+    'Low': 2,
+    'N/A': 3,
+  } as Record<string, number>), []);
+
+  // Localized label lookup for Priority enum values
+  const priorityLabel = (value?: string): string => {
+    switch (value) {
+      case 'Immediate':
+        return strings.analysisResults.priorityImmediate;
+      case 'Short-term':
+        return strings.analysisResults.priorityShortTerm;
+      case 'Long-term':
+        return strings.analysisResults.priorityLongTerm;
+      default:
+        return strings.analysisResults.notApplicable;
+    }
+  };
+
+  // Localized label lookup for Criticality/Complexity enum values
+  const levelLabel = (value?: string): string => {
+    switch (value) {
+      case 'High':
+        return strings.analysisResults.levelHigh;
+      case 'Medium':
+        return strings.analysisResults.levelMedium;
+      case 'Low':
+        return strings.analysisResults.levelLow;
+      default:
+        return strings.analysisResults.notApplicable;
+    }
+  };
+
+  // Maps a Priority value to a Cloudscape Badge color
+  const priorityBadgeColor = (value?: string): 'red' | 'blue' | 'green' | 'grey' => {
+    switch (value) {
+      case 'Immediate':
+        return 'red';
+      case 'Short-term':
+        return 'blue';
+      case 'Long-term':
+        return 'green';
+      default:
+        return 'grey';
+    }
+  };
+
+  // Maps a Criticality/Complexity value to a Cloudscape Badge color
+  const levelBadgeColor = (value?: string): 'red' | 'blue' | 'green' | 'grey' => {
+    switch (value) {
+      case 'High':
+        return 'red';
+      case 'Medium':
+        return 'blue';
+      case 'Low':
+        return 'green';
+      default:
+        return 'grey';
+    }
+  };
 
   const handleGenerateIacClick = () => {
     onGenerateIacDocument();
@@ -159,7 +245,19 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
         ),
       },
       pagination: { pageSize: preferences.pageSize },
-      sorting: { defaultState: { sortingColumn: { sortingField: 'pillar' } } },
+      sorting: {
+        defaultState: {
+          sortingColumn: {
+            sortingField: 'priority',
+            sortingComparator: (a: EnhancedBestPractice, b: EnhancedBestPractice) => {
+              const aRank = priorityRank[a.priority ?? 'N/A'] ?? 3;
+              const bRank = priorityRank[b.priority ?? 'N/A'] ?? 3;
+              return aRank - bRank;
+            },
+          },
+          isDescending: false,
+        },
+      },
     }
   );
 
@@ -313,7 +411,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
           },
           {
             id: 'reason',
-            header: strings.analysisResults.reason,
+            header: strings.analysisResults.statusReason,
             cell: item => {
               if (!item.relevant) {
                 return 'N/A';
@@ -321,6 +419,28 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
               return item.applied ? item.reasonApplied : item.reasonNotApplied;
             },
             minWidth: 200,
+          },
+          {
+            id: 'priority',
+            header: strings.analysisResults.priority,
+            cell: item => (
+              <Badge color={priorityBadgeColor(item.priority)}>
+                {priorityLabel(item.priority)}
+              </Badge>
+            ),
+            sortingField: 'priority',
+            sortingComparator: (a: EnhancedBestPractice, b: EnhancedBestPractice) => {
+              const aRank = priorityRank[a.priority ?? 'N/A'] ?? 3;
+              const bRank = priorityRank[b.priority ?? 'N/A'] ?? 3;
+              return aRank - bRank;
+            },
+            minWidth: 140,
+          },
+          {
+            id: 'priorityReason',
+            header: strings.analysisResults.priorityReason,
+            cell: item => item.priorityReason || 'N/A',
+            minWidth: 240,
           },
           {
             id: 'recommendations',
@@ -346,6 +466,50 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
               return !item.applied && item.recommendations || 'N/A';
             },
             minWidth: 500,
+          },
+          {
+            id: 'criticality',
+            header: strings.analysisResults.criticality,
+            cell: item => (
+              <Badge color={levelBadgeColor(item.criticality)}>
+                {levelLabel(item.criticality)}
+              </Badge>
+            ),
+            sortingField: 'criticality',
+            sortingComparator: (a: EnhancedBestPractice, b: EnhancedBestPractice) => {
+              const aRank = levelRank[a.criticality ?? 'N/A'] ?? 3;
+              const bRank = levelRank[b.criticality ?? 'N/A'] ?? 3;
+              return aRank - bRank;
+            },
+            minWidth: 140,
+          },
+          {
+            id: 'criticalityReason',
+            header: strings.analysisResults.criticalityReason,
+            cell: item => item.criticalityReason || 'N/A',
+            minWidth: 240,
+          },
+          {
+            id: 'complexity',
+            header: strings.analysisResults.complexity,
+            cell: item => (
+              <Badge color={levelBadgeColor(item.complexity)}>
+                {levelLabel(item.complexity)}
+              </Badge>
+            ),
+            sortingField: 'complexity',
+            sortingComparator: (a: EnhancedBestPractice, b: EnhancedBestPractice) => {
+              const aRank = levelRank[a.complexity ?? 'N/A'] ?? 3;
+              const bRank = levelRank[b.complexity ?? 'N/A'] ?? 3;
+              return aRank - bRank;
+            },
+            minWidth: 140,
+          },
+          {
+            id: 'complexityReason',
+            header: strings.analysisResults.complexityReason,
+            cell: item => item.complexityReason || 'N/A',
+            minWidth: 240,
           },
         ]}
         items={items}
@@ -405,6 +569,28 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ results, isAna
                 { value: 25, label: `25 ${strings.analysisResults.bestPractice.toLowerCase()}` },
                 { value: 50, label: `50 ${strings.analysisResults.bestPractice.toLowerCase()}` },
                 { value: 100, label: `100 ${strings.analysisResults.bestPractice.toLowerCase()}` },
+              ],
+            }}
+            visibleContentPreference={{
+              title: strings.analysisResults.columnPreferences,
+              options: [
+                {
+                  label: strings.analysisResults.title,
+                  options: [
+                    { id: 'pillar', label: strings.analysisResults.pillar, editable: true },
+                    { id: 'question', label: strings.analysisResults.question, editable: true },
+                    { id: 'name', label: strings.analysisResults.bestPractice, editable: true },
+                    { id: 'status', label: strings.analysisResults.status, editable: true },
+                    { id: 'reason', label: strings.analysisResults.statusReason, editable: true },
+                    { id: 'priority', label: strings.analysisResults.priority, editable: true },
+                    { id: 'priorityReason', label: strings.analysisResults.priorityReason, editable: true },
+                    { id: 'recommendations', label: strings.analysisResults.recommendations, editable: true },
+                    { id: 'criticality', label: strings.analysisResults.criticality, editable: true },
+                    { id: 'criticalityReason', label: strings.analysisResults.criticalityReason, editable: true },
+                    { id: 'complexity', label: strings.analysisResults.complexity, editable: true },
+                    { id: 'complexityReason', label: strings.analysisResults.complexityReason, editable: true },
+                  ],
+                },
               ],
             }}
           />

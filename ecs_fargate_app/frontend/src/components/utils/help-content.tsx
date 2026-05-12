@@ -125,6 +125,14 @@ export const useHelpContent = (): HelpContentMap => {
                         <li><strong>{h.analysisResults.generateIacDocument.split(':')[0]}:</strong> {h.analysisResults.generateIacDocument.split(':').slice(1).join(':').trim()}</li>
                         <li><strong>{h.analysisResults.downloadAnalysis.split(':')[0]}:</strong> {h.analysisResults.downloadAnalysis.split(':').slice(1).join(':').trim()}</li>
                     </ul>
+                    <Box variant="h4">{h.analysisResults.prioritizationTitle}</Box>
+                    <Box variant="p">{h.analysisResults.prioritizationDescription}</Box>
+                    <ul>
+                        <li><strong>{h.analysisResults.criticalityField.split(':')[0]}:</strong> {h.analysisResults.criticalityField.split(':').slice(1).join(':').trim()}</li>
+                        <li><strong>{h.analysisResults.complexityField.split(':')[0]}:</strong> {h.analysisResults.complexityField.split(':').slice(1).join(':').trim()}</li>
+                        <li><strong>{h.analysisResults.priorityField.split(':')[0]}:</strong> {h.analysisResults.priorityField.split(':').slice(1).join(':').trim()}</li>
+                    </ul>
+                    <Box variant="p">{h.analysisResults.priorityNote}</Box>
                 </SpaceBetween>
             )
         },

@@ -17,6 +17,11 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
 
 ## Features
 
+- **NEW** 🎯 **Prioritization Framework with Eisenhower Matrix:**
+  - Each Not Applied best practice is scored with **Criticality** (from Knowledge Base Risk Level), **Complexity** (remediation effort), and **Priority** (Immediate | Short-term | Long-term) derived via the Eisenhower Matrix
+  - Results table defaults to sorting by Priority so **Immediate** findings surface first, with optional columns for Criticality, Complexity, and per-field reasons
+  - Filter the analysis by Criticality, Complexity, or Priority to focus remediation planning, and export all fields to CSV
+
 - **NEW** 🚀 **Accelerated Analysis with Parallel Processing:**
   - Configurable batch size controls how many Well-Architected (or selected Lens) questions are processed in parallel
   - Complete full framework review up to **80% faster** compared to previous sequential processing

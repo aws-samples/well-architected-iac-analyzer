@@ -12,6 +12,12 @@ interface AnalysisResult {
     reasonApplied?: string;
     reasonNotApplied?: string;
     recommendations?: string;
+    criticality?: string;
+    criticalityReason?: string;
+    complexity?: string;
+    complexityReason?: string;
+    priority?: string;
+    priorityReason?: string;
   }[];
 }
 
@@ -41,7 +47,21 @@ export class ReportService {
   generateRecommendationsCsv(results: AnalysisResult[]): string {
     try {
       const rows = [
-        ['Pillar', 'Question', 'Best Practice', 'Relevant', 'Applied', 'Reason', 'Recommendations'],
+        [
+          'Pillar',
+          'Question',
+          'Best Practice',
+          'Relevant',
+          'Applied',
+          'Status Reason',
+          'Recommendations',
+          'Criticality',
+          'Criticality Reason',
+          'Complexity',
+          'Complexity Reason',
+          'Priority',
+          'Priority Reason',
+        ],
       ];
 
       for (const result of results) {
@@ -54,6 +74,12 @@ export class ReportService {
             bp.applied ? 'Yes' : 'No',
             bp.applied ? (bp.reasonApplied || '') : (bp.reasonNotApplied || ''),
             bp.recommendations || '',
+            bp.criticality || 'N/A',
+            bp.criticalityReason || 'N/A',
+            bp.complexity || 'N/A',
+            bp.complexityReason || 'N/A',
+            bp.priority || 'N/A',
+            bp.priorityReason || 'N/A',
           ]);
         }
       }
