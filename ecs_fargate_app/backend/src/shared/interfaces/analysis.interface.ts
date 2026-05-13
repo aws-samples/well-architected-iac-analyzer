@@ -5,6 +5,10 @@ export interface AnalysisResult {
   bestPractices: BestPractice[];
 }
 
+export type CriticalityLevel = 'High' | 'Medium' | 'Low' | 'N/A';
+export type ComplexityLevel = 'High' | 'Medium' | 'Low' | 'N/A';
+export type PriorityLevel = 'Immediate' | 'Short-term' | 'Long-term' | 'N/A';
+
 export interface BestPractice {
   id: string;
   name: string;
@@ -13,6 +17,12 @@ export interface BestPractice {
   reasonApplied?: string;
   reasonNotApplied?: string;
   recommendations?: string;
+  criticality?: CriticalityLevel;
+  criticalityReason?: string;
+  complexity?: ComplexityLevel;
+  complexityReason?: string;
+  priority?: PriorityLevel;
+  priorityReason?: string;
 }
 
 export interface RiskSummary {

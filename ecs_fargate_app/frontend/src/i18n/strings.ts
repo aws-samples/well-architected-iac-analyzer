@@ -78,6 +78,7 @@ export interface I18nStrings {
     bestPractice: string;
     status: string;
     reason: string;
+    statusReason: string;
     recommendations: string;
     applied: string;
     notApplied: string;
@@ -89,6 +90,19 @@ export interface I18nStrings {
     noBestPracticesFound: string;
     noMatches: string;
     clearFilter: string;
+    criticality: string;
+    criticalityReason: string;
+    complexity: string;
+    complexityReason: string;
+    priority: string;
+    priorityReason: string;
+    priorityImmediate: string;
+    priorityShortTerm: string;
+    priorityLongTerm: string;
+    levelHigh: string;
+    levelMedium: string;
+    levelLow: string;
+    notApplicable: string;
   };
   fileUpload: {
     title: string;
@@ -311,6 +325,12 @@ export interface I18nStrings {
       getMoreDetails: string;
       generateIacDocument: string;
       downloadAnalysis: string;
+      prioritizationTitle: string;
+      prioritizationDescription: string;
+      criticalityField: string;
+      complexityField: string;
+      priorityField: string;
+      priorityNote: string;
     };
     wellArchitectedTool: {
       header: string;
@@ -487,7 +507,21 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       bestPractice: "Best Practice",
       status: "Status",
       reason: "Reason",
+      statusReason: "Status Reason",
       recommendations: "Recommendations",
+      criticality: "Criticality",
+      criticalityReason: "Criticality Reason",
+      complexity: "Complexity",
+      complexityReason: "Complexity Reason",
+      priority: "Priority",
+      priorityReason: "Priority Reason",
+      priorityImmediate: "Immediate",
+      priorityShortTerm: "Short-term",
+      priorityLongTerm: "Long-term",
+      levelHigh: "High",
+      levelMedium: "Medium",
+      levelLow: "Low",
+      notApplicable: "N/A",
       applied: "Applied",
       notApplied: "Not Applied",
       notRelevant: "Not Relevant",
@@ -720,6 +754,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         getMoreDetails: 'Get More Details: Get in-depth analysis and recommendations for selected best practices',
         generateIacDocument: 'Generate IaC Document: Convert architecture diagrams into infrastructure code (Available only for image uploads)',
         downloadAnalysis: 'Download Analysis: Export all findings and recommendations as a CSV file',
+        prioritizationTitle: 'Prioritization Fields (Eisenhower Matrix):',
+        prioritizationDescription: 'For each best practice that is Relevant and Not Applied, three additional prioritization fields are produced:',
+        criticalityField: 'Criticality (High | Medium | Low): Maps to the Risk Level of the best practice from the source knowledge base (with an accompanying Criticality Reason).',
+        complexityField: 'Complexity (High | Medium | Low): Reflects the effort and blast radius of remediating the best practice (with an accompanying Complexity Reason).',
+        priorityField: 'Priority (Immediate | Short-term | Long-term): Combines Criticality and Complexity using the Eisenhower Matrix to suggest when to address the finding — within 0-30 days, 30-90 days, or 90-180 days (with an accompanying Priority Reason).',
+        priorityNote: 'Use the table preferences to enable the Criticality, Complexity, and reason columns. Use the filter to narrow the view to specific Criticality, Complexity, or Priority values.',
       },
       wellArchitectedTool: {
         header: 'Well-Architected Tool Integration',
@@ -893,6 +933,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       bestPractice: "ベストプラクティス",
       status: "ステータス",
       reason: "理由",
+      statusReason: "ステータスの理由",
       recommendations: "推奨事項",
       applied: "適用済み",
       notApplied: "未適用",
@@ -904,6 +945,19 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       noBestPracticesFound: "ベストプラクティスが見つかりません",
       noMatches: "一致する項目がありません",
       clearFilter: "フィルターをクリア",
+      criticality: "重要度",
+      criticalityReason: "重要度の理由",
+      complexity: "複雑度",
+      complexityReason: "複雑度の理由",
+      priority: "優先度",
+      priorityReason: "優先度の理由",
+      priorityImmediate: "即時対応",
+      priorityShortTerm: "短期対応",
+      priorityLongTerm: "長期対応",
+      levelHigh: "高",
+      levelMedium: "中",
+      levelLow: "低",
+      notApplicable: "N/A",
     },
     fileUpload: {
       title: "IaC ドキュメント、アーキテクチャ図、または PDF ドキュメントをアップロード",
@@ -1126,6 +1180,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         getMoreDetails: '詳細を取得: 選択したベストプラクティスの詳細な分析と推奨事項を取得',
         generateIacDocument: 'IaC ドキュメントを生成: アーキテクチャ図をインフラストラクチャコードに変換 (画像アップロードのみで利用可能)',
         downloadAnalysis: '分析をダウンロード: すべての調査結果と推奨事項を CSV ファイルとしてエクスポート',
+        prioritizationTitle: '優先度評価フィールド (アイゼンハワーマトリクス):',
+        prioritizationDescription: '関連性があり未適用のベストプラクティスごとに、3 つの優先度評価フィールドが生成されます:',
+        criticalityField: '重要度 (高 | 中 | 低): ソースナレッジベースのベストプラクティスのリスクレベルに対応します（重要度の理由付き）。',
+        complexityField: '複雑度 (高 | 中 | 低): ベストプラクティスを是正するために必要な労力と影響範囲を反映します（複雑度の理由付き）。',
+        priorityField: '優先度 (即時対応 | 短期対応 | 長期対応): アイゼンハワーマトリクスで重要度と複雑度を組み合わせ、対応時期 (0-30 日、30-90 日、90-180 日) を提案します（優先度の理由付き）。',
+        priorityNote: 'テーブル設定で重要度、複雑度、および各理由の列を有効化できます。フィルターを使用して特定の重要度、複雑度、優先度の値で絞り込むことも可能です。',
       },
       wellArchitectedTool: {
         header: 'Well-Architected Tool との統合',
@@ -1299,6 +1359,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       bestPractice: "Práctica recomendada",
       status: "Estado",
       reason: "Razón",
+      statusReason: "Razón del estado",
       recommendations: "Recomendaciones",
       applied: "Aplicado",
       notApplied: "No aplicado",
@@ -1310,6 +1371,19 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       noBestPracticesFound: "No se encontraron prácticas recomendadas",
       noMatches: "Sin coincidencias",
       clearFilter: "Limpiar filtro",
+      criticality: "Criticidad",
+      criticalityReason: "Razón de la criticidad",
+      complexity: "Complejidad",
+      complexityReason: "Razón de la complejidad",
+      priority: "Prioridad",
+      priorityReason: "Razón de la prioridad",
+      priorityImmediate: "Inmediata",
+      priorityShortTerm: "Corto plazo",
+      priorityLongTerm: "Largo plazo",
+      levelHigh: "Alta",
+      levelMedium: "Media",
+      levelLow: "Baja",
+      notApplicable: "N/A",
     },
     fileUpload: {
       title: "Suba sus documentos IaC, diagrama de arquitectura o documentos PDF",
@@ -1532,6 +1606,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         getMoreDetails: 'Obtener más detalles: Obtenga análisis y recomendaciones en profundidad para las mejores prácticas seleccionadas',
         generateIacDocument: 'Generar documento IaC: Convierta diagramas de arquitectura en código de infraestructura (disponible solo para cargas de imágenes)',
         downloadAnalysis: 'Descargar análisis: Exporte todos los hallazgos y recomendaciones como archivo CSV',
+        prioritizationTitle: 'Campos de priorización (Matriz de Eisenhower):',
+        prioritizationDescription: 'Para cada práctica recomendada que sea Relevante y No Aplicada, se generan tres campos adicionales de priorización:',
+        criticalityField: 'Criticidad (Alta | Media | Baja): se mapea al nivel de riesgo de la práctica recomendada según la base de conocimientos de origen (con su correspondiente razón).',
+        complexityField: 'Complejidad (Alta | Media | Baja): refleja el esfuerzo y el radio de impacto de remediar la práctica recomendada (con su correspondiente razón).',
+        priorityField: 'Prioridad (Inmediata | Corto plazo | Largo plazo): combina Criticidad y Complejidad mediante la Matriz de Eisenhower para sugerir cuándo abordar el hallazgo: 0-30 días, 30-90 días o 90-180 días (con su correspondiente razón).',
+        priorityNote: 'Use las preferencias de tabla para activar las columnas de Criticidad, Complejidad y las razones. Use el filtro para acotar la vista por valores específicos de Criticidad, Complejidad o Prioridad.',
       },
       wellArchitectedTool: {
         header: 'Integración con Well-Architected Tool',
@@ -1705,6 +1785,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       bestPractice: "Melhor Prática",
       status: "Status",
       reason: "Motivo",
+      statusReason: "Motivo do Status",
       recommendations: "Recomendações",
       applied: "Aplicado",
       notApplied: "Não Aplicado",
@@ -1716,6 +1797,19 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       noBestPracticesFound: "Nenhuma melhor prática encontrada",
       noMatches: "Sem correspondências",
       clearFilter: "Limpar filtro",
+      criticality: "Criticidade",
+      criticalityReason: "Motivo da Criticidade",
+      complexity: "Complexidade",
+      complexityReason: "Motivo da Complexidade",
+      priority: "Prioridade",
+      priorityReason: "Motivo da Prioridade",
+      priorityImmediate: "Imediata",
+      priorityShortTerm: "Curto prazo",
+      priorityLongTerm: "Longo prazo",
+      levelHigh: "Alta",
+      levelMedium: "Média",
+      levelLow: "Baixa",
+      notApplicable: "N/A",
     },
     fileUpload: {
       title: "Envie seus documentos IaC, imagem de diagrama de arquitetura ou documentos PDF",
@@ -1938,6 +2032,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         getMoreDetails: 'Obter Mais Detalhes: Obtenha análises e recomendações aprofundadas para as melhores práticas selecionadas',
         generateIacDocument: 'Gerar Documento IaC: Converta diagramas de arquitetura em código de infraestrutura (disponível apenas para uploads de imagens)',
         downloadAnalysis: 'Baixar Análise: Exporte todas as descobertas e recomendações como arquivo CSV',
+        prioritizationTitle: 'Campos de priorização (Matriz de Eisenhower):',
+        prioritizationDescription: 'Para cada melhor prática Relevante e Não Aplicada, três campos adicionais de priorização são gerados:',
+        criticalityField: 'Criticidade (Alta | Média | Baixa): mapeada para o nível de risco da melhor prática na base de conhecimento de origem (com o respectivo motivo).',
+        complexityField: 'Complexidade (Alta | Média | Baixa): reflete o esforço e o raio de impacto para remediar a melhor prática (com o respectivo motivo).',
+        priorityField: 'Prioridade (Imediata | Curto prazo | Longo prazo): combina Criticidade e Complexidade usando a Matriz de Eisenhower para sugerir quando tratar a descoberta: 0-30 dias, 30-90 dias ou 90-180 dias (com o respectivo motivo).',
+        priorityNote: 'Use as preferências da tabela para ativar as colunas de Criticidade, Complexidade e seus motivos. Use o filtro para reduzir a visualização por valores específicos de Criticidade, Complexidade ou Prioridade.',
       },
       wellArchitectedTool: {
         header: 'Integração com o Well-Architected Tool',
@@ -2111,6 +2211,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       bestPractice: "Meilleure pratique",
       status: "Statut",
       reason: "Raison",
+      statusReason: "Motif du statut",
       recommendations: "Recommandations",
       applied: "Appliqué",
       notApplied: "Non appliqué",
@@ -2122,6 +2223,19 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       noBestPracticesFound: "Aucune meilleure pratique trouvée",
       noMatches: "Aucune correspondance",
       clearFilter: "Effacer le filtre",
+      criticality: "Criticité",
+      criticalityReason: "Motif de la criticité",
+      complexity: "Complexité",
+      complexityReason: "Motif de la complexité",
+      priority: "Priorité",
+      priorityReason: "Motif de la priorité",
+      priorityImmediate: "Immédiate",
+      priorityShortTerm: "Court terme",
+      priorityLongTerm: "Long terme",
+      levelHigh: "Élevée",
+      levelMedium: "Moyenne",
+      levelLow: "Faible",
+      notApplicable: "N/A",
     },
     fileUpload: {
       title: "Téléchargez vos documents IaC, diagramme d'architecture ou documents PDF",
@@ -2344,6 +2458,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         getMoreDetails: 'Obtenir plus de détails : Obtenez une analyse approfondie et des recommandations pour les meilleures pratiques sélectionnées',
         generateIacDocument: 'Générer un document IaC : Convertissez les diagrammes d\'architecture en code d\'infrastructure (disponible uniquement pour les téléchargements d\'images)',
         downloadAnalysis: 'Télécharger l\'analyse : Exportez tous les résultats et recommandations sous forme de fichier CSV',
+        prioritizationTitle: 'Champs de priorisation (Matrice d\'Eisenhower) :',
+        prioritizationDescription: 'Pour chaque meilleure pratique Pertinente et Non appliquée, trois champs supplémentaires de priorisation sont produits :',
+        criticalityField: 'Criticité (Élevée | Moyenne | Faible) : correspond au niveau de risque de la meilleure pratique dans la base de connaissances source (avec un motif associé).',
+        complexityField: 'Complexité (Élevée | Moyenne | Faible) : reflète l\'effort et le rayon d\'impact de la remédiation (avec un motif associé).',
+        priorityField: 'Priorité (Immédiate | Court terme | Long terme) : combine Criticité et Complexité via la Matrice d\'Eisenhower pour suggérer quand traiter le constat — 0-30 jours, 30-90 jours ou 90-180 jours (avec un motif associé).',
+        priorityNote: 'Utilisez les préférences du tableau pour activer les colonnes Criticité, Complexité et leurs motifs. Utilisez le filtre pour restreindre l\'affichage par valeurs spécifiques de Criticité, Complexité ou Priorité.',
       },
       wellArchitectedTool: {
         header: 'Intégration avec Well-Architected Tool',
@@ -2517,6 +2637,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       bestPractice: "모범 사례",
       status: "상태",
       reason: "이유",
+      statusReason: "상태 이유",
       recommendations: "권장 사항",
       applied: "적용됨",
       notApplied: "미적용",
@@ -2528,6 +2649,19 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       noBestPracticesFound: "모범 사례를 찾을 수 없습니다",
       noMatches: "일치하는 항목 없음",
       clearFilter: "필터 지우기",
+      criticality: "중요도",
+      criticalityReason: "중요도 이유",
+      complexity: "복잡도",
+      complexityReason: "복잡도 이유",
+      priority: "우선순위",
+      priorityReason: "우선순위 이유",
+      priorityImmediate: "즉시",
+      priorityShortTerm: "단기",
+      priorityLongTerm: "장기",
+      levelHigh: "높음",
+      levelMedium: "중간",
+      levelLow: "낮음",
+      notApplicable: "N/A",
     },
     fileUpload: {
       title: "IaC 문서, 아키텍처 다이어그램 이미지 또는 PDF 문서 업로드",
@@ -2750,6 +2884,12 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         getMoreDetails: '자세한 정보 보기: 선택한 모범 사례에 대한 심층 분석 및 권장 사항 받기',
         generateIacDocument: 'IaC 문서 생성: 아키텍처 다이어그램을 인프라 코드로 변환 (이미지 업로드에만 사용 가능)',
         downloadAnalysis: '분석 다운로드: 모든 발견 사항 및 권장 사항을 CSV 파일로 내보내기',
+        prioritizationTitle: '우선순위 필드 (아이젠하워 매트릭스):',
+        prioritizationDescription: '관련성이 있고 미적용인 각 모범 사례에 대해 세 가지 추가 우선순위 필드가 생성됩니다:',
+        criticalityField: '중요도 (높음 | 중간 | 낮음): 소스 지식 베이스에 있는 해당 모범 사례의 위험 수준에 매핑됩니다 (중요도 이유 포함).',
+        complexityField: '복잡도 (높음 | 중간 | 낮음): 모범 사례를 시정하는 데 필요한 노력과 영향 범위를 반영합니다 (복잡도 이유 포함).',
+        priorityField: '우선순위 (즉시 | 단기 | 장기): 아이젠하워 매트릭스로 중요도와 복잡도를 결합하여 처리 시기를 제안합니다 — 0-30일, 30-90일 또는 90-180일 (우선순위 이유 포함).',
+        priorityNote: '테이블 환경설정에서 중요도, 복잡도 및 이유 열을 활성화할 수 있습니다. 필터를 사용하여 특정 중요도, 복잡도 또는 우선순위 값으로 뷰를 좁힐 수 있습니다.',
       },
       wellArchitectedTool: {
         header: 'Well-Architected Tool 통합',

@@ -31,6 +31,63 @@ export function getLanguageNameFromCode(code: string): string {
 }
 
 /**
+ * Builds the shared prioritization framework section used by all analysis
+ * system prompts. Instructs the model to assign Criticality, Complexity, and
+ * Priority (Eisenhower Matrix) to relevant & not-applied best practices.
+ */
+function buildPrioritizationFramework(): string {
+  // LLM prompts using XML-like tags, not actual HTML that would be rendered in a browser
+  // nosemgrep: html-in-template-string
+  return `
+  <prioritization_framework>
+  For EACH best practice that is BOTH relevant=true AND applied=false, you MUST assign the following three scores. For best practices where relevant=false OR applied=true, set all three scores and their reasons to "N/A".
+
+  <criticality_assessment>
+  Assign "criticality" based on the **Risk Level** documented for this best practice in the <kb> Knowledge Base section. Map the risk level as follows:
+  - "High" risk → criticality: "High"
+  - "Medium" risk → criticality: "Medium"
+  - "Low" risk → criticality: "Low"
+  - If the risk level cannot be determined from the <kb> content, infer it from the security and operational impact described in the best practice's implementation guidance and anti-patterns.
+
+  Provide a "criticalityReason" (maximum 300 characters) explaining your choice by referencing the Risk Level from the <kb> or the specific impact described.
+  </criticality_assessment>
+
+  <complexity_assessment>
+  Assign "complexity" to the remediation effort required to implement this best practice in the provided artifact. Apply the following heuristic:
+
+  - **Low**: Simple configuration change, single AWS CLI command or console action, single service, minimal dependencies, no architecture change. Examples: enable MFA, rotate a key, modify a security group rule, enable versioning.
+  - **Medium**: Multi-step process, requires coordination across services or teams, may impact multiple resources, some testing required. Examples: implement backup strategy, rotate access keys across applications, enable VPC Flow Logs, add monitoring.
+  - **High**: Architectural changes, significant testing/validation, multiple service dependencies, substantial blast radius, or requires new components. Examples: implement cross-region DR, redesign IAM structure, migrate to managed service, rearchitect network topology.
+
+  Provide a "complexityReason" (maximum 300 characters) explaining your choice by referencing the remediation steps and scope.
+  </complexity_assessment>
+
+  <priority_assessment>
+  Assign "priority" by combining criticality and complexity using the Eisenhower Matrix:
+
+  - **Immediate** (0-30 days): Critical security/compliance issues with clear remediation paths. Use when:
+    * criticality=High AND complexity=Low OR Medium
+    * criticality=Medium AND complexity=Low AND the best practice impacts Security/authentication/authorization/public exposure
+    * Any finding related to: root account protection, MFA, wide-open security groups (0.0.0.0/0), public write access, unencrypted sensitive data at rest, missing authentication.
+
+  - **Short-term** (30-90 days): Important issues requiring coordination but with manageable effort. Use when:
+    * criticality=Medium AND complexity=Medium
+    * criticality=High AND complexity=High (consider phasing)
+    * criticality=Low AND complexity=Low AND high operational impact
+    * Typical examples: backup/monitoring/logging improvements, policy/governance enhancements.
+
+  - **Long-term** (90-180 days): Enhancement and optimization work with lower urgency or higher effort. Use when:
+    * criticality=Low AND complexity=Medium or High
+    * criticality=Medium AND complexity=High
+    * Testing, documentation, training, or preparation for future compliance requirements.
+
+  Provide a "priorityReason" (maximum 300 characters) explaining the chosen priority tier by explicitly referencing the criticality + complexity combination and any additional context (e.g., "High criticality security finding with Low complexity fix").
+  </priority_assessment>
+  </prioritization_framework>
+`;
+}
+
+/**
  * Generates a system prompt for analyzing architecture diagrams
  * @param question The question group containing best practices to evaluate
  * @param lensName Optional lens name
@@ -87,7 +144,13 @@ export function buildImageSystemPrompt(
       "applied": [Boolean - Only add this field when relevant=true],
       "reasonApplied": [Why do you consider this best practice is already applied or followed in the provided architecture diagram? (Important: 100 words maximum and only add this field when relevant=true and applied=true)],
       "reasonNotApplied": [Why do you consider this best practice is not applied or followed in the provided architecture diagram? (Important: 100 words maximum and only add this field when relevant=true and applied=false)],
-      "recommendations": [Provide recommendations for the best practice. Include what is the risk of not following, and also provide recommendations and examples of how to implement this best practice. (Important: 400 words maximum and only add this field when relevant=true and applied=false)]
+      "recommendations": [Provide recommendations for the best practice. Include what is the risk of not following, and also provide recommendations and examples of how to implement this best practice. (Important: 400 words maximum and only add this field when relevant=true and applied=false)],
+      "criticality": [One of: "High" | "Medium" | "Low" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+      "criticalityReason": [Why you chose that Criticality level. Maximum 300 characters. Use "N/A" when criticality is "N/A".],
+      "complexity": [One of: "High" | "Medium" | "Low" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+      "complexityReason": [Why you chose that Complexity level. Maximum 300 characters. Use "N/A" when complexity is "N/A".],
+      "priority": [One of: "Immediate" | "Short-term" | "Long-term" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+      "priorityReason": [Why you chose that Priority tier using the Eisenhower Matrix combination of criticality and complexity. Maximum 300 characters. Use "N/A" when priority is "N/A".]
     }
   ]
 }
@@ -134,6 +197,8 @@ export function buildImageSystemPrompt(
   </thinking>
   </note_on_relevance>
 
+  ${buildPrioritizationFramework()}
+
   <example_response>
   <json_response>
   {
@@ -142,24 +207,48 @@ export function buildImageSystemPrompt(
           "name": "Implement secure key and certificate management",
           "relevant": true,
           "applied": true,
-          "reasonApplied": "The architecture diagram references the use of an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit."
+          "reasonApplied": "The architecture diagram references the use of an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit.",
+          "criticality": "N/A",
+          "criticalityReason": "N/A",
+          "complexity": "N/A",
+          "complexityReason": "N/A",
+          "priority": "N/A",
+          "priorityReason": "N/A"
           },
           {
           "name": "Enforce encryption in transit",
           "relevant": true,
           "applied": true,
-          "reasonApplied": "The Application Load Balancer referenced in the diagram is configured to use HTTPS protocol on port 443 with SSL policy ELBSecurityPolicy-2016-08."
+          "reasonApplied": "The Application Load Balancer referenced in the diagram is configured to use HTTPS protocol on port 443 with SSL policy ELBSecurityPolicy-2016-08.",
+          "criticality": "N/A",
+          "criticalityReason": "N/A",
+          "complexity": "N/A",
+          "complexityReason": "N/A",
+          "priority": "N/A",
+          "priorityReason": "N/A"
           },
           {
           "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
           "relevant": true,
           "applied": false,
           "reasonNotApplied": "The architecture diagram does not provide details about the overall network topology or interconnections between multiple VPCs.",
-          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs."
+          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs.",
+          "criticality": "Medium",
+          "criticalityReason": "Knowledge Base indicates Medium risk: mesh topologies complicate network policy enforcement and can lead to misconfiguration issues affecting reliability and security.",
+          "complexity": "High",
+          "complexityReason": "Requires introducing a Transit Gateway, updating routing, attachments across VPCs, and coordinated testing across accounts or environments.",
+          "priority": "Long-term",
+          "priorityReason": "Medium criticality combined with High complexity places this in the Long-term tier (90-180 days) per the Eisenhower Matrix; plan phased implementation."
           },
           {
           "name": "Evaluate external customer needs",
-          "relevant": false
+          "relevant": false,
+          "criticality": "N/A",
+          "criticalityReason": "N/A",
+          "complexity": "N/A",
+          "complexityReason": "N/A",
+          "priority": "N/A",
+          "priorityReason": "N/A"
           }
       ]
   }
@@ -225,7 +314,13 @@ export function buildSystemPrompt(
           "applied": [Boolean - Only add this field when relevant=true],
           "reasonApplied": [Why do you consider this best practice is already applied or followed in the provided architecture document? (Important: 100 words maximum and only add this field when applied=true)],
           "reasonNotApplied": [Why do you consider this best practice is not applied or followed in the provided architecture document? (Important: 100 words maximum and only add this field when applied=false)],
-          "recommendations": [Provide recommendations for the best practice. Include what is the risk of not following, and also provide recommendations and examples of how to implement this best practice. (Important: 400 words maximum and only add this field when applied=false)]
+          "recommendations": [Provide recommendations for the best practice. Include what is the risk of not following, and also provide recommendations and examples of how to implement this best practice. (Important: 400 words maximum and only add this field when applied=false)],
+          "criticality": [One of: "High" | "Medium" | "Low" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "criticalityReason": [Why you chose that Criticality level. Maximum 300 characters. Use "N/A" when criticality is "N/A".],
+          "complexity": [One of: "High" | "Medium" | "Low" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "complexityReason": [Why you chose that Complexity level. Maximum 300 characters. Use "N/A" when complexity is "N/A".],
+          "priority": [One of: "Immediate" | "Short-term" | "Long-term" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "priorityReason": [Why you chose that Priority tier using the Eisenhower Matrix combination of criticality and complexity. Maximum 300 characters. Use "N/A" when priority is "N/A".]
         }
       ]
   }
@@ -272,6 +367,8 @@ export function buildSystemPrompt(
   </thinking>
   </note_on_relevance>
 
+  ${buildPrioritizationFramework()}
+
   <example_response>
   <json_response>
   {
@@ -279,22 +376,46 @@ export function buildSystemPrompt(
           {
           "name": "Implement secure key and certificate management",
           "applied": true,
-          "reasonApplied": "The template provisions an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit."
+          "reasonApplied": "The template provisions an AWS Certificate Manager (ACM) certificate for the Application Load Balancer to enforce HTTPS encryption in transit.",
+          "criticality": "N/A",
+          "criticalityReason": "N/A",
+          "complexity": "N/A",
+          "complexityReason": "N/A",
+          "priority": "N/A",
+          "priorityReason": "N/A"
           },
           {
           "name": "Enforce encryption in transit",
           "applied": true,
-          "reasonApplied": "The Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
+          "reasonApplied": "The Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08.",
+          "criticality": "N/A",
+          "criticalityReason": "N/A",
+          "complexity": "N/A",
+          "complexityReason": "N/A",
+          "priority": "N/A",
+          "priorityReason": "N/A"
           },
           {
           "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
           "applied": false,
           "reasonNotApplied": "The template does not provide details about the overall network topology or interconnections between multiple VPCs.",
-          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs."
+          "recommendations": "While not specifically relevant for this single VPC deployment,if you have multiple VPCs that need to communicate,you should implement a hub-and-spoke model using transit gateways. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity,potential misconfiguration leading to reachability issues,and difficulty applying consistent network policies across VPCs.",
+          "criticality": "Medium",
+          "criticalityReason": "Knowledge Base indicates Medium risk: mesh topologies hinder consistent policy enforcement and increase operational risk as the number of VPCs grows.",
+          "complexity": "High",
+          "complexityReason": "Requires introducing a Transit Gateway, migrating routing and attachments across VPCs, and validating connectivity and security controls.",
+          "priority": "Long-term",
+          "priorityReason": "Medium criticality + High complexity maps to the Long-term tier (90-180 days) per the Eisenhower Matrix."
           },
           {
           "name": "Evaluate external customer needs",
-          "relevant": false
+          "relevant": false,
+          "criticality": "N/A",
+          "criticalityReason": "N/A",
+          "complexity": "N/A",
+          "complexityReason": "N/A",
+          "priority": "N/A",
+          "priorityReason": "N/A"
           }
       ]
   }
@@ -360,7 +481,13 @@ export function buildProjectSystemPrompt(
           "applied": [Boolean],
           "reasonApplied": [Why do you consider this best practice is already applied or followed in the provided project? Mention the specific file(s) where this is implemented. (Important: 100 words maximum and only add this field when applied=true)],
           "reasonNotApplied": [Why do you consider this best practice is not applied or followed in the provided project? (Important: 100 words maximum and only add this field when applied=false)],
-          "recommendations": [Provide recommendations for the best practice. Include what is the risk of not following, and also provide recommendations and examples of how to implement this best practice. Reference specific files from the project where the change should be made. (Important: 400 words maximum and only add this field when applied=false)]
+          "recommendations": [Provide recommendations for the best practice. Include what is the risk of not following, and also provide recommendations and examples of how to implement this best practice. Reference specific files from the project where the change should be made. (Important: 400 words maximum and only add this field when applied=false)],
+          "criticality": [One of: "High" | "Medium" | "Low" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "criticalityReason": [Why you chose that Criticality level. Maximum 300 characters. Use "N/A" when criticality is "N/A".],
+          "complexity": [One of: "High" | "Medium" | "Low" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "complexityReason": [Why you chose that Complexity level. Maximum 300 characters. Use "N/A" when complexity is "N/A".],
+          "priority": [One of: "Immediate" | "Short-term" | "Long-term" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "priorityReason": [Why you chose that Priority tier using the Eisenhower Matrix combination of criticality and complexity. Maximum 300 characters. Use "N/A" when priority is "N/A".]
         }
       ]
   }
@@ -408,6 +535,8 @@ export function buildProjectSystemPrompt(
   </thinking>
   </note_on_relevance>
 
+  ${buildPrioritizationFramework()}
+
   <example_response>
   <json_response>
   {
@@ -415,18 +544,36 @@ export function buildProjectSystemPrompt(
           {
           "name": "Implement secure key and certificate management",
           "applied": true,
-          "reasonApplied": "The project implements secure key management in 'network/load_balancer.tf' where an AWS Certificate Manager (ACM) certificate is provisioned for the Application Load Balancer to enforce HTTPS encryption in transit."
+          "reasonApplied": "The project implements secure key management in 'network/load_balancer.tf' where an AWS Certificate Manager (ACM) certificate is provisioned for the Application Load Balancer to enforce HTTPS encryption in transit.",
+          "criticality": "N/A",
+          "criticalityReason": "N/A",
+          "complexity": "N/A",
+          "complexityReason": "N/A",
+          "priority": "N/A",
+          "priorityReason": "N/A"
           },
           {
           "name": "Enforce encryption in transit",
           "applied": true,
-          "reasonApplied": "In 'network/load_balancer.tf', the Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08."
+          "reasonApplied": "In 'network/load_balancer.tf', the Application Load Balancer is configured to use HTTPS protocol on port 443 with the SSL policy ELBSecurityPolicy-2016-08.",
+          "criticality": "N/A",
+          "criticalityReason": "N/A",
+          "complexity": "N/A",
+          "complexityReason": "N/A",
+          "priority": "N/A",
+          "priorityReason": "N/A"
           },
           {
           "name": "Prefer hub-and-spoke topologies over many-to-many mesh",
           "applied": false,
           "reasonNotApplied": "The project does not implement any specific network topology in the VPC configuration files ('network/vpc.tf' and 'network/subnets.tf').",
-          "recommendations": "In 'network/vpc.tf', you should implement a hub-and-spoke model using transit gateways instead of the direct VPC peering seen in the file. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity, potential misconfiguration leading to reachability issues, and difficulty applying consistent network policies across VPCs."
+          "recommendations": "In 'network/vpc.tf', you should implement a hub-and-spoke model using transit gateways instead of the direct VPC peering seen in the file. This simplifies network management and reduces the risk of misconfiguration compared to peering every VPC directly in a mesh topology. The risk of using a mesh topology is increased complexity, potential misconfiguration leading to reachability issues, and difficulty applying consistent network policies across VPCs.",
+          "criticality": "Medium",
+          "criticalityReason": "Knowledge Base indicates Medium risk: mesh topologies hinder consistent policy enforcement and increase operational risk as VPC count grows.",
+          "complexity": "High",
+          "complexityReason": "Requires introducing a Transit Gateway, updating routing and VPC attachments across 'network/vpc.tf' and 'network/subnets.tf', and coordinated connectivity testing.",
+          "priority": "Long-term",
+          "priorityReason": "Medium criticality + High complexity maps to the Long-term tier (90-180 days) per the Eisenhower Matrix."
           }
       ]
   }
@@ -698,7 +845,13 @@ export function buildPdfSystemPrompt(
           "applied": [Boolean - Only add this field when relevant=true],
           "reasonApplied": [Why do you consider this best practice is already applied or followed in the provided architecture document? Include specific PDF file name and section references. (Important: 150 words maximum and only add this field when relevant=true and applied=true)],
           "reasonNotApplied": [Why do you consider this best practice is not applied or followed in the provided architecture document? Include specific PDF file name and section references where applicable. (Important: 150 words maximum and only add this field when relevant=true and applied=false)],
-          "recommendations": [Provide recommendations for the best practice. Include what is the risk of not following, and also provide recommendations and examples of how to implement this best practice, citing specific PDF file name and section references where the recommendation applies. (Important: 400 words maximum and only add this field when relevant=true and applied=false)]
+          "recommendations": [Provide recommendations for the best practice. Include what is the risk of not following, and also provide recommendations and examples of how to implement this best practice, citing specific PDF file name and section references where the recommendation applies. (Important: 400 words maximum and only add this field when relevant=true and applied=false)],
+          "criticality": [One of: "High" | "Medium" | "Low" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "criticalityReason": [Why you chose that Criticality level. Maximum 300 characters. Use "N/A" when criticality is "N/A".],
+          "complexity": [One of: "High" | "Medium" | "Low" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "complexityReason": [Why you chose that Complexity level. Maximum 300 characters. Use "N/A" when complexity is "N/A".],
+          "priority": [One of: "Immediate" | "Short-term" | "Long-term" | "N/A". Use "N/A" when relevant=false OR applied=true. See the <prioritization_framework> section for guidance.],
+          "priorityReason": [Why you chose that Priority tier using the Eisenhower Matrix combination of criticality and complexity. Maximum 300 characters. Use "N/A" when priority is "N/A".]
         }
       ]
   }
@@ -745,6 +898,8 @@ export function buildPdfSystemPrompt(
   For best practices marked as "relevant: false", do not include the "applied" field or any recommendations, as these cannot be meaningfully determined from the provided artifact.
   </thinking>
   </note_on_relevance>
+
+  ${buildPrioritizationFramework()}
   `;
 }
 
