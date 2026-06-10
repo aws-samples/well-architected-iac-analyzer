@@ -342,6 +342,25 @@ export class AnalyzerService {
         return modelId.includes('claude-opus-4-7');
     }
 
+    // Check if the current model is Claude Opus 4.8.
+    // Behaves like Opus 4.7 at the API level: adaptive thinking, no budget_tokens,
+    // no sampling params, native 1M context window (no beta header needed), supports xhigh effort.
+    private isOpus48(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+        return modelId.includes('claude-opus-4-8');
+    }
+
+    // Check if the current model is Claude Fable 5.
+    // Adaptive thinking is ALWAYS ON (no thinking field must be sent, and
+    // thinking: {type: "disabled"} returns an error). No budget_tokens, no sampling
+    // params, native 1M context window. Effort defaults to "high".
+    private isFable5(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+        return modelId.includes('claude-fable-5');
+    }
+
     /**
      * Extracts and concatenates all text content from a Bedrock response content array.
      * @param content The content array from Bedrock response
@@ -364,9 +383,27 @@ export class AnalyzerService {
         const useExtendedThinking = this.supportsExtendedThinking();
         const extendedContextWindow = this.configService.get<boolean>('aws.bedrock.extendedContextWindow', false);
 
-        // Claude Opus 4.7: Adaptive thinking only, no budget_tokens, no sampling params,
-        // native 1M context window (no beta header needed), supports xhigh effort
-        if (this.isOpus47()) {
+        // Claude Fable 5: Adaptive thinking is ALWAYS ON, so the "thinking" field
+        // must NOT be sent (thinking: {type: "disabled"} returns an error, and requests
+        // without a thinking field already run with adaptive thinking). No budget_tokens,
+        // no sampling params, native 1M context window. Effort defaults to "high" (lower
+        // effort levels on Fable 5 already exceed xhigh performance on prior models).
+        if (this.isFable5()) {
+            return {
+                additionalModelRequestFields: {
+                    output_config: {
+                        effort: "high"
+                    }
+                },
+                inferenceConfig: {
+                    maxTokens: 32000
+                }
+            };
+        }
+
+        // Claude Opus 4.7 and Opus 4.8: Adaptive thinking only, no budget_tokens,
+        // no sampling params, native 1M context window (no beta header needed), supports xhigh effort
+        if (this.isOpus47() || this.isOpus48()) {
             return {
                 additionalModelRequestFields: {
                     thinking: {
@@ -2092,6 +2129,8 @@ export class AnalyzerService {
         // (or require custom prompt templates).
         const unsupportedKbModels = [
             'claude-opus-4-7',
+            'claude-opus-4-8',
+            'claude-fable-5',
         ];
 
         const isUnsupported = unsupportedKbModels.some(m => configuredModelId.includes(m));
@@ -2114,10 +2153,10 @@ export class AnalyzerService {
      */
     private kbModelForbidsSamplingParams(): boolean {
         const configuredModelId = this.configService.get<string>('aws.bedrock.modelId');
-        // Claude Opus 4.7 rejects non-default temperature/top_p/top_k.
+        // Claude Opus 4.7, Opus 4.8 and Fable 5 reject non-default temperature/top_p/top_k.
         // The fallback model (Sonnet 4.6) also uses adaptive thinking and
         // may reject these, so we check the *effective* KB model too.
-        const modelsWithoutSampling = ['claude-opus-4-7'];
+        const modelsWithoutSampling = ['claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5'];
         return modelsWithoutSampling.some(m => configuredModelId.includes(m));
     }
 
