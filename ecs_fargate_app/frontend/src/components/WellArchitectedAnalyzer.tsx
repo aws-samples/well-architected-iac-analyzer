@@ -6,6 +6,8 @@ import { SupportingDocumentUpload } from './SupportingDocumentUpload';
 import { WorkloadIdInput } from './WorkloadIdInput';
 import { PillarSelector } from './PillarSelector';
 import { AnalysisResults } from './AnalysisResults';
+import { PrioritiesView } from './PrioritiesView';
+import { hasPrioritizationData } from './utils/priority-matrix';
 import { RiskSummary } from './RiskSummary';
 import { useAnalyzer } from '../hooks/useAnalyzer';
 import { UploadedFile, UploadedFiles, WellArchitectedPillar, IaCTemplateType, UpdatedDocument, WorkItem, WorkItemContent, FileUploadMode, LensMetadata } from '../types';
@@ -1388,6 +1390,21 @@ export const WellArchitectedAnalyzer: React.FC<Props> = ({ onWorkItemsRefreshNee
                     lensAliasArn={activeLensAliasArn}
                     lensName={activeLensName}
                     outputLanguage={selectedLanguage.value || 'en'}
+                  />
+                </div>
+              )
+            },
+            {
+              id: 'priorities',
+              label: `${strings.wellArchitectedAnalyzer.priorities}`,
+              disabled: !hasPrioritizationData(analysisResults) || isLoadingDetails || isImplementing,
+              content: (
+                <div key="priorities-tab-content">
+                  <PrioritiesView
+                    key="priorities-view"
+                    results={analysisResults}
+                    lensAliasArn={activeLensAliasArn}
+                    lensName={activeLensName}
                   />
                 </div>
               )

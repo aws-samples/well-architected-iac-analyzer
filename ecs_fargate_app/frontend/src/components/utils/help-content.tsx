@@ -7,7 +7,7 @@ interface HelpContentItem {
     body: ReactNode;
 }
 
-type HelpContentKey = 'default' | 'fileUpload' | 'pillarSelection' | 'analysisResults' | 'wellArchitectedTool' | 'iacDocument' | 'workloadId' | 'iacTypeSelection' | 'supportingDocument' | 'lensSelection';
+type HelpContentKey = 'default' | 'fileUpload' | 'pillarSelection' | 'analysisResults' | 'wellArchitectedTool' | 'iacDocument' | 'workloadId' | 'iacTypeSelection' | 'supportingDocument' | 'lensSelection' | 'priorities';
 
 type HelpContentMap = Record<HelpContentKey, HelpContentItem>;
 
@@ -284,6 +284,37 @@ export const useHelpContent = (): HelpContentMap => {
                     <Box variant="h4">{h.lensSelection.whySpecializedTitle}</Box>
                     <Box variant="p">
                         {h.lensSelection.whySpecializedDescription}
+                    </Box>
+                </SpaceBetween>
+            )
+        },
+        priorities: {
+            header: h.priorities.header,
+            body: (
+                <SpaceBetween size="xxs">
+                    <Box variant="p">
+                        {h.priorities.description}
+                    </Box>
+                    <Box variant="h4">{h.priorities.matrixTitle}</Box>
+                    <Box variant="p">
+                        {h.priorities.matrixDescription}
+                    </Box>
+                    <ul>
+                        <li>{h.priorities.quickWins}</li>
+                        <li>{h.priorities.majorInitiatives}</li>
+                        <li>{h.priorities.delegate}</li>
+                        <li>{h.priorities.reconsider}</li>
+                    </ul>
+                    <Box variant="h4">{h.priorities.positioningTitle}</Box>
+                    <Box variant="p">
+                        {h.priorities.positioningDescription}
+                    </Box>
+                    <Box variant="h4">{h.priorities.chartsTitle}</Box>
+                    <Box variant="p">
+                        {h.priorities.chartsDescription}
+                    </Box>
+                    <Box variant="p">
+                        {h.priorities.legacyNote}
                     </Box>
                 </SpaceBetween>
             )

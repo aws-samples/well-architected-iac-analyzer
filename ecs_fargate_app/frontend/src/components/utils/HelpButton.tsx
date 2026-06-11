@@ -4,7 +4,7 @@ import { useHelpPanel } from '../../contexts/HelpPanelContext';
 import { useHelpContent } from './help-content';
 
 interface HelpButtonProps {
-  contentId: 'default' | 'fileUpload' | 'pillarSelection' | 'analysisResults' | 'wellArchitectedTool' | 'iacDocument' | 'workloadId' | 'iacTypeSelection' | 'supportingDocument' | 'lensSelection';
+  contentId: 'default' | 'fileUpload' | 'pillarSelection' | 'analysisResults' | 'wellArchitectedTool' | 'iacDocument' | 'workloadId' | 'iacTypeSelection' | 'supportingDocument' | 'lensSelection' | 'priorities';
 }
 
 export const HelpButton: React.FC<HelpButtonProps> = ({ contentId }) => {
