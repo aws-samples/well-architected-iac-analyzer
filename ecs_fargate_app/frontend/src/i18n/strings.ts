@@ -104,6 +104,49 @@ export interface I18nStrings {
     levelLow: string;
     notApplicable: string;
   };
+  priorities: {
+    overviewTitle: string;
+    bestPracticesAnalyzed: string;
+    priorityDistribution: string;
+    criticalityDistribution: string;
+    noPriorityData: string;
+    matrixTitle: string;
+    matrixDescription: string;
+    colorBy: string;
+    colorByPillar: string;
+    colorByPriority: string;
+    axisImpact: string;
+    axisEffort: string;
+    axisHigh: string;
+    axisLow: string;
+    quadrantQuickWins: string;
+    quadrantQuickWinsSub: string;
+    quadrantQuickWinsAction: string;
+    quadrantMajor: string;
+    quadrantMajorSub: string;
+    quadrantMajorAction: string;
+    quadrantDelegate: string;
+    quadrantDelegateSub: string;
+    quadrantDelegateAction: string;
+    quadrantReconsider: string;
+    quadrantReconsiderSub: string;
+    quadrantReconsiderAction: string;
+    pillars: string;
+    reset: string;
+    noSelectionTitle: string;
+    noSelectionDescription: string;
+    whyNotApplied: string;
+    recommendation: string;
+    askAssistant: string;
+    clearSelection: string;
+    actionPlanTitle: string;
+    actionPlanDescription: string;
+    findInActionPlan: string;
+    clearFilters: string;
+    quadrant: string;
+    rank: string;
+    noActionItems: string;
+  };
   fileUpload: {
     title: string;
     singleOrMultipleFiles: string;
@@ -141,6 +184,7 @@ export interface I18nStrings {
     currentLensResultsStatus: string;
     currentLensSupportingDocument: string;
     analysisResults: string;
+    priorities: string;
     iacDocument: string;
     iacDocumentUpdated: string;
     analyzing: string;
@@ -405,6 +449,21 @@ export interface I18nStrings {
       whySpecializedTitle: string;
       whySpecializedDescription: string;
     };
+    priorities: {
+      header: string;
+      description: string;
+      matrixTitle: string;
+      matrixDescription: string;
+      quickWins: string;
+      majorInitiatives: string;
+      delegate: string;
+      reconsider: string;
+      positioningTitle: string;
+      positioningDescription: string;
+      chartsTitle: string;
+      chartsDescription: string;
+      legacyNote: string;
+    };
   };
   riskSummary: {
     title: string;
@@ -533,6 +592,49 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       noMatches: "No matches",
       clearFilter: "Clear filter",
     },
+    priorities: {
+      overviewTitle: "Priority overview",
+      bestPracticesAnalyzed: "Best practices analyzed",
+      priorityDistribution: "Priority distribution",
+      criticalityDistribution: "Criticality distribution",
+      noPriorityData: "No prioritized best practices",
+      matrixTitle: "Prioritization matrix",
+      matrixDescription: "Each point is a relevant best practice not yet applied, placed by risk criticality (impact) and implementation effort (complexity).",
+      colorBy: "Color by",
+      colorByPillar: "Pillar",
+      colorByPriority: "Priority",
+      axisImpact: "Risk criticality (impact)",
+      axisEffort: "Implementation effort (complexity)",
+      axisHigh: "High",
+      axisLow: "Low",
+      quadrantQuickWins: "Quick wins",
+      quadrantQuickWinsSub: "High impact · Low effort",
+      quadrantQuickWinsAction: "Do first",
+      quadrantMajor: "Major initiatives",
+      quadrantMajorSub: "High impact · High effort",
+      quadrantMajorAction: "Plan and schedule",
+      quadrantDelegate: "Delegate",
+      quadrantDelegateSub: "Low impact · Low effort",
+      quadrantDelegateAction: "Batch when convenient",
+      quadrantReconsider: "Reconsider",
+      quadrantReconsiderSub: "Low impact · High effort",
+      quadrantReconsiderAction: "Defer or re-evaluate",
+      pillars: "Pillars",
+      reset: "Reset",
+      noSelectionTitle: "No best practice selected",
+      noSelectionDescription: "Select a point on the matrix to see why it is prioritized and what to do.",
+      whyNotApplied: "Why it's not applied",
+      recommendation: "Recommendation",
+      askAssistant: "Ask the Analyzer Assistant",
+      clearSelection: "Clear selection",
+      actionPlanTitle: "Prioritized action plan",
+      actionPlanDescription: "Recommended order of work - sorted by priority, then criticality, then effort.",
+      findInActionPlan: "Find in action plan",
+      clearFilters: "Clear filters",
+      quadrant: "Quadrant",
+      rank: "#",
+      noActionItems: "All relevant best practices are already applied. There is nothing to prioritize.",
+    },
     fileUpload: {
       title: "Upload your IaC documents, architecture diagram image, or PDF documents",
       singleOrMultipleFiles: "Single or Multiple Files",
@@ -570,6 +672,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       currentLensResultsStatus: "Current Lens Results Status",
       currentLensSupportingDocument: "Current Lens Supporting Document",
       analysisResults: "Analysis Results",
+      priorities: "Priorities",
       iacDocument: "IaC Document",
       iacDocumentUpdated: "IaC Document (Updated)",
       analyzing: "Analyzing uploaded file according to",
@@ -758,7 +861,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         prioritizationDescription: 'For each best practice that is Relevant and Not Applied, three additional prioritization fields are produced:',
         criticalityField: 'Criticality (High | Medium | Low): Maps to the Risk Level of the best practice from the source knowledge base (with an accompanying Criticality Reason).',
         complexityField: 'Complexity (High | Medium | Low): Reflects the effort and blast radius of remediating the best practice (with an accompanying Complexity Reason).',
-        priorityField: 'Priority (Immediate | Short-term | Long-term): Combines Criticality and Complexity using the Eisenhower Matrix to suggest when to address the finding — within 0-30 days, 30-90 days, or 90-180 days (with an accompanying Priority Reason).',
+        priorityField: 'Priority (Immediate | Short-term | Long-term): Combines Criticality and Complexity using the Eisenhower Matrix to suggest when to address the finding - within 0-30 days, 30-90 days, or 90-180 days (with an accompanying Priority Reason).',
         priorityNote: 'Use the table preferences to enable the Criticality, Complexity, and reason columns. Use the filter to narrow the view to specific Criticality, Complexity, or Priority values.',
       },
       wellArchitectedTool: {
@@ -833,6 +936,21 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         lensExplanation: 'Each lens provides tailored best practices and recommendations specific to that domain or technology. The pillars available for review will change based on your selected lens.',
         whySpecializedTitle: 'Why use specialized lenses?',
         whySpecializedDescription: 'Specialized lenses provide more targeted guidance for specific workload types. For example, the Serverless Lens includes best practices specifically relevant to serverless architecture that may not be covered in the standard Well-Architected Framework.',
+      },
+      priorities: {
+        header: 'Priorities',
+        description: 'Prioritize the best practices that are relevant but not yet applied, so you know what to fix first.',
+        matrixTitle: 'Prioritization matrix',
+        matrixDescription: 'An Eisenhower-style matrix that plots each not-applied best practice by Risk criticality (impact, vertical axis) and Implementation effort (complexity, horizontal axis). Select any point to see its full details and recommendation, or to ask the Analyzer Assistant about it.',
+        quickWins: 'Quick wins (top-left): High impact and low effort - do these first.',
+        majorInitiatives: 'Major initiatives (top-right): High impact but high effort - plan and schedule these.',
+        delegate: 'Delegate (bottom-left): Low impact and low effort - batch these when convenient.',
+        reconsider: 'Reconsider (bottom-right): Low impact and high effort - defer or re-evaluate these.',
+        positioningTitle: 'How items are placed:',
+        positioningDescription: 'Each best practice is positioned deterministically from its Criticality (impact) and Complexity (effort). Higher criticality moves a point toward the top; lower complexity moves it toward the left.',
+        chartsTitle: 'Priority overview:',
+        chartsDescription: 'The charts at the top summarize how many best practices were analyzed, how they break down by Priority (Immediate, Short-term, Long-term), and by Criticality (High, Medium, Low, N/A).',
+        legacyNote: 'This tab is only available for analyses that include Prioritization Framework data (Criticality, Complexity, and Priority). Older analyses produced before this framework do not include this data, so the tab is disabled for them.',
       },
     },
     riskSummary: {
@@ -959,6 +1077,49 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       levelLow: "低",
       notApplicable: "N/A",
     },
+    priorities: {
+      overviewTitle: "優先順位の概要",
+      bestPracticesAnalyzed: "分析されたベストプラクティス",
+      priorityDistribution: "優先度の分布",
+      criticalityDistribution: "重大度の分布",
+      noPriorityData: "優先順位付けされたベストプラクティスはありません",
+      matrixTitle: "優先順位付けマトリクス",
+      matrixDescription: "各ポイントは、まだ適用されていない関連するベストプラクティスを表し、リスクの重大度（影響）と実装の複雑さ（労力）に基づいて配置されています。",
+      colorBy: "色分け",
+      colorByPillar: "柱",
+      colorByPriority: "優先度",
+      axisImpact: "リスクの重大度（影響）",
+      axisEffort: "実装の労力（複雑さ）",
+      axisHigh: "高",
+      axisLow: "低",
+      quadrantQuickWins: "クイックウィン",
+      quadrantQuickWinsSub: "高影響・低労力",
+      quadrantQuickWinsAction: "最初に対応",
+      quadrantMajor: "主要施策",
+      quadrantMajorSub: "高影響・高労力",
+      quadrantMajorAction: "計画・スケジュール化",
+      quadrantDelegate: "委任",
+      quadrantDelegateSub: "低影響・低労力",
+      quadrantDelegateAction: "都合の良いときにまとめて対応",
+      quadrantReconsider: "再検討",
+      quadrantReconsiderSub: "低影響・高労力",
+      quadrantReconsiderAction: "延期または再評価",
+      pillars: "柱",
+      reset: "リセット",
+      noSelectionTitle: "ベストプラクティスが選択されていません",
+      noSelectionDescription: "マトリクス上のポイントを選択すると、優先順位付けの理由と対応方法が表示されます。",
+      whyNotApplied: "適用されていない理由",
+      recommendation: "推奨事項",
+      askAssistant: "Analyzer アシスタントに質問",
+      clearSelection: "選択をクリア",
+      actionPlanTitle: "優先順位付けされたアクションプラン",
+      actionPlanDescription: "推奨される作業順序 - 優先度、重大度、労力の順にソート。",
+      findInActionPlan: "アクションプランを検索",
+      clearFilters: "フィルターをクリア",
+      quadrant: "象限",
+      rank: "#",
+      noActionItems: "関連するすべてのベストプラクティスはすでに適用されています。優先順位を付ける項目はありません。",
+    },
     fileUpload: {
       title: "IaC ドキュメント、アーキテクチャ図、または PDF ドキュメントをアップロード",
       singleOrMultipleFiles: "単一または複数ファイル",
@@ -996,6 +1157,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       currentLensResultsStatus: "現在のレンズ結果ステータス",
       currentLensSupportingDocument: "現在のレンズサポートドキュメント",
       analysisResults: "分析結果",
+      priorities: "優先順位",
       iacDocument: "IaC ドキュメント",
       iacDocumentUpdated: "IaC ドキュメント（更新済み）",
       analyzing: "アップロードされたファイルを分析中",
@@ -1260,6 +1422,21 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         whySpecializedTitle: 'なぜ専門レンズを使用するのか？',
         whySpecializedDescription: '専門レンズは、特定のワークロードタイプに対してより的を絞ったガイダンスを提供します。例えば、サーバーレスレンズには、標準の Well-Architected フレームワークでカバーされていない可能性のあるサーバーレスアーキテクチャに特に関連するベストプラクティスが含まれています。',
       },
+      priorities: {
+        header: '優先順位',
+        description: '関連しているがまだ適用されていないベストプラクティスを優先順位付けして、最初に対応すべき項目を把握できます。',
+        matrixTitle: '優先順位付けマトリクス',
+        matrixDescription: '適用されていない各ベストプラクティスを、リスクの重大度（影響、縦軸）と実装の労力（複雑さ、横軸）でプロットするアイゼンハワー型のマトリクスです。任意のポイントを選択すると、詳細と推奨事項が表示され、Analyzer アシスタントに質問することもできます。',
+        quickWins: 'クイックウィン（左上）: 高影響・低労力 - 最初に対応します。',
+        majorInitiatives: '主要施策（右上）: 高影響・高労力 - 計画してスケジュール化します。',
+        delegate: '委任（左下）: 低影響・低労力 - 都合の良いときにまとめて対応します。',
+        reconsider: '再検討（右下）: 低影響・高労力 - 延期または再評価します。',
+        positioningTitle: '項目の配置方法:',
+        positioningDescription: '各ベストプラクティスは、重大度（影響）と複雑さ（労力）から決定論的に配置されます。重大度が高いほど上に、複雑さが低いほど左に配置されます。',
+        chartsTitle: '優先順位の概要:',
+        chartsDescription: '上部のチャートは、分析されたベストプラクティスの数、優先度（即時対応、短期対応、長期対応）別の内訳、重大度（高、中、低、N/A）別の内訳を要約しています。',
+        legacyNote: 'このタブは、優先順位付けフレームワークのデータ（重大度、複雑度、優先度）を含む分析でのみ利用できます。このフレームワーク以前に作成された古い分析にはこのデータが含まれていないため、タブは無効になります。',
+      },
     },
     riskSummary: {
       title: 'リスク概要',
@@ -1385,6 +1562,49 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       levelLow: "Baja",
       notApplicable: "N/A",
     },
+    priorities: {
+      overviewTitle: "Resumen de prioridades",
+      bestPracticesAnalyzed: "Prácticas recomendadas analizadas",
+      priorityDistribution: "Distribución de prioridad",
+      criticalityDistribution: "Distribución de criticidad",
+      noPriorityData: "No hay prácticas recomendadas priorizadas",
+      matrixTitle: "Matriz de priorización",
+      matrixDescription: "Cada punto es una práctica recomendada relevante que aún no se ha aplicado, ubicada según la criticidad del riesgo (impacto) y el esfuerzo de implementación (complejidad).",
+      colorBy: "Colorear por",
+      colorByPillar: "Pilar",
+      colorByPriority: "Prioridad",
+      axisImpact: "Criticidad del riesgo (impacto)",
+      axisEffort: "Esfuerzo de implementación (complejidad)",
+      axisHigh: "Alto",
+      axisLow: "Bajo",
+      quadrantQuickWins: "Victorias rápidas",
+      quadrantQuickWinsSub: "Alto impacto · Bajo esfuerzo",
+      quadrantQuickWinsAction: "Hacer primero",
+      quadrantMajor: "Iniciativas importantes",
+      quadrantMajorSub: "Alto impacto · Alto esfuerzo",
+      quadrantMajorAction: "Planificar y programar",
+      quadrantDelegate: "Delegar",
+      quadrantDelegateSub: "Bajo impacto · Bajo esfuerzo",
+      quadrantDelegateAction: "Agrupar cuando sea conveniente",
+      quadrantReconsider: "Reconsiderar",
+      quadrantReconsiderSub: "Bajo impacto · Alto esfuerzo",
+      quadrantReconsiderAction: "Aplazar o reevaluar",
+      pillars: "Pilares",
+      reset: "Restablecer",
+      noSelectionTitle: "Ninguna práctica recomendada seleccionada",
+      noSelectionDescription: "Seleccione un punto en la matriz para ver por qué se prioriza y qué hacer.",
+      whyNotApplied: "Por qué no se aplica",
+      recommendation: "Recomendación",
+      askAssistant: "Preguntar al Asistente del Analizador",
+      clearSelection: "Borrar selección",
+      actionPlanTitle: "Plan de acción priorizado",
+      actionPlanDescription: "Orden de trabajo recomendado: ordenado por prioridad, luego criticidad y luego esfuerzo.",
+      findInActionPlan: "Buscar en el plan de acción",
+      clearFilters: "Borrar filtros",
+      quadrant: "Cuadrante",
+      rank: "#",
+      noActionItems: "Todas las prácticas recomendadas relevantes ya están aplicadas. No hay nada que priorizar.",
+    },
     fileUpload: {
       title: "Suba sus documentos IaC, diagrama de arquitectura o documentos PDF",
       singleOrMultipleFiles: "Archivo único o múltiple",
@@ -1422,6 +1642,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       currentLensResultsStatus: "Estado de resultados de lente actual",
       currentLensSupportingDocument: "Documento de soporte de lente actual",
       analysisResults: "Resultados de análisis",
+      priorities: "Prioridades",
       iacDocument: "Documento IaC",
       iacDocumentUpdated: "Documento IaC (Actualizado)",
       analyzing: "Analizando archivo subido según",
@@ -1686,6 +1907,21 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         whySpecializedTitle: '¿Por qué usar lentes especializadas?',
         whySpecializedDescription: 'Las lentes especializadas proporcionan orientación más específica para tipos de carga de trabajo específicos. Por ejemplo, la Lente Serverless incluye mejores prácticas específicamente relevantes para la arquitectura sin servidor que pueden no estar cubiertas en el Well-Architected Framework estándar.',
       },
+      priorities: {
+        header: 'Prioridades',
+        description: 'Priorice las prácticas recomendadas que son relevantes pero que aún no se han aplicado, para saber qué corregir primero.',
+        matrixTitle: 'Matriz de priorización',
+        matrixDescription: 'Una matriz tipo Eisenhower que ubica cada práctica recomendada no aplicada según la criticidad del riesgo (impacto, eje vertical) y el esfuerzo de implementación (complejidad, eje horizontal). Seleccione cualquier punto para ver sus detalles completos y su recomendación, o para preguntar al Asistente del Analizador.',
+        quickWins: 'Victorias rápidas (arriba a la izquierda): Alto impacto y bajo esfuerzo - hágalas primero.',
+        majorInitiatives: 'Iniciativas importantes (arriba a la derecha): Alto impacto pero alto esfuerzo - planifíquelas y prográmelas.',
+        delegate: 'Delegar (abajo a la izquierda): Bajo impacto y bajo esfuerzo - agrúpelas cuando sea conveniente.',
+        reconsider: 'Reconsiderar (abajo a la derecha): Bajo impacto y alto esfuerzo - aplácelas o reevalúelas.',
+        positioningTitle: 'Cómo se ubican los elementos:',
+        positioningDescription: 'Cada práctica recomendada se ubica de forma determinista según su criticidad (impacto) y complejidad (esfuerzo). Una mayor criticidad desplaza el punto hacia arriba; una menor complejidad lo desplaza hacia la izquierda.',
+        chartsTitle: 'Resumen de prioridades:',
+        chartsDescription: 'Los gráficos de la parte superior resumen cuántas prácticas recomendadas se analizaron y cómo se distribuyen por prioridad (Inmediata, Corto plazo, Largo plazo) y por criticidad (Alta, Media, Baja, N/A).',
+        legacyNote: 'Esta pestaña solo está disponible para los análisis que incluyen datos del Marco de priorización (Criticidad, Complejidad y Prioridad). Los análisis más antiguos creados antes de este marco no incluyen estos datos, por lo que la pestaña está deshabilitada para ellos.',
+      },
     },
     riskSummary: {
       title: 'Resumen de riesgos',
@@ -1811,6 +2047,49 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       levelLow: "Baixa",
       notApplicable: "N/A",
     },
+    priorities: {
+      overviewTitle: "Visão geral de prioridades",
+      bestPracticesAnalyzed: "Práticas recomendadas analisadas",
+      priorityDistribution: "Distribuição de prioridade",
+      criticalityDistribution: "Distribuição de criticidade",
+      noPriorityData: "Nenhuma prática recomendada priorizada",
+      matrixTitle: "Matriz de priorização",
+      matrixDescription: "Cada ponto é uma prática recomendada relevante ainda não aplicada, posicionada pela criticidade do risco (impacto) e pelo esforço de implementação (complexidade).",
+      colorBy: "Colorir por",
+      colorByPillar: "Pilar",
+      colorByPriority: "Prioridade",
+      axisImpact: "Criticidade do risco (impacto)",
+      axisEffort: "Esforço de implementação (complexidade)",
+      axisHigh: "Alto",
+      axisLow: "Baixo",
+      quadrantQuickWins: "Ganhos rápidos",
+      quadrantQuickWinsSub: "Alto impacto · Baixo esforço",
+      quadrantQuickWinsAction: "Fazer primeiro",
+      quadrantMajor: "Grandes iniciativas",
+      quadrantMajorSub: "Alto impacto · Alto esforço",
+      quadrantMajorAction: "Planejar e agendar",
+      quadrantDelegate: "Delegar",
+      quadrantDelegateSub: "Baixo impacto · Baixo esforço",
+      quadrantDelegateAction: "Agrupar quando conveniente",
+      quadrantReconsider: "Reconsiderar",
+      quadrantReconsiderSub: "Baixo impacto · Alto esforço",
+      quadrantReconsiderAction: "Adiar ou reavaliar",
+      pillars: "Pilares",
+      reset: "Redefinir",
+      noSelectionTitle: "Nenhuma prática recomendada selecionada",
+      noSelectionDescription: "Selecione um ponto na matriz para ver por que ela é priorizada e o que fazer.",
+      whyNotApplied: "Por que não está aplicada",
+      recommendation: "Recomendação",
+      askAssistant: "Perguntar ao Assistente do Analisador",
+      clearSelection: "Limpar seleção",
+      actionPlanTitle: "Plano de ação priorizado",
+      actionPlanDescription: "Ordem de trabalho recomendada - classificada por prioridade, depois criticidade e depois esforço.",
+      findInActionPlan: "Localizar no plano de ação",
+      clearFilters: "Limpar filtros",
+      quadrant: "Quadrante",
+      rank: "#",
+      noActionItems: "Todas as práticas recomendadas relevantes já estão aplicadas. Não há nada para priorizar.",
+    },
     fileUpload: {
       title: "Envie seus documentos IaC, imagem de diagrama de arquitetura ou documentos PDF",
       singleOrMultipleFiles: "Arquivo Único ou Múltiplos",
@@ -1848,6 +2127,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       currentLensResultsStatus: "Status dos Resultados da Lente Atual",
       currentLensSupportingDocument: "Documento de Suporte da Lente Atual",
       analysisResults: "Resultados da Análise",
+      priorities: "Prioridades",
       iacDocument: "Documento IaC",
       iacDocumentUpdated: "Documento IaC (Atualizado)",
       analyzing: "Analisando arquivo enviado de acordo com",
@@ -2112,6 +2392,21 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         whySpecializedTitle: 'Por que usar lentes especializadas?',
         whySpecializedDescription: 'Lentes especializadas fornecem orientação mais direcionada para tipos específicos de carga de trabalho. Por exemplo, a Lente Serverless inclui melhores práticas especificamente relevantes para arquitetura sem servidor que podem não estar cobertas no Well-Architected Framework padrão.',
       },
+      priorities: {
+        header: 'Prioridades',
+        description: 'Priorize as práticas recomendadas que são relevantes, mas ainda não aplicadas, para saber o que corrigir primeiro.',
+        matrixTitle: 'Matriz de priorização',
+        matrixDescription: 'Uma matriz no estilo Eisenhower que posiciona cada prática recomendada não aplicada pela criticidade do risco (impacto, eixo vertical) e pelo esforço de implementação (complexidade, eixo horizontal). Selecione qualquer ponto para ver seus detalhes completos e sua recomendação, ou para perguntar ao Assistente do Analisador.',
+        quickWins: 'Ganhos rápidos (canto superior esquerdo): Alto impacto e baixo esforço - faça-os primeiro.',
+        majorInitiatives: 'Grandes iniciativas (canto superior direito): Alto impacto, mas alto esforço - planeje e agende.',
+        delegate: 'Delegar (canto inferior esquerdo): Baixo impacto e baixo esforço - agrupe-os quando conveniente.',
+        reconsider: 'Reconsiderar (canto inferior direito): Baixo impacto e alto esforço - adie ou reavalie.',
+        positioningTitle: 'Como os itens são posicionados:',
+        positioningDescription: 'Cada prática recomendada é posicionada de forma determinística a partir de sua criticidade (impacto) e complexidade (esforço). Maior criticidade move o ponto para cima; menor complexidade o move para a esquerda.',
+        chartsTitle: 'Visão geral de prioridades:',
+        chartsDescription: 'Os gráficos na parte superior resumem quantas práticas recomendadas foram analisadas e como elas se dividem por prioridade (Imediata, Curto prazo, Longo prazo) e por criticidade (Alta, Média, Baixa, N/A).',
+        legacyNote: 'Esta guia só está disponível para análises que incluem dados da Estrutura de Priorização (Criticidade, Complexidade e Prioridade). Análises mais antigas, criadas antes dessa estrutura, não incluem esses dados, portanto a guia fica desabilitada para elas.',
+      },
     },
     riskSummary: {
       title: 'Resumo de Riscos',
@@ -2237,6 +2532,49 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       levelLow: "Faible",
       notApplicable: "N/A",
     },
+    priorities: {
+      overviewTitle: "Aperçu des priorités",
+      bestPracticesAnalyzed: "Bonnes pratiques analysées",
+      priorityDistribution: "Répartition des priorités",
+      criticalityDistribution: "Répartition de la criticité",
+      noPriorityData: "Aucune bonne pratique priorisée",
+      matrixTitle: "Matrice de priorisation",
+      matrixDescription: "Chaque point représente une bonne pratique pertinente non encore appliquée, positionnée selon la criticité du risque (impact) et l'effort de mise en œuvre (complexité).",
+      colorBy: "Colorer par",
+      colorByPillar: "Pilier",
+      colorByPriority: "Priorité",
+      axisImpact: "Criticité du risque (impact)",
+      axisEffort: "Effort de mise en œuvre (complexité)",
+      axisHigh: "Élevé",
+      axisLow: "Faible",
+      quadrantQuickWins: "Gains rapides",
+      quadrantQuickWinsSub: "Fort impact · Faible effort",
+      quadrantQuickWinsAction: "À faire en premier",
+      quadrantMajor: "Initiatives majeures",
+      quadrantMajorSub: "Fort impact · Effort important",
+      quadrantMajorAction: "Planifier et programmer",
+      quadrantDelegate: "Déléguer",
+      quadrantDelegateSub: "Faible impact · Faible effort",
+      quadrantDelegateAction: "Regrouper quand c'est pratique",
+      quadrantReconsider: "À reconsidérer",
+      quadrantReconsiderSub: "Faible impact · Effort important",
+      quadrantReconsiderAction: "Reporter ou réévaluer",
+      pillars: "Piliers",
+      reset: "Réinitialiser",
+      noSelectionTitle: "Aucune bonne pratique sélectionnée",
+      noSelectionDescription: "Sélectionnez un point sur la matrice pour voir pourquoi elle est priorisée et que faire.",
+      whyNotApplied: "Pourquoi elle n'est pas appliquée",
+      recommendation: "Recommandation",
+      askAssistant: "Demander à l'assistant Analyzer",
+      clearSelection: "Effacer la sélection",
+      actionPlanTitle: "Plan d'action priorisé",
+      actionPlanDescription: "Ordre de travail recommandé - trié par priorité, puis criticité, puis effort.",
+      findInActionPlan: "Rechercher dans le plan d'action",
+      clearFilters: "Effacer les filtres",
+      quadrant: "Quadrant",
+      rank: "N°",
+      noActionItems: "Toutes les bonnes pratiques pertinentes sont déjà appliquées. Il n'y a rien à prioriser.",
+    },
     fileUpload: {
       title: "Téléchargez vos documents IaC, diagramme d'architecture ou documents PDF",
       singleOrMultipleFiles: "Fichier unique ou multiples",
@@ -2274,6 +2612,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       currentLensResultsStatus: "Statut des résultats de la lentille actuelle",
       currentLensSupportingDocument: "Document de support de la lentille actuelle",
       analysisResults: "Résultats d'analyse",
+      priorities: "Priorités",
       iacDocument: "Document IaC",
       iacDocumentUpdated: "Document IaC mis à jour",
       analyzing: "Analyse du fichier téléchargé selon",
@@ -2462,7 +2801,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         prioritizationDescription: 'Pour chaque meilleure pratique Pertinente et Non appliquée, trois champs supplémentaires de priorisation sont produits :',
         criticalityField: 'Criticité (Élevée | Moyenne | Faible) : correspond au niveau de risque de la meilleure pratique dans la base de connaissances source (avec un motif associé).',
         complexityField: 'Complexité (Élevée | Moyenne | Faible) : reflète l\'effort et le rayon d\'impact de la remédiation (avec un motif associé).',
-        priorityField: 'Priorité (Immédiate | Court terme | Long terme) : combine Criticité et Complexité via la Matrice d\'Eisenhower pour suggérer quand traiter le constat — 0-30 jours, 30-90 jours ou 90-180 jours (avec un motif associé).',
+        priorityField: 'Priorité (Immédiate | Court terme | Long terme) : combine Criticité et Complexité via la Matrice d\'Eisenhower pour suggérer quand traiter le constat - 0-30 jours, 30-90 jours ou 90-180 jours (avec un motif associé).',
         priorityNote: 'Utilisez les préférences du tableau pour activer les colonnes Criticité, Complexité et leurs motifs. Utilisez le filtre pour restreindre l\'affichage par valeurs spécifiques de Criticité, Complexité ou Priorité.',
       },
       wellArchitectedTool: {
@@ -2537,6 +2876,21 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         lensExplanation: 'Chaque lentille fournit des meilleures pratiques et recommandations adaptées spécifiquement à ce domaine ou cette technologie. Les piliers disponibles pour examen changeront en fonction de la lentille sélectionnée.',
         whySpecializedTitle: 'Pourquoi utiliser des lentilles spécialisées ?',
         whySpecializedDescription: 'Les lentilles spécialisées fournissent des conseils plus ciblés pour des types de charges de travail spécifiques. Par exemple, la Lentille Serverless comprend des meilleures pratiques spécifiquement pertinentes pour l\'architecture sans serveur qui peuvent ne pas être couvertes dans le Well-Architected Framework standard.',
+      },
+      priorities: {
+        header: 'Priorités',
+        description: 'Priorisez les bonnes pratiques pertinentes mais pas encore appliquées, afin de savoir quoi corriger en premier.',
+        matrixTitle: 'Matrice de priorisation',
+        matrixDescription: 'Une matrice de type Eisenhower qui positionne chaque bonne pratique non appliquée selon la criticité du risque (impact, axe vertical) et l\'effort de mise en œuvre (complexité, axe horizontal). Sélectionnez un point pour afficher ses détails complets et sa recommandation, ou pour interroger l\'assistant Analyzer.',
+        quickWins: 'Gains rapides (en haut à gauche) : Fort impact et faible effort - à faire en premier.',
+        majorInitiatives: 'Initiatives majeures (en haut à droite) : Fort impact mais effort important - à planifier et programmer.',
+        delegate: 'Déléguer (en bas à gauche) : Faible impact et faible effort - à regrouper quand c\'est pratique.',
+        reconsider: 'À reconsidérer (en bas à droite) : Faible impact et effort important - à reporter ou réévaluer.',
+        positioningTitle: 'Comment les éléments sont positionnés :',
+        positioningDescription: 'Chaque bonne pratique est positionnée de façon déterministe à partir de sa criticité (impact) et de sa complexité (effort). Une criticité plus élevée déplace le point vers le haut ; une complexité plus faible le déplace vers la gauche.',
+        chartsTitle: 'Aperçu des priorités :',
+        chartsDescription: 'Les graphiques en haut résument le nombre de bonnes pratiques analysées et leur répartition par priorité (Immédiate, Court terme, Long terme) et par criticité (Élevée, Moyenne, Faible, N/A).',
+        legacyNote: 'Cet onglet n\'est disponible que pour les analyses comportant des données du cadre de priorisation (criticité, complexité et priorité). Les anciennes analyses créées avant ce cadre ne contiennent pas ces données ; l\'onglet est donc désactivé pour elles.',
       },
     },
     riskSummary: {
@@ -2663,6 +3017,49 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       levelLow: "낮음",
       notApplicable: "N/A",
     },
+    priorities: {
+      overviewTitle: "우선순위 개요",
+      bestPracticesAnalyzed: "분석된 모범 사례",
+      priorityDistribution: "우선순위 분포",
+      criticalityDistribution: "심각도 분포",
+      noPriorityData: "우선순위가 지정된 모범 사례가 없습니다",
+      matrixTitle: "우선순위 매트릭스",
+      matrixDescription: "각 점은 아직 적용되지 않은 관련 모범 사례이며, 위험 심각도(영향)와 구현 노력(복잡성)에 따라 배치됩니다.",
+      colorBy: "색상 기준",
+      colorByPillar: "원칙",
+      colorByPriority: "우선순위",
+      axisImpact: "위험 심각도(영향)",
+      axisEffort: "구현 노력(복잡성)",
+      axisHigh: "높음",
+      axisLow: "낮음",
+      quadrantQuickWins: "퀵 윈",
+      quadrantQuickWinsSub: "높은 영향 · 낮은 노력",
+      quadrantQuickWinsAction: "먼저 수행",
+      quadrantMajor: "주요 이니셔티브",
+      quadrantMajorSub: "높은 영향 · 높은 노력",
+      quadrantMajorAction: "계획 및 일정 수립",
+      quadrantDelegate: "위임",
+      quadrantDelegateSub: "낮은 영향 · 낮은 노력",
+      quadrantDelegateAction: "편할 때 일괄 처리",
+      quadrantReconsider: "재검토",
+      quadrantReconsiderSub: "낮은 영향 · 높은 노력",
+      quadrantReconsiderAction: "연기 또는 재평가",
+      pillars: "원칙",
+      reset: "재설정",
+      noSelectionTitle: "선택된 모범 사례 없음",
+      noSelectionDescription: "매트릭스의 점을 선택하면 우선순위가 지정된 이유와 수행할 작업이 표시됩니다.",
+      whyNotApplied: "적용되지 않은 이유",
+      recommendation: "권장 사항",
+      askAssistant: "Analyzer 어시스턴트에게 질문",
+      clearSelection: "선택 해제",
+      actionPlanTitle: "우선순위가 지정된 작업 계획",
+      actionPlanDescription: "권장 작업 순서 - 우선순위, 심각도, 노력 순으로 정렬됩니다.",
+      findInActionPlan: "작업 계획에서 찾기",
+      clearFilters: "필터 지우기",
+      quadrant: "사분면",
+      rank: "#",
+      noActionItems: "관련된 모든 모범 사례가 이미 적용되었습니다. 우선순위를 지정할 항목이 없습니다.",
+    },
     fileUpload: {
       title: "IaC 문서, 아키텍처 다이어그램 이미지 또는 PDF 문서 업로드",
       singleOrMultipleFiles: "단일 또는 다중 파일",
@@ -2700,6 +3097,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
       currentLensResultsStatus: "현재 렌즈 결과 상태",
       currentLensSupportingDocument: "현재 렌즈 지원 문서",
       analysisResults: "분석 결과",
+      priorities: "우선순위",
       iacDocument: "IaC 문서",
       iacDocumentUpdated: "IaC 문서 (업데이트됨)",
       analyzing: "업로드된 파일 분석 중",
@@ -2888,7 +3286,7 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         prioritizationDescription: '관련성이 있고 미적용인 각 모범 사례에 대해 세 가지 추가 우선순위 필드가 생성됩니다:',
         criticalityField: '중요도 (높음 | 중간 | 낮음): 소스 지식 베이스에 있는 해당 모범 사례의 위험 수준에 매핑됩니다 (중요도 이유 포함).',
         complexityField: '복잡도 (높음 | 중간 | 낮음): 모범 사례를 시정하는 데 필요한 노력과 영향 범위를 반영합니다 (복잡도 이유 포함).',
-        priorityField: '우선순위 (즉시 | 단기 | 장기): 아이젠하워 매트릭스로 중요도와 복잡도를 결합하여 처리 시기를 제안합니다 — 0-30일, 30-90일 또는 90-180일 (우선순위 이유 포함).',
+        priorityField: '우선순위 (즉시 | 단기 | 장기): 아이젠하워 매트릭스로 중요도와 복잡도를 결합하여 처리 시기를 제안합니다 - 0-30일, 30-90일 또는 90-180일 (우선순위 이유 포함).',
         priorityNote: '테이블 환경설정에서 중요도, 복잡도 및 이유 열을 활성화할 수 있습니다. 필터를 사용하여 특정 중요도, 복잡도 또는 우선순위 값으로 뷰를 좁힐 수 있습니다.',
       },
       wellArchitectedTool: {
@@ -2963,6 +3361,21 @@ export const i18nStrings: Record<Language, I18nStrings> = {
         lensExplanation: '각 렌즈는 해당 도메인 또는 기술에 맞는 맞춤형 모범 사례 및 권장 사항을 제공합니다. 선택한 렌즈에 따라 검토 가능한 기둥이 변경됩니다.',
         whySpecializedTitle: '전문 렌즈를 사용하는 이유?',
         whySpecializedDescription: '전문 렌즈는 특정 워크로드 유형에 대해 더 집중된 안내를 제공합니다. 예를 들어, Serverless 렌즈에는 표준 Well-Architected Framework에서 다루지 않을 수 있는 서버리스 아키텍처에 특히 관련된 모범 사례가 포함되어 있습니다.',
+      },
+      priorities: {
+        header: '우선순위',
+        description: '관련은 있지만 아직 적용되지 않은 모범 사례의 우선순위를 지정하여 먼저 해결할 항목을 파악할 수 있습니다.',
+        matrixTitle: '우선순위 매트릭스',
+        matrixDescription: '적용되지 않은 각 모범 사례를 위험 심각도(영향, 세로축)와 구현 노력(복잡성, 가로축)으로 표시하는 아이젠하워 스타일 매트릭스입니다. 점을 선택하면 전체 세부 정보와 권장 사항을 보거나 Analyzer 어시스턴트에게 질문할 수 있습니다.',
+        quickWins: '퀵 윈(왼쪽 위): 높은 영향, 낮은 노력 - 먼저 수행하세요.',
+        majorInitiatives: '주요 이니셔티브(오른쪽 위): 높은 영향이지만 높은 노력 - 계획하고 일정을 수립하세요.',
+        delegate: '위임(왼쪽 아래): 낮은 영향, 낮은 노력 - 편할 때 일괄 처리하세요.',
+        reconsider: '재검토(오른쪽 아래): 낮은 영향, 높은 노력 - 연기하거나 재평가하세요.',
+        positioningTitle: '항목 배치 방식:',
+        positioningDescription: '각 모범 사례는 심각도(영향)와 복잡성(노력)에 따라 결정론적으로 배치됩니다. 심각도가 높을수록 점이 위로, 복잡성이 낮을수록 왼쪽으로 이동합니다.',
+        chartsTitle: '우선순위 개요:',
+        chartsDescription: '상단의 차트는 분석된 모범 사례 수와 우선순위(즉시, 단기, 장기) 및 심각도(높음, 중간, 낮음, N/A)별 분포를 요약합니다.',
+        legacyNote: '이 탭은 우선순위 지정 프레임워크 데이터(심각도, 복잡성, 우선순위)가 포함된 분석에서만 사용할 수 있습니다. 이 프레임워크 이전에 생성된 이전 분석에는 이 데이터가 포함되어 있지 않으므로 해당 탭은 비활성화됩니다.',
       },
     },
     riskSummary: {

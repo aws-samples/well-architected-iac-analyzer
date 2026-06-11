@@ -19,21 +19,22 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
 
 - **NEW** 🎯 **Prioritization Framework with Eisenhower Matrix:**
   - Each Not Applied best practice is scored with **Criticality** (from Knowledge Base Risk Level), **Complexity** (remediation effort), and **Priority** (Immediate | Short-term | Long-term) derived via the Eisenhower Matrix
-  - Results table defaults to sorting by Priority so **Immediate** findings surface first, with optional columns for Criticality, Complexity, and per-field reasons
+  - **New Priorities tab** visualizes every relevant, Not Applied best practice on an interactive Eisenhower-style matrix, plotted by **Risk criticality (impact)** and **Implementation effort (complexity)** across four quadrants: Quick wins, Major initiatives, Delegate, and Reconsider
+  - Click any point on the matrix to open a details panel with the best practice's status reason, recommendation, and Criticality/Complexity/Priority reasons, or ask the **Analyzer Assistant** about it in one click
   - Filter the analysis by Criticality, Complexity, or Priority to focus remediation planning, and export all fields to CSV
-
-- **NEW** 🚀 **Accelerated Analysis with Parallel Processing:**
-  - Configurable batch size controls how many Well-Architected (or selected Lens) questions are processed in parallel
-  - Complete full framework review up to **80% faster** compared to previous sequential processing
-  - Default adjustable batch size configuration (between 1-12) balances speed and API throttling risk
 
 - **NEW** 🧠 **Enhanced AI Capabilities with Latest Anthropic Models:**
   - Full support for **Claude Fable 5**, **Claude Opus 4.8**, **Claude Opus 4.7**, **Claude Sonnet 4.6**, and **Claude Opus 4.6** models
   - **Supported Claude models** leverage **Adaptive Thinking** for complex reasoning and analysis
   - **1M token context window** natively supported by Claude Fable 5, Claude Opus 4.8, Claude Opus 4.7, Claude Opus 4.6, and Claude Sonnet 4.6 models, enabling analysis of much larger IaC projects and architectural documentation in a single pass
 
-- **NEW** 💰 **Cost-Optimized Vector Storage with Amazon S3 Vectors:**
-  - **S3 Vectors** is now the default vector store for the Bedrock Knowledge Base
+- 🚀 **Accelerated Analysis with Parallel Processing:**
+  - Configurable batch size controls how many Well-Architected (or selected Lens) questions are processed in parallel
+  - Complete full framework review up to **80% faster** compared per-question sequential processing
+  - Default adjustable batch size configuration (between 1-12) balances speed and API throttling risk
+
+- 💰 **Cost-Optimized Vector Storage with Amazon S3 Vectors:**
+  - **S3 Vectors** is the default vector store for the Bedrock Knowledge Base
   - Achieve up to **80% cost reduction** compared to OpenSearch Serverless while maintaining sub-second query performance
   - OpenSearch Serverless remains available as an option for deployment
 
@@ -106,11 +107,11 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
 
 ![wa_aic_analyzer_screenshot_main](/assets/wa_aic_analyzer_screenshot_main.png)
 
+![wa_aic_analyzer_screenshot_priorities](/assets/wa_aic_analyzer_screenshot_priorities.png)
+
 ![wa_aic_analyzer_screenshot_results](/assets/wa_aic_analyzer_screenshot_results.png)
 
-![wa_aic_analyzer_screenshot_details](/assets/wa_aic_analyzer_screenshot_chat.png)
-
-![wa_aic_analyzer_screenshot_wa_tool](/assets/wa_aic_analyzer_screenshot_wa_tool.png)
+![wa_aic_analyzer_screenshot_chat](/assets/wa_aic_analyzer_screenshot_chat.png)
 
 ![wa_aic_analyzer_screenshot_template_generation](/assets/wa_aic_analyzer_screenshot_template_generation.png)
 

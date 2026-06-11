@@ -1,0 +1,192 @@
+/* Styles for the Priorities tab matrix visualization. */
+
+.priority-matrix-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 480px;
+  gap: 0;
+}
+
+.priority-matrix-detail {
+  border-left: 1px solid #e9ebed;
+  padding: 20px;
+}
+
+@media (max-width: 1280px) {
+  .priority-matrix-layout {
+    grid-template-columns: 1fr;
+  }
+  .priority-matrix-detail {
+    border-left: none;
+    border-top: 1px solid #e9ebed;
+  }
+}
+
+.priority-matrix-plot-wrapper {
+  display: flex;
+  gap: 12px;
+}
+
+.priority-matrix-yaxis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 24px;
+}
+
+.priority-matrix-yaxis-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 13px;
+  font-weight: 700;
+  color: #414d5c;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.priority-matrix-axis-end {
+  font-size: 12px;
+  color: #5f6b7a;
+}
+
+.priority-matrix-plot {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 360px;
+  border: 1px solid #c6c6cd;
+  border-radius: 12px;
+  overflow: visible;
+  background: #ffffff;
+}
+
+.priority-matrix-quadrant {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  transition: opacity 0.15s ease;
+}
+
+.priority-matrix-quadrant-label {
+  position: absolute;
+  top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #000716;
+}
+
+.priority-matrix-quadrant-sub {
+  position: absolute;
+  font-size: 11px;
+  color: #5f6b7a;
+  margin-top: 2px;
+}
+
+.priority-matrix-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 7, 22, 0.3);
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease, width 0.1s ease, height 0.1s ease;
+}
+
+.priority-matrix-dot:hover {
+  z-index: 6 !important;
+}
+
+.priority-matrix-dot:focus-visible {
+  outline: 2px solid #0972d3;
+  outline-offset: 2px;
+}
+
+.priority-matrix-xaxis {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.priority-matrix-xaxis-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #414d5c;
+  letter-spacing: 0.02em;
+}
+
+.priority-matrix-tooltip {
+  position: absolute;
+  z-index: 20;
+  background: #0f1b2a;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 16px;
+  box-shadow: 0 4px 16px rgba(0, 7, 22, 0.25);
+  pointer-events: none;
+  max-width: 230px;
+  transform: translate(-50%, -100%);
+}
+
+.priority-matrix-tooltip-title {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.priority-matrix-tooltip-row {
+  color: #cfd6e0;
+}
+
+.priority-matrix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.priority-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 16px;
+  border: 1px solid #c6c6cd;
+  background: #ffffff;
+  font-size: 13px;
+  color: #414d5c;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.priority-chip:hover {
+  background: #f4f8fd;
+  border-color: #0972d3;
+}
+
+.priority-chip.on {
+  background: #f0f7ff;
+  border-color: #0972d3;
+  color: #033160;
+  font-weight: 600;
+}
+
+.priority-chip.off {
+  opacity: 0.5;
+}
+
+.priority-chip-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
