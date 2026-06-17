@@ -352,6 +352,11 @@ const PriorityPlot: React.FC<PriorityPlotProps> = ({
   localizePriority,
   localizeLevel,
 }) => {
+  const { language } = useLanguage();
+  // CJK scripts (Japanese, Korean) render upright in vertical writing mode and
+  // must not be rotated 180deg, which would otherwise flip them upside down.
+  const isCjkLanguage = language === 'ja' || language === 'ko';
+
   const quadrantCounts: Record<QuadrantId, number> = {
     'quick-wins': 0,
     'major-initiatives': 0,
@@ -369,7 +374,9 @@ const PriorityPlot: React.FC<PriorityPlotProps> = ({
       {/* Y axis */}
       <div className="priority-matrix-yaxis">
         <span className="priority-matrix-axis-end">{axisStrings.high}</span>
-        <span className="priority-matrix-yaxis-label">{axisStrings.impact}</span>
+        <span className={isCjkLanguage ? 'priority-matrix-yaxis-label--cjk' : 'priority-matrix-yaxis-label'}>
+          {axisStrings.impact}
+        </span>
         <span className="priority-matrix-axis-end">{axisStrings.low}</span>
       </div>
 

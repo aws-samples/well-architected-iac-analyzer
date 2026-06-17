@@ -44,6 +44,18 @@
   white-space: nowrap;
 }
 
+/* CJK languages (ja, ko) render glyphs upright in vertical-rl mode, so the
+   180deg rotation used for Latin scripts would flip them upside down. */
+.priority-matrix-yaxis-label--cjk {
+  writing-mode: vertical-rl;
+  transform: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: #414d5c;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .priority-matrix-axis-end {
   font-size: 12px;
   color: #5f6b7a;
