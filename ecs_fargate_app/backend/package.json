@@ -31,7 +31,7 @@
     "@nestjs/platform-socket.io": "11.1.11",
     "@nestjs/throttler": "6.5.0",
     "@nestjs/websockets": "11.1.11",
-    "adm-zip": "0.5.16",
+    "adm-zip": "0.6.0",
     "class-transformer": "0.5.1",
     "class-validator": "0.14.3",
     "reflect-metadata": "0.2.2",
