@@ -361,6 +361,18 @@ export class AnalyzerService {
         return modelId.includes('claude-fable-5');
     }
 
+    // Check if the current model is Claude Sonnet 5.
+    // Adaptive thinking is ON BY DEFAULT (no thinking field needed; manual extended
+    // thinking with budget_tokens returns a 400 error). Non-default sampling params
+    // (temperature, top_p, top_k) return a 400 error. Uses a new tokenizer that
+    // produces ~30% more tokens for the same text. Effort defaults to "high".
+    // Note: the substring below does NOT match 'claude-sonnet-4-5'.
+    private isSonnet5(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+        return modelId.includes('claude-sonnet-5');
+    }
+
     /**
      * Extracts and concatenates all text content from a Bedrock response content array.
      * @param content The content array from Bedrock response
@@ -397,6 +409,33 @@ export class AnalyzerService {
                 },
                 inferenceConfig: {
                     maxTokens: 32000
+                }
+            };
+        }
+
+        // Claude Sonnet 5: Adaptive thinking is ON BY DEFAULT, so no "thinking" field
+        // is needed (manual extended thinking with budget_tokens returns a 400 error).
+        // No sampling params (temperature/top_p/top_k return a 400 error). Effort
+        // defaults to "high"; we set it explicitly for clarity. maxTokens is raised to
+        // 64000 because the new tokenizer produces ~30% more tokens for the same text
+        // and thinking tokens count against the max_tokens hard limit.
+        if (this.isSonnet5()) {
+            const additionalFields: Record<string, any> = {
+                output_config: {
+                    effort: "high"
+                }
+            };
+
+            // Sonnet 5 supports the same 1M context window as Sonnet 4.6,
+            // so keep the beta header behavior when extended context is enabled
+            if (extendedContextWindow) {
+                additionalFields.anthropic_beta = ["context-1m-2025-08-07"];
+            }
+
+            return {
+                additionalModelRequestFields: additionalFields,
+                inferenceConfig: {
+                    maxTokens: 64000
                 }
             };
         }
@@ -2126,11 +2165,14 @@ export class AnalyzerService {
         const region = this.configService.get<string>('aws.region');
 
         // Models that are NOT supported by the KB RetrieveAndGenerate API
-        // (or require custom prompt templates).
+        // (or require custom prompt templates). Claude Sonnet 5 is included
+        // conservatively as a newly released model — the KB retrieval step falls
+        // back to Sonnet 4.6 while the main analysis still uses the configured model.
         const unsupportedKbModels = [
             'claude-opus-4-7',
             'claude-opus-4-8',
             'claude-fable-5',
+            'claude-sonnet-5',
         ];
 
         const isUnsupported = unsupportedKbModels.some(m => configuredModelId.includes(m));
@@ -2153,10 +2195,10 @@ export class AnalyzerService {
      */
     private kbModelForbidsSamplingParams(): boolean {
         const configuredModelId = this.configService.get<string>('aws.bedrock.modelId');
-        // Claude Opus 4.7, Opus 4.8 and Fable 5 reject non-default temperature/top_p/top_k.
-        // The fallback model (Sonnet 4.6) also uses adaptive thinking and
-        // may reject these, so we check the *effective* KB model too.
-        const modelsWithoutSampling = ['claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5'];
+        // Claude Opus 4.7, Opus 4.8, Fable 5 and Sonnet 5 reject non-default
+        // temperature/top_p/top_k. The fallback model (Sonnet 4.6) also uses
+        // adaptive thinking and may reject these, so we check the *effective* KB model too.
+        const modelsWithoutSampling = ['claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5', 'claude-sonnet-5'];
         return modelsWithoutSampling.some(m => configuredModelId.includes(m));
     }
 
