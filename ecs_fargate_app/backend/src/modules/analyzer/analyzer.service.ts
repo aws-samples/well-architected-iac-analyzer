@@ -205,6 +205,18 @@ export class AnalyzerService {
         for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
             try {
                 const response = await sendCommand();
+
+                // Fail fast when the model or a guardrail declined to answer: there is
+                // no JSON to parse and re-invoking will not help. Claude Fable 5.1 and
+                // Opus 5 ship with blocking safety classifiers (surfaced by Bedrock as
+                // "content_filtered"; Anthropic's native stop reason is "refusal").
+                const stopReason: string | undefined = response?.stopReason;
+                if (stopReason && ['content_filtered', 'guardrail_intervened', 'refusal'].includes(stopReason)) {
+                    throw new Error(
+                        `Model declined to respond during ${operationLabel} (stopReason=${stopReason})`
+                    );
+                }
+
                 const responseText = this.extractTextFromContent(
                     response.output.message.content
                 );
@@ -351,6 +363,35 @@ export class AnalyzerService {
         return modelId.includes('claude-opus-4-8');
     }
 
+    // Check if the current model is Claude Opus 5 (model ID "claude-opus-5").
+    // Adaptive thinking is ON BY DEFAULT (thinking: {type: "adaptive"} is valid and
+    // equivalent to omitting the field; disabling thinking is only allowed at effort
+    // "high" or below). No budget_tokens, non-default temperature/top_p/top_k return a
+    // 400, native 1M context window (no beta header), 128K max output. Effort levels:
+    // low | medium | high | xhigh | max (default "high"). Uses the Opus 4.7+ tokenizer
+    // (up to ~35% more tokens than pre-4.7 models).
+    // NOTE: does not match "claude-opus-4-x". A future "claude-opus-5-1" WOULD match
+    // this substring and would need its own predicate evaluated before this one.
+    private isOpus5(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+        return modelId.includes('claude-opus-5');
+    }
+
+    // Check if the current model is Claude Fable 5.1 (model ID "claude-fable-5-1").
+    // Same API surface as Fable 5: adaptive thinking is ALWAYS ON and cannot be
+    // disabled (the "thinking" field must NOT be sent), no budget_tokens, no sampling
+    // params (temperature must be 1.0/unset, top_p 0.99/unset, top_k unsupported),
+    // native 1M context window, 128K max output. Effort levels: low | medium | high |
+    // xhigh | max (default "high").
+    // NOTE: "claude-fable-5" is a substring of "claude-fable-5-1", so this predicate
+    // must be evaluated before isFable5() and isFable5() must exclude it.
+    private isFable51(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+        return modelId.includes('claude-fable-5-1');
+    }
+
     // Check if the current model is Claude Fable 5.
     // Adaptive thinking is ALWAYS ON (no thinking field must be sent, and
     // thinking: {type: "disabled"} returns an error). No budget_tokens, no sampling
@@ -358,7 +399,8 @@ export class AnalyzerService {
     private isFable5(): boolean {
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
         if (!modelId) return false;
-        return modelId.includes('claude-fable-5');
+        // Exclude Claude Fable 5.1 ("claude-fable-5-1" contains "claude-fable-5")
+        return modelId.includes('claude-fable-5') && !this.isFable51();
     }
 
     // Check if the current model is Claude Sonnet 5.
@@ -394,6 +436,27 @@ export class AnalyzerService {
         const useAdaptiveThinking = this.supportsAdaptiveThinking();
         const useExtendedThinking = this.supportsExtendedThinking();
         const extendedContextWindow = this.configService.get<boolean>('aws.bedrock.extendedContextWindow', false);
+
+        // Claude Fable 5.1: Adaptive thinking is ALWAYS ON and cannot be disabled, so
+        // the "thinking" field must NOT be sent. No sampling params (temperature must be
+        // 1.0/unset, top_p 0.99/unset, top_k unsupported). Native 1M context window with
+        // no beta header. Effort "high" is Anthropic's recommended starting point
+        // (xhigh/max exist for capability-critical work). maxTokens is 64000 because
+        // thinking tokens count against the max_tokens hard limit and Anthropic
+        // recommends a large max_tokens at effort "high" and above.
+        // Must be checked BEFORE isFable5() (substring collision, see isFable51()).
+        if (this.isFable51()) {
+            return {
+                additionalModelRequestFields: {
+                    output_config: {
+                        effort: "high"
+                    }
+                },
+                inferenceConfig: {
+                    maxTokens: 64000
+                }
+            };
+        }
 
         // Claude Fable 5: Adaptive thinking is ALWAYS ON, so the "thinking" field
         // must NOT be sent (thinking: {type: "disabled"} returns an error, and requests
@@ -434,6 +497,30 @@ export class AnalyzerService {
 
             return {
                 additionalModelRequestFields: additionalFields,
+                inferenceConfig: {
+                    maxTokens: 64000
+                }
+            };
+        }
+
+        // Claude Opus 5: Adaptive thinking is ON BY DEFAULT; thinking: {type: "adaptive"}
+        // is valid and equivalent to omitting the field (kept explicit for clarity).
+        // Disabling thinking is capped at effort "high" (disabled + xhigh/max => 400).
+        // Non-default temperature/top_p/top_k return a 400. Native 1M context window
+        // (no beta header). Effort "high" is Anthropic's recommended starting point for
+        // Opus 5 (effort levels were recalibrated vs Opus 4.7/4.8, so xhigh is not
+        // carried over). maxTokens 64000: thinking tokens count against max_tokens and
+        // the Opus 4.7+ tokenizer produces up to ~35% more tokens than older models.
+        if (this.isOpus5()) {
+            return {
+                additionalModelRequestFields: {
+                    thinking: {
+                        type: "adaptive"
+                    },
+                    output_config: {
+                        effort: "high"
+                    }
+                },
                 inferenceConfig: {
                     maxTokens: 64000
                 }
@@ -2165,13 +2252,18 @@ export class AnalyzerService {
         const region = this.configService.get<string>('aws.region');
 
         // Models that are NOT supported by the KB RetrieveAndGenerate API
-        // (or require custom prompt templates). Claude Sonnet 5 is included
-        // conservatively as a newly released model — the KB retrieval step falls
-        // back to Sonnet 4.6 while the main analysis still uses the configured model.
+        // (or require custom prompt templates). Claude Sonnet 5, Claude Opus 5 and
+        // Claude Fable 5.1 are included conservatively as newly released models (their
+        // Bedrock model cards list Knowledge Base support, but RetrieveAndGenerate with
+        // this app's custom prompt template has not been validated on them) — the KB
+        // retrieval step falls back to Sonnet 4.6 while the main analysis still uses
+        // the configured model.
         const unsupportedKbModels = [
             'claude-opus-4-7',
             'claude-opus-4-8',
-            'claude-fable-5',
+            'claude-opus-5',
+            'claude-fable-5',   // also matches claude-fable-5-1
+            'claude-fable-5-1',
             'claude-sonnet-5',
         ];
 
@@ -2195,10 +2287,17 @@ export class AnalyzerService {
      */
     private kbModelForbidsSamplingParams(): boolean {
         const configuredModelId = this.configService.get<string>('aws.bedrock.modelId');
-        // Claude Opus 4.7, Opus 4.8, Fable 5 and Sonnet 5 reject non-default
-        // temperature/top_p/top_k. The fallback model (Sonnet 4.6) also uses
+        // Claude Opus 4.7, Opus 4.8, Opus 5, Fable 5, Fable 5.1 and Sonnet 5 reject
+        // non-default temperature/top_p/top_k. The fallback model (Sonnet 4.6) also uses
         // adaptive thinking and may reject these, so we check the *effective* KB model too.
-        const modelsWithoutSampling = ['claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5', 'claude-sonnet-5'];
+        const modelsWithoutSampling = [
+            'claude-opus-4-7',
+            'claude-opus-4-8',
+            'claude-opus-5',
+            'claude-fable-5',   // also matches claude-fable-5-1
+            'claude-fable-5-1',
+            'claude-sonnet-5',
+        ];
         return modelsWithoutSampling.some(m => configuredModelId.includes(m));
     }
 

@@ -392,24 +392,32 @@ Related flows in the same service:
 
 ### 4.5 Model-specific request shaping (`getModelParameters`) — most fragile area
 
-Detection is by **substring match on `MODEL_ID`**. Order of evaluation matters.
+Detection is by **substring match on `MODEL_ID`**. Order of evaluation matters — `claude-fable-5` is a
+substring of `claude-fable-5-1`, so `isFable51()` is checked first and `isFable5()` excludes it; a future
+`claude-opus-5-1` would likewise collide with `isOpus5()`.
 
 | Predicate (substring) | `thinking` | `output_config.effort` | `maxTokens` | Sampling params | 1M context |
 |-----------------------|-----------|------------------------|-------------|-----------------|------------|
-| `isFable5` (`claude-fable-5`) | *omitted* (always-on adaptive; sending it errors) | `high` | 32000 | none | native |
+| `isFable51` (`claude-fable-5-1`) | *omitted* (always-on adaptive; cannot be disabled) | `high` | 64000 | none | native |
+| `isFable5` (`claude-fable-5`, excluding `-5-1`) | *omitted* (always-on adaptive; sending it errors) | `high` | 32000 | none | native |
 | `isSonnet5` (`claude-sonnet-5`, does **not** match `sonnet-4-5`) | *omitted* | `high` | 64000 (new tokenizer ≈ +30 % tokens) | none | `anthropic_beta: ["context-1m-2025-08-07"]` when `EXTENDED_CONTEXT_WINDOW=true` |
+| `isOpus5` (`claude-opus-5`) | `{type: "adaptive"}` (on by default; disabling only allowed at effort ≤ high) | `high` (Anthropic: re-sweep, don't carry over 4.7/4.8's xhigh) | 64000 | none | native |
 | `isOpus47` / `isOpus48` | `{type: "adaptive"}` | `xhigh` | 32000 | none | native |
 | `supportsAdaptiveThinking` (`opus-4-7`, `opus-4-6`, `sonnet-4-6`) | `{type: "adaptive"}` | `high` | 32000 | none | beta header when enabled |
 | `supportsExtendedThinking` (`3-7-sonnet`, `haiku-4-5`, `sonnet-4-5`, `opus-4-5`, `opus-4-6`, `sonnet-4-6`) | `{type: "enabled", budget_tokens: 8000}` | — | 32000 | none | — |
 | anything else (legacy) | — | — | 8192 | `temperature: 0.7` | — |
 
-- **KB retrieval model** (`getKnowledgeBaseModelArn`): models not supported by `RetrieveAndGenerate`
-  (`opus-4-7`, `opus-4-8`, `fable-5`, `sonnet-5`) fall back to
+- **KB retrieval model** (`getKnowledgeBaseModelArn`): models not validated with `RetrieveAndGenerate`
+  (`opus-4-7`, `opus-4-8`, `opus-5`, `fable-5`, `fable-5-1`, `sonnet-5`) fall back to
   `{us|eu|global}.anthropic.claude-sonnet-4-6` (prefix taken from `MODEL_ID`), and
   `kbModelForbidsSamplingParams` drops `temperature` from the KB generation config. Analysis itself
   still uses `MODEL_ID`.
 - `prompts/system-prompts.ts` has its **own** `supportsExtendedThinking(modelId)` list (broader) used
   only to pick output-length guidance in details/IaC prompts.
+- `sendAndParseModelResponse` fails fast (no JSON re-invoke) when `stopReason` is `content_filtered`,
+  `guardrail_intervened` or `refusal` — Fable 5.1 / Opus 5 ship with blocking safety classifiers.
+- **Claude Fable 5.1 is an Anthropic Covered Model**: the account must opt in to `aws_review` data
+  retention or invocations fail; only `us.`/`global.` inference profiles exist for it.
 - **Adding a model = add a predicate + branch here, update the KB allow-list, update the prompts list,
   update README/config.ini/CFN parameter descriptions.** Never fold a new model into an existing branch
   without checking the Bedrock API differences.
@@ -582,7 +590,7 @@ the analysis bucket/table, and prints the outputs needed for `.env`.
 | `config.ini` | CDK variable | Container env (backend) | Backend config path | Also in |
 |--------------|--------------|-------------------------|---------------------|---------|
 | `model_id` | `model_id` | `MODEL_ID` | `aws.bedrock.modelId` | CFN `ModelId`, compose, README |
-| `batch_size` | `batch_size` | `BATCH_SIZE` | `analysis.batchSize` (default 5) | CFN `BatchSize` (1–12), compose |
+| `batch_size` | `batch_size` | `BATCH_SIZE` | `analysis.batchSize` (default 5) | CFN `BatchSize` (1–30), compose |
 | `vector_store_type` | `vector_store_type` | — | — | CFN `VectorStoreType`, `local_development/cdk.json` context |
 | `public_load_balancer` | `public_lb` | — | — | CFN `PublicLoadBalancer` |
 | `authentication` | `auth_config.enabled` | `AUTH_ENABLED` | `auth.enabled` | CFN `Authentication` |
