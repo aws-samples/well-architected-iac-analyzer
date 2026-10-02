@@ -207,8 +207,8 @@ export class AnalyzerService {
                 const response = await sendCommand();
 
                 // Fail fast when the model or a guardrail declined to answer: there is
-                // no JSON to parse and re-invoking will not help. Claude Fable 5.1 and
-                // Opus 5 ship with blocking safety classifiers (surfaced by Bedrock as
+                // no JSON to parse and re-invoking will not help. Claude Fable 5.1,
+                // Opus 5 and Sonnet 5.5 ship with blocking safety classifiers (surfaced by Bedrock as
                 // "content_filtered"; Anthropic's native stop reason is "refusal").
                 const stopReason: string | undefined = response?.stopReason;
                 if (stopReason && ['content_filtered', 'guardrail_intervened', 'refusal'].includes(stopReason)) {
@@ -403,16 +403,33 @@ export class AnalyzerService {
         return modelId.includes('claude-fable-5') && !this.isFable51();
     }
 
+    // Check if the current model is Claude Sonnet 5.5 (model ID "claude-sonnet-5-5").
+    // Adaptive thinking is ON BY DEFAULT: omitting the "thinking" field is equivalent
+    // to {type: "adaptive"}. thinking: {type: "disabled"} and manual budget_tokens both
+    // return a 400 on this model (its lowest setting is {type: "between_tools"}, which
+    // is only accepted at effort "high" or below). Non-default temperature/top_p/top_k
+    // return a 400. Native 1M context window with no beta header, 128K max output, same
+    // tokenizer as Sonnet 5. Effort levels: low | medium | high | xhigh | max (default
+    // "high"; levels are recalibrated vs Sonnet 5).
+    // NOTE: "claude-sonnet-5" is a substring of "claude-sonnet-5-5", so this predicate
+    // must be evaluated before isSonnet5() and isSonnet5() must exclude it.
+    private isSonnet55(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+        return modelId.includes('claude-sonnet-5-5');
+    }
+
     // Check if the current model is Claude Sonnet 5.
     // Adaptive thinking is ON BY DEFAULT (no thinking field needed; manual extended
     // thinking with budget_tokens returns a 400 error). Non-default sampling params
     // (temperature, top_p, top_k) return a 400 error. Uses a new tokenizer that
     // produces ~30% more tokens for the same text. Effort defaults to "high".
-    // Note: the substring below does NOT match 'claude-sonnet-4-5'.
+    // Note: the substring below does NOT match 'claude-sonnet-4-5', but it DOES match
+    // 'claude-sonnet-5-5' (and any future 'claude-sonnet-5-x'), which is excluded here.
     private isSonnet5(): boolean {
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
         if (!modelId) return false;
-        return modelId.includes('claude-sonnet-5');
+        return modelId.includes('claude-sonnet-5') && !this.isSonnet55();
     }
 
     /**
@@ -472,6 +489,29 @@ export class AnalyzerService {
                 },
                 inferenceConfig: {
                     maxTokens: 32000
+                }
+            };
+        }
+
+        // Claude Sonnet 5.5 (default model): Adaptive thinking is ON BY DEFAULT, so no
+        // "thinking" field is sent (thinking: {type: "disabled"} and budget_tokens return
+        // a 400 on this model). No sampling params (temperature/top_p/top_k return a 400).
+        // The 1M context window is native, so the context-1m beta header is NOT sent even
+        // when EXTENDED_CONTEXT_WINDOW=true (Anthropic: remove context-window beta headers).
+        // Effort "high" is Anthropic's recommended starting point for non-agentic,
+        // non-latency-sensitive workloads such as this single-turn JSON analysis.
+        // maxTokens 64000: same tokenizer as Sonnet 5, and thinking tokens count against
+        // the max_tokens hard limit.
+        // Must be checked BEFORE isSonnet5() (substring collision, see isSonnet55()).
+        if (this.isSonnet55()) {
+            return {
+                additionalModelRequestFields: {
+                    output_config: {
+                        effort: "high"
+                    }
+                },
+                inferenceConfig: {
+                    maxTokens: 64000
                 }
             };
         }
@@ -2252,8 +2292,9 @@ export class AnalyzerService {
         const region = this.configService.get<string>('aws.region');
 
         // Models that are NOT supported by the KB RetrieveAndGenerate API
-        // (or require custom prompt templates). Claude Sonnet 5, Claude Opus 5 and
-        // Claude Fable 5.1 are included conservatively as newly released models (their
+        // (or require custom prompt templates). Claude Sonnet 5, Claude Sonnet 5.5,
+        // Claude Opus 5 and Claude Fable 5.1 are included conservatively as newly
+        // released models (their
         // Bedrock model cards list Knowledge Base support, but RetrieveAndGenerate with
         // this app's custom prompt template has not been validated on them) — the KB
         // retrieval step falls back to Sonnet 4.6 while the main analysis still uses
@@ -2264,7 +2305,8 @@ export class AnalyzerService {
             'claude-opus-5',
             'claude-fable-5',   // also matches claude-fable-5-1
             'claude-fable-5-1',
-            'claude-sonnet-5',
+            'claude-sonnet-5',  // also matches claude-sonnet-5-5
+            'claude-sonnet-5-5',
         ];
 
         const isUnsupported = unsupportedKbModels.some(m => configuredModelId.includes(m));
@@ -2287,7 +2329,7 @@ export class AnalyzerService {
      */
     private kbModelForbidsSamplingParams(): boolean {
         const configuredModelId = this.configService.get<string>('aws.bedrock.modelId');
-        // Claude Opus 4.7, Opus 4.8, Opus 5, Fable 5, Fable 5.1 and Sonnet 5 reject
+        // Claude Opus 4.7, Opus 4.8, Opus 5, Fable 5, Fable 5.1, Sonnet 5 and Sonnet 5.5 reject
         // non-default temperature/top_p/top_k. The fallback model (Sonnet 4.6) also uses
         // adaptive thinking and may reject these, so we check the *effective* KB model too.
         const modelsWithoutSampling = [
@@ -2296,7 +2338,8 @@ export class AnalyzerService {
             'claude-opus-5',
             'claude-fable-5',   // also matches claude-fable-5-1
             'claude-fable-5-1',
-            'claude-sonnet-5',
+            'claude-sonnet-5',  // also matches claude-sonnet-5-5
+            'claude-sonnet-5-5',
         ];
         return modelsWithoutSampling.some(m => configuredModelId.includes(m));
     }
