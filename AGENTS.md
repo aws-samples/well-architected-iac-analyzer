@@ -37,6 +37,12 @@ It ships as **three deliverables that must stay consistent**:
 Upstream: `https://github.com/aws-samples/well-architected-iac-analyzer` (branch `main`).
 Dependabot PRs are the normal dependency-update path — versions are pinned everywhere.
 
+**Project status (Oct 2026):** AWS announced the **AWS Well-Architected Agent** (public preview,
+1 Oct 2026), a managed AWS service that covers this project's core IaC-review capability and more.
+This repo continues to be maintained **mainly for security patching**, so expect maintenance-oriented
+changes (security fixes, dependency bumps, new Bedrock model support). The announcement notice at the
+top of `README.md` (above "Description") must stay in place.
+
 ---
 
 ## 2. Tech stack (pinned versions as of this file)
@@ -44,7 +50,7 @@ Dependabot PRs are the normal dependency-update path — versions are pinned eve
 | Layer | Technology |
 |-------|-----------|
 | Infra-as-code | Python 3.11+ CDK v2 (`aws-cdk-lib==2.253.0`, `cdklabs.generative_ai_cdk_constructs==0.1.312`, `cdk-nag`), CDK CLI ≥ 2.x, Docker or Finch for image assets |
-| Backend | Node ≥ 20.19 / 22.12 at runtime (Nest 12 packages are ESM-only and load via `require(esm)`; images use `node:alpine3.23`, the CFN deployer installs Node 24), NestJS 12 (`@nestjs/common`, `core`, `platform-express`, `platform-socket.io`, `websockets` 12.0.3, `@nestjs/config` 12.0.0, `@nestjs/throttler` 6.7.0; `@nestjs/cli` 11.0.21 / `schematics` 11.1.0 kept on 11 because schematics 12 requires TypeScript ≥ 6), `socket.io` 4.8.3, AWS SDK v3 `3.1000.0` (bedrock-runtime, bedrock-agent-runtime, dynamodb, s3, wellarchitected, lib-storage), `adm-zip` 0.6.0, `class-validator` 0.14.3, TypeScript 5.9.3 (CommonJS, ES2021, **lenient**: `strictNullChecks: false`, `noImplicitAny: false`) |
+| Backend | Node ≥ 20.19 / 22.12 at runtime (Nest 12 packages are ESM-only and load via `require(esm)`; images use `node:alpine3.23`, the CFN deployer installs Node 24), NestJS 12 (`@nestjs/common`, `core`, `platform-express`, `platform-socket.io`, `websockets` 12.0.3, `@nestjs/config` 12.0.0, `@nestjs/throttler` 6.7.0; `@nestjs/cli` 11.0.21 / `schematics` 11.1.0 kept on 11 because schematics 12 requires TypeScript ≥ 6), `socket.io` 4.8.3, AWS SDK v3 `3.1000.0` (bedrock-runtime, bedrock-agent-runtime, dynamodb, s3, wellarchitected, lib-storage), `adm-zip` 0.6.1, `class-validator` 0.14.3, TypeScript 5.9.3 (CommonJS, ES2021, **lenient**: `strictNullChecks: false`, `noImplicitAny: false`) |
 | Frontend | React 19.2.3, Vite 8.0.16, TypeScript 5.9.3 (**strict**, `noUnusedLocals`/`noUnusedParameters` on), Cloudscape (`components` 3.0.1174, `chat-components` 1.0.89, `code-view` 3.0.94, `design-tokens` 3.0.68, `global-styles` 1.0.49, `collection-hooks`), `axios` 1.18.0, `socket.io-client` 4.8.3, `react-markdown` 10.1.0, `react-syntax-highlighter` 16.1.0, `react-rnd` 10.5.2 |
 | Containers | `node:alpine3.23` (backend, multi-stage), `nginx:stable-alpine-slim` (frontend, serves SPA + reverse proxy), both run as non-root |
 | Lambdas | Python (latest runtime via `determine_latest_python_runtime`), `boto3==1.37.2` (migration, cleanup), `requests` (KB synchronizer) |
@@ -68,7 +74,7 @@ is required for local dev.
 well-architected-iac-analyzer/
 ├── AGENTS.md                                   ← This file: agent-facing entry point and architecture reference.
 ├── CLAUDE.md                                   ← Claude Code entry point; contains only `@AGENTS.md` so this file stays the single source of truth.
-├── README.md                                   ← End-user docs: features, 3 deployment options, CFN parameters, config.ini options, clean-up, local dev.
+├── README.md                                   ← End-user docs: AWS Well-Architected Agent announcement notice (top), features, 3 deployment options, CFN parameters, config.ini options, clean-up, local dev.
 ├── CONTRIBUTING.md                             ← Standard aws-samples contribution/PR/security-reporting guidelines.
 ├── CODE_OF_CONDUCT.md                          ← Amazon Open Source Code of Conduct pointer.
 ├── LICENSE                                     ← MIT No Attribution (MIT-0).
@@ -393,14 +399,16 @@ Related flows in the same service:
 ### 4.5 Model-specific request shaping (`getModelParameters`) — most fragile area
 
 Detection is by **substring match on `MODEL_ID`**. Order of evaluation matters — `claude-fable-5` is a
-substring of `claude-fable-5-1`, so `isFable51()` is checked first and `isFable5()` excludes it; a future
-`claude-opus-5-1` would likewise collide with `isOpus5()`.
+substring of `claude-fable-5-1` and `claude-sonnet-5` is a substring of `claude-sonnet-5-5`, so
+`isFable51()` / `isSonnet55()` are checked first and `isFable5()` / `isSonnet5()` exclude them; a future
+`claude-opus-5-1` (or `claude-sonnet-5-6`) would likewise collide with `isOpus5()` (or `isSonnet5()`).
 
 | Predicate (substring) | `thinking` | `output_config.effort` | `maxTokens` | Sampling params | 1M context |
 |-----------------------|-----------|------------------------|-------------|-----------------|------------|
 | `isFable51` (`claude-fable-5-1`) | *omitted* (always-on adaptive; cannot be disabled) | `high` | 64000 | none | native |
 | `isFable5` (`claude-fable-5`, excluding `-5-1`) | *omitted* (always-on adaptive; sending it errors) | `high` | 32000 | none | native |
-| `isSonnet5` (`claude-sonnet-5`, does **not** match `sonnet-4-5`) | *omitted* | `high` | 64000 (new tokenizer ≈ +30 % tokens) | none | `anthropic_beta: ["context-1m-2025-08-07"]` when `EXTENDED_CONTEXT_WINDOW=true` |
+| `isSonnet55` (`claude-sonnet-5-5`) — **default model** | *omitted* (adaptive on by default; `disabled`/`budget_tokens` → 400) | `high` | 64000 | none | native (beta header **not** sent) |
+| `isSonnet5` (`claude-sonnet-5`, excluding `-5-5`; does **not** match `sonnet-4-5`) | *omitted* | `high` | 64000 (new tokenizer ≈ +30 % tokens) | none | `anthropic_beta: ["context-1m-2025-08-07"]` when `EXTENDED_CONTEXT_WINDOW=true` |
 | `isOpus5` (`claude-opus-5`) | `{type: "adaptive"}` (on by default; disabling only allowed at effort ≤ high) | `high` (Anthropic: re-sweep, don't carry over 4.7/4.8's xhigh) | 64000 | none | native |
 | `isOpus47` / `isOpus48` | `{type: "adaptive"}` | `xhigh` | 32000 | none | native |
 | `supportsAdaptiveThinking` (`opus-4-7`, `opus-4-6`, `sonnet-4-6`) | `{type: "adaptive"}` | `high` | 32000 | none | beta header when enabled |
@@ -408,14 +416,15 @@ substring of `claude-fable-5-1`, so `isFable51()` is checked first and `isFable5
 | anything else (legacy) | — | — | 8192 | `temperature: 0.7` | — |
 
 - **KB retrieval model** (`getKnowledgeBaseModelArn`): models not validated with `RetrieveAndGenerate`
-  (`opus-4-7`, `opus-4-8`, `opus-5`, `fable-5`, `fable-5-1`, `sonnet-5`) fall back to
+  (`opus-4-7`, `opus-4-8`, `opus-5`, `fable-5`, `fable-5-1`, `sonnet-5`, `sonnet-5-5`) fall back to
   `{us|eu|global}.anthropic.claude-sonnet-4-6` (prefix taken from `MODEL_ID`), and
   `kbModelForbidsSamplingParams` drops `temperature` from the KB generation config. Analysis itself
   still uses `MODEL_ID`.
 - `prompts/system-prompts.ts` has its **own** `supportsExtendedThinking(modelId)` list (broader) used
   only to pick output-length guidance in details/IaC prompts.
 - `sendAndParseModelResponse` fails fast (no JSON re-invoke) when `stopReason` is `content_filtered`,
-  `guardrail_intervened` or `refusal` — Fable 5.1 / Opus 5 ship with blocking safety classifiers.
+  `guardrail_intervened` or `refusal` — Fable 5.1 / Opus 5 / Sonnet 5.5 ship with blocking safety
+  classifiers (Sonnet 5.5 declines in more categories than Sonnet 5).
 - **Claude Fable 5.1 is an Anthropic Covered Model**: the account must opt in to `aws_review` data
   retention or invocations fail; only `us.`/`global.` inference profiles exist for it.
 - **Adding a model = add a predicate + branch here, update the KB allow-list, update the prompts list,
@@ -740,8 +749,9 @@ Per best practice with `relevant=true && applied=false` (otherwise all `"N/A"`):
    `local_development/kb_storage_stack.py`; workload name prefixes across TS/Python/CDK.
 8. **Language code is `pt_BR`** (underscore) in code; README/docs say "pt-BR". `strings.ts` object
    order is en, ja, es, pt_BR, fr, ko.
-9. **README drift**: `.env` example `MODEL_ID` uses an older `claude-sonnet-4-5…` id while defaults are
-   `global.anthropic.claude-sonnet-5`; config example typo `allback_urls`.
+9. **README drift**: new-cognito config example has the typo `allback_urls` (should be `callback_urls`).
+   When the default model changes, update `config.ini`, the CFN `ModelId` default, and every README
+   mention (features, CFN parameter docs, manual-config section, local-dev `.env` example) together.
 10. **Pinning gaps**: `lambda_kb_synchronizer/requirements.txt` (`requests`) and root `requirements.txt`
     (`cdk-nag`) are unpinned; everything else is exact-pinned — keep new deps pinned.
 11. **CDK API drift**: `local_development/kb_storage_stack.py` uses deprecated

@@ -16,7 +16,8 @@ function supportsExtendedThinking(modelId?: string): boolean {
     'claude-opus-5',
     'claude-fable-5',   // also matches claude-fable-5-1
     'claude-fable-5-1',
-    'claude-sonnet-5',
+    'claude-sonnet-5',   // also matches claude-sonnet-5-5
+    'claude-sonnet-5-5',
     'claude-3-7-sonnet',
     'claude-haiku-4-5',
     'claude-sonnet-4-5',

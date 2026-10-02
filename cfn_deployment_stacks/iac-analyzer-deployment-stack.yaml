@@ -11,8 +11,8 @@ Parameters:
   
   ModelId:
     Type: String
-    Default: 'global.anthropic.claude-sonnet-5'
-    Description: 'Amazon Bedrock Model ID to use for analysis. By default uses Claude Sonnet 5. You can also use other supported models such as Claude Fable 5.1 (global.anthropic.claude-fable-5-1), Claude Opus 5 (global.anthropic.claude-opus-5), Claude Fable 5 (global.anthropic.claude-fable-5) or Claude Opus 4.8 (global.anthropic.claude-opus-4-8). Claude Fable 5.1 is an Anthropic Covered Model: your account must first opt in to AWS review (Bedrock data retention mode "aws_review"). The default model uses a GLOBAL cross-Region inference profile, which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix).'
+    Default: 'global.anthropic.claude-sonnet-5-5'
+    Description: 'Amazon Bedrock Model ID to use for analysis. By default uses Claude Sonnet 5.5. You can also use other supported models such as Claude Sonnet 5 (global.anthropic.claude-sonnet-5), Claude Fable 5.1 (global.anthropic.claude-fable-5-1), Claude Opus 5 (global.anthropic.claude-opus-5), Claude Fable 5 (global.anthropic.claude-fable-5) or Claude Opus 4.8 (global.anthropic.claude-opus-4-8). Claude Fable 5.1 is an Anthropic Covered Model: your account must first opt in to AWS review (Bedrock data retention mode "aws_review"). The default model uses a GLOBAL cross-Region inference profile, which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix).'
   
   BatchSize:
     Type: Number

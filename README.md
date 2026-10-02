@@ -1,6 +1,28 @@
 
 # Well-Architected IaC (Infrastructure as Code) Analyzer
 
+> [!IMPORTANT]
+> **📢 Introducing the AWS Well-Architected Agent (Public Preview)**
+>
+> On October 1, 2026, AWS announced the **AWS Well-Architected Agent**, now available in **public preview**: an AI-powered AWS service that continuously analyzes your AWS environment and delivers personalized, prioritized recommendations across cost, security, performance, and resilience.
+>
+> The AWS Well-Architected Agent covers the core of what this open-source IaC Analyzer does, including on-demand architecture reviews, and goes well beyond it:
+>
+> - Ongoing analysis of your live AWS environment across your AWS accounts and commercial AWS Regions
+> - Recommendations at the resource, application, and architecture levels, prioritized against the business goals you define
+> - Cross-pillar impact and trade-off analysis for each recommendation
+> - Ready-to-deploy remediation, such as updated IaC code, AWS CLI commands, and guided console walkthroughs
+> - Builds on findings from existing AWS optimization services
+>
+> **We encourage you to try the AWS Well-Architected Agent** from the [AWS Well-Architected console](https://console.aws.amazon.com/wellarchitected/home), or reach out to your AWS account team to learn more.
+>
+> **What this means for this project:** the Well-Architected IaC Analyzer will continue to be maintained, mainly for security patching. We encourage users to try the AWS Well-Architected Agent.
+>
+> **Learn more:**
+> - [What's New: AWS Well-Architected Agent (Preview)](https://aws.amazon.com/about-aws/whats-new/2026/10/aws-well-architected-agent/)
+> - [AWS News Blog: Announcing AWS Well-Architected Agent (Preview)](https://aws.amazon.com/blogs/aws/announcing-aws-well-architected-agent-an-ai-powered-intelligence-to-optimize-your-cloud-environment-preview/)
+> - [AWS Documentation: What is AWS Well-Architected Agent (preview)?](https://docs.aws.amazon.com/wellarchitected/latest/userguide/agent.html)
+
 ![solutions_diagram](/assets/wa_genai_app_diagram.png)
 
 ## Description
@@ -24,10 +46,10 @@ Additionally, an **interactive Analyzer Assistant chatbot** enables users to ask
   - Filter the analysis by Criticality, Complexity, or Priority to focus remediation planning, and export all fields to CSV
 
 - **NEW** 🧠 **Enhanced AI Capabilities with Latest Anthropic Models:**
-  - Full support for **Claude Fable 5.1**, **Claude Opus 5**, **Claude Sonnet 5** (default), **Claude Fable 5** and **Claude Opus 4.8**
+  - Full support for **Claude Sonnet 5.5** (default), **Claude Fable 5.1**, **Claude Opus 5**, **Claude Sonnet 5**, **Claude Fable 5** and **Claude Opus 4.8**
   - **Supported Claude models** leverage **Adaptive Thinking** for complex reasoning and analysis
-  - **1M token context window** natively supported by Claude Fable 5.1, Claude Opus 5, Claude Sonnet 5, Claude Fable 5, and Claude Opus 4.8, enabling analysis of much larger IaC projects and architectural documentation in a single pass
-  - Switch models at deployment time via the `ModelId` CloudFormation parameter or `config.ini` (e.g. `global.anthropic.claude-fable-5-1`, `global.anthropic.claude-opus-5`)
+  - **1M token context window** natively supported by Claude Sonnet 5.5, Claude Fable 5.1, Claude Opus 5, Claude Sonnet 5, Claude Fable 5, and Claude Opus 4.8, enabling analysis of much larger IaC projects and architectural documentation in a single pass
+  - Switch models at deployment time via the `ModelId` CloudFormation parameter or `config.ini` (e.g. `global.anthropic.claude-sonnet-5-5` (default), `global.anthropic.claude-fable-5-1`, `global.anthropic.claude-opus-5`)
 
 - 🚀 **Accelerated Analysis with Parallel Processing:**
   - Configurable batch size controls how many Well-Architected (or selected Lens) questions are processed in parallel
@@ -143,9 +165,9 @@ This option uses AWS CloudFormation to create a temporary deployment environment
 
      - **Security Note:** By default, the stack deploys with a Public Application Load Balancer (internet-facing) with authentication enabled. For maximum security, we strongly recommend keeping authentication enabled for internet-facing deployments. If you disable authentication, your application will be publicly accessible without any security controls.
 
-     - **Model Selection Note:** The tool currently defaults to **Claude Sonnet 5**. If you want to use a different model (E.g. Claude Fable 5.1, Claude Opus 5, Claude Fable 5 or Claude Opus 4.8), you'll need to explicitly add the model ID in the stack "Amazon Bedrock Model ID" configuration parameter. Please note that not all models are available in all AWS regions, so verify availability in your region before deployment. **Claude Fable 5.1** is an Anthropic *Covered Model*: your AWS account must first opt in to AWS review by setting the Amazon Bedrock data retention mode to `aws_review` (see [Amazon Bedrock abuse detection](https://docs.aws.amazon.com/bedrock/latest/userguide/abuse-detection.html)), and it is offered through the `us.` geographic and `global.` inference profiles only.
+     - **Model Selection Note:** The tool currently defaults to **Claude Sonnet 5.5**. If you want to use a different model (E.g. Claude Sonnet 5, Claude Fable 5.1, Claude Opus 5, Claude Fable 5 or Claude Opus 4.8), you'll need to explicitly add the model ID in the stack "Amazon Bedrock Model ID" configuration parameter. Please note that not all models are available in all AWS regions, so verify availability in your region before deployment. **Claude Fable 5.1** is an Anthropic *Covered Model*: your AWS account must first opt in to AWS review by setting the Amazon Bedrock data retention mode to `aws_review` (see [Amazon Bedrock abuse detection](https://docs.aws.amazon.com/bedrock/latest/userguide/abuse-detection.html)), and it is offered through the `us.` geographic and `global.` inference profiles only.
   
-     - **Geographic and Global Cross-Region Inference Note:** The default Claude Sonnet 5 model ID uses a GLOBAL cross-Region inference profile (`global.anthropic.claude-sonnet-5`), which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix). For more information visit the documentation [Choosing between Geographic and Global cross-Region inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html#cross-region-inference-comparison)
+     - **Geographic and Global Cross-Region Inference Note:** The default Claude Sonnet 5.5 model ID uses a GLOBAL cross-Region inference profile (`global.anthropic.claude-sonnet-5-5`), which routes requests to any supported AWS commercial Region worldwide for optimal performance and cost savings. If your organization has data residency or compliance requirements, consider using a GEOGRAPHIC inference profile instead (e.g., "us." or "eu." prefix). For more information visit the documentation [Choosing between Geographic and Global cross-Region inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html#cross-region-inference-comparison)
 
    - Choose "Next" until reaching the "Review" page and choose "Submit".
 
@@ -350,9 +372,10 @@ After successful deployment, you can find the Application Load Balancer (ALB) DN
   - ⚠️ **Security Warning**: By default, authentication is enabled for secure access. If you disable authentication while using a public load balancer (`True`), your application will be publicly accessible without any security controls. We strongly recommend keeping authentication enabled for public-facing deployments.
 
 - **Amazon Bedrock Model ID** (`ModelId`)
-  - Default: `global.anthropic.claude-sonnet-5` (Claude Sonnet 5)
+  - Default: `global.anthropic.claude-sonnet-5-5` (Claude Sonnet 5.5)
   - You can specify an alternative [Bedrock model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns) if needed
-  - **Note**: This application has been primarily tested with Anthropic models (Claude Fable 5.1, Claude Opus 5, Claude Sonnet 5, Claude Fable 5 and Claude Opus 4.8). While other Bedrock models may work, using different models might lead to unexpected results.
+  - **Note**: This application has been primarily tested with Anthropic models (Claude Sonnet 5.5, Claude Fable 5.1, Claude Opus 5, Claude Sonnet 5, Claude Fable 5 and Claude Opus 4.8). While other Bedrock models may work, using different models might lead to unexpected results.
+  - **Claude Sonnet 5.5** (`global.anthropic.claude-sonnet-5-5`, default): Adaptive Thinking (on by default; no thinking configuration is sent) with high effort. Natively supports 1M token context window.
   - **Claude Fable 5.1** (`global.anthropic.claude-fable-5-1`): Always-on Adaptive Thinking (no thinking configuration is sent) with high effort. Natively supports 1M token context window. *Covered Model*: requires the `aws_review` data retention opt-in (see the Model Selection Note above) and is available via `us.`/`global.` inference profiles only.
   - **Claude Opus 5** (`global.anthropic.claude-opus-5`): Adaptive Thinking (on by default) with high effort. Natively supports 1M token context window.
   - **Claude Fable 5 and Sonnet 5**: Uses always-on Adaptive Thinking (no thinking configuration is sent) with high effort. Natively supports 1M token context window.
@@ -467,13 +490,13 @@ These parameters are required when `AuthType` is set to `oidc`:
 
 ### Model Selection
 
-If you want to use a different model than the default Claude Sonnet 5, update the config.ini with the correct [model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns):
+If you want to use a different model than the default Claude Sonnet 5.5, update the config.ini with the correct [model ID](https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns):
 ```ini
 [settings]
-model_id = global.anthropic.claude-sonnet-5
+model_id = global.anthropic.claude-sonnet-5-5
 ```
 
-> **Note:** This application has been primarily tested with Anthropic models (Claude Fable 5.1, Claude Opus 5, Claude Sonnet 5, Claude Fable 5, and Claude Opus 4.8). While other Bedrock models may work, using different models might lead to unexpected results. The default model ID is set to `global.anthropic.claude-sonnet-5`. Claude Fable 5.1 (`global.anthropic.claude-fable-5-1`), Claude Fable 5 and Sonnet 5 use always-on Adaptive Thinking with high effort and natively support a 1M token context window. Claude Opus 5 (`global.anthropic.claude-opus-5`) uses Adaptive Thinking (on by default) with high effort and natively supports a 1M token context window. Claude Opus 4.8 and 4.7 models use Adaptive Thinking with xhigh effort and natively support 1M token context window. Claude 4.6 models use Adaptive Thinking with high effort and natively support 1M token context window, while Claude 4.5 models use Extended Thinking with budget tokens. Claude Fable 5.1 is an Anthropic *Covered Model*: your account must first opt in to AWS review (Bedrock data retention mode `aws_review`, see [Amazon Bedrock abuse detection](https://docs.aws.amazon.com/bedrock/latest/userguide/abuse-detection.html)) and it is offered via the `us.`/`global.` inference profiles only.
+> **Note:** This application has been primarily tested with Anthropic models (Claude Sonnet 5.5, Claude Fable 5.1, Claude Opus 5, Claude Sonnet 5, Claude Fable 5, and Claude Opus 4.8). While other Bedrock models may work, using different models might lead to unexpected results. The default model ID is set to `global.anthropic.claude-sonnet-5-5` (Claude Sonnet 5.5), which uses Adaptive Thinking (on by default) with high effort and natively supports a 1M token context window. Claude Fable 5.1 (`global.anthropic.claude-fable-5-1`), Claude Fable 5 and Sonnet 5 use always-on Adaptive Thinking with high effort and natively support a 1M token context window. Claude Opus 5 (`global.anthropic.claude-opus-5`) uses Adaptive Thinking (on by default) with high effort and natively supports a 1M token context window. Claude Opus 4.8 and 4.7 models use Adaptive Thinking with xhigh effort and natively support 1M token context window. Claude 4.6 models use Adaptive Thinking with high effort and natively support 1M token context window, while Claude 4.5 models use Extended Thinking with budget tokens. Claude Fable 5.1 is an Anthropic *Covered Model*: your account must first opt in to AWS review (Bedrock data retention mode `aws_review`, see [Amazon Bedrock abuse detection](https://docs.aws.amazon.com/bedrock/latest/userguide/abuse-detection.html)) and it is offered via the `us.`/`global.` inference profiles only.
 
 ### Batch Size Configuration
 
@@ -725,7 +748,7 @@ AWS_SESSION_TOKEN=your-session-token
 WA_DOCS_S3_BUCKET=your-knowledgebase-source-bucket-name
 LENS_METADATA_TABLE=your-lens-metadata-table-name
 KNOWLEDGE_BASE_ID=your-kb-id
-MODEL_ID=global.anthropic.claude-sonnet-4-5-20250929-v1:0
+MODEL_ID=global.anthropic.claude-sonnet-5-5
 
 # Analysis Configuration
 BATCH_SIZE=5
