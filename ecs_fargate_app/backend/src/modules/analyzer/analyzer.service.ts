@@ -208,7 +208,7 @@ export class AnalyzerService {
 
                 // Fail fast when the model or a guardrail declined to answer: there is
                 // no JSON to parse and re-invoking will not help. Claude Fable 5.1,
-                // Opus 5 and Sonnet 5.5 ship with blocking safety classifiers (surfaced by Bedrock as
+                // Opus 5, Opus 5.5 and Sonnet 5.5 ship with blocking safety classifiers (surfaced by Bedrock as
                 // "content_filtered"; Anthropic's native stop reason is "refusal").
                 const stopReason: string | undefined = response?.stopReason;
                 if (stopReason && ['content_filtered', 'guardrail_intervened', 'refusal'].includes(stopReason)) {
@@ -370,12 +370,27 @@ export class AnalyzerService {
     // 400, native 1M context window (no beta header), 128K max output. Effort levels:
     // low | medium | high | xhigh | max (default "high"). Uses the Opus 4.7+ tokenizer
     // (up to ~35% more tokens than pre-4.7 models).
-    // NOTE: does not match "claude-opus-4-x". A future "claude-opus-5-1" WOULD match
-    // this substring and would need its own predicate evaluated before this one.
+    // NOTE: does not match "claude-opus-4-x", but it DOES match "claude-opus-5-5" (and any
+    // future "claude-opus-5-x"); Opus 5.5 is excluded here and has its own predicate.
     private isOpus5(): boolean {
         const modelId = this.configService.get<string>('aws.bedrock.modelId');
         if (!modelId) return false;
-        return modelId.includes('claude-opus-5');
+        return modelId.includes('claude-opus-5') && !this.isOpus55();
+    }
+
+    // Check if the current model is Claude Opus 5.5 (model ID "claude-opus-5-5").
+    // Adaptive thinking is ALWAYS ON and cannot be disabled: omitting the "thinking" field
+    // is equivalent to {type: "adaptive"}, while thinking: {type: "disabled"} and manual
+    // budget_tokens return a 400 at every effort level. Non-default temperature/top_p/top_k
+    // return a 400. Native 1M context window (a context-window beta header has no effect),
+    // 128K max output, Opus 4.7+ tokenizer. Effort levels: low | medium | high | xhigh | max;
+    // the DEFAULT IS "medium" (Opus 5 and earlier default to "high").
+    // NOTE: "claude-opus-5" is a substring of "claude-opus-5-5", so this predicate must be
+    // evaluated before isOpus5() and isOpus5() must exclude it.
+    private isOpus55(): boolean {
+        const modelId = this.configService.get<string>('aws.bedrock.modelId');
+        if (!modelId) return false;
+        return modelId.includes('claude-opus-5-5');
     }
 
     // Check if the current model is Claude Fable 5.1 (model ID "claude-fable-5-1").
@@ -537,6 +552,27 @@ export class AnalyzerService {
 
             return {
                 additionalModelRequestFields: additionalFields,
+                inferenceConfig: {
+                    maxTokens: 64000
+                }
+            };
+        }
+
+        // Claude Opus 5.5: Adaptive thinking is ALWAYS ON, so no "thinking" field is sent
+        // (thinking: {type: "disabled"} and budget_tokens return a 400 on this model). No
+        // sampling params. Native 1M context window, so no beta header is sent. Effort is set
+        // explicitly to "medium": it is this model's default and Anthropic's recommended
+        // starting point (Anthropic reports Opus 5.5 at "medium" matches or exceeds Opus 5 at
+        // "high" on coding and knowledge-work evaluations). maxTokens 64000 leaves room for
+        // thinking, which counts against the max_tokens hard limit.
+        // Must be checked BEFORE isOpus5() (substring collision, see isOpus55()).
+        if (this.isOpus55()) {
+            return {
+                additionalModelRequestFields: {
+                    output_config: {
+                        effort: "medium"
+                    }
+                },
                 inferenceConfig: {
                     maxTokens: 64000
                 }
@@ -2293,8 +2329,8 @@ export class AnalyzerService {
 
         // Models that are NOT supported by the KB RetrieveAndGenerate API
         // (or require custom prompt templates). Claude Sonnet 5, Claude Sonnet 5.5,
-        // Claude Opus 5 and Claude Fable 5.1 are included conservatively as newly
-        // released models (their
+        // Claude Opus 5, Claude Opus 5.5 and Claude Fable 5.1 are included conservatively
+        // as newly released models (their
         // Bedrock model cards list Knowledge Base support, but RetrieveAndGenerate with
         // this app's custom prompt template has not been validated on them) — the KB
         // retrieval step falls back to Sonnet 4.6 while the main analysis still uses
@@ -2302,7 +2338,8 @@ export class AnalyzerService {
         const unsupportedKbModels = [
             'claude-opus-4-7',
             'claude-opus-4-8',
-            'claude-opus-5',
+            'claude-opus-5',    // also matches claude-opus-5-5
+            'claude-opus-5-5',
             'claude-fable-5',   // also matches claude-fable-5-1
             'claude-fable-5-1',
             'claude-sonnet-5',  // also matches claude-sonnet-5-5
@@ -2329,13 +2366,14 @@ export class AnalyzerService {
      */
     private kbModelForbidsSamplingParams(): boolean {
         const configuredModelId = this.configService.get<string>('aws.bedrock.modelId');
-        // Claude Opus 4.7, Opus 4.8, Opus 5, Fable 5, Fable 5.1, Sonnet 5 and Sonnet 5.5 reject
+        // Claude Opus 4.7, Opus 4.8, Opus 5, Opus 5.5, Fable 5, Fable 5.1, Sonnet 5 and Sonnet 5.5 reject
         // non-default temperature/top_p/top_k. The fallback model (Sonnet 4.6) also uses
         // adaptive thinking and may reject these, so we check the *effective* KB model too.
         const modelsWithoutSampling = [
             'claude-opus-4-7',
             'claude-opus-4-8',
-            'claude-opus-5',
+            'claude-opus-5',    // also matches claude-opus-5-5
+            'claude-opus-5-5',
             'claude-fable-5',   // also matches claude-fable-5-1
             'claude-fable-5-1',
             'claude-sonnet-5',  // also matches claude-sonnet-5-5
